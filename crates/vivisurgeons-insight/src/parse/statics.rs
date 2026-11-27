@@ -750,6 +750,14 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
             };
             Some(vec![Static::AbilityCostChange { kind, of, targeting, by, shift }])
         },
+        // "Counters can't be put on artifacts, creatures, enchantments, or
+        // lands" (Solemnity, [counters-cant-be-put]): the objects that can't
+        // have counters put on them, said passively.
+        |p| {
+            p.words("counters can't be put on")?;
+            let what = objects(p)?;
+            (what.quant == Quant::Plural).then(|| vec![Static::Restrict { what, rule: Restriction::CantHaveCountersPut }])
+        },
         // "Activated abilities of artifacts your opponents control can't be
         // activated", perhaps "unless they're mana abilities".
         |p| {

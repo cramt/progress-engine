@@ -14485,6 +14485,16 @@ fn static_full(o: &mut Out, s: &Static) {
             );
             return;
         }
+        // "Counters can't be put on artifacts, creatures, enchantments, or
+        // lands" ([counters-cant-be-put]): a plural group says it passively.
+        Static::Restrict {
+            rule: Restriction::CantHaveCountersPut,
+            what,
+        } if what.quant == Quant::Plural => {
+            o.w("counters can't be put on");
+            objects(o, what);
+            return;
+        }
         // "Activated abilities of artifacts can't be activated", perhaps
         // "unless they're mana abilities".
         Static::Restrict {

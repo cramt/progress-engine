@@ -93,7 +93,7 @@ reports every one. The lists in `milestones/` say where they came from, and
 | Modern metagame: every card in MTGGoldfish's 60 archetypes, sideboards included | 571/571 | 1164/1164 | done |
 | All of Standard | 4386/5157 (85.0%) | 9587/10421 (92.0%) | |
 | EDHREC top 2000 | 1839/1987 (92.6%) | 3673/3848 (95.5%) | |
-| EDHREC top 5000 | 4240/4977 (85.2%) | 9270/10107 (91.7%) | |
+| EDHREC top 5000 | 4241/4977 (85.2%) | 9271/10107 (91.7%) | |
 | Commander precons | 4872/6151 (79.2%) | 10820/12228 (88.5%) | |
 
 Cards tagged `unique-cr-reference` are left out of the lists too, so Karn
@@ -161,7 +161,7 @@ or all, may or must) is a node; a difference only in wording is a synonym.
 | Modern metagame (pinned) | 1164/1164 (100%) |
 | My decks (pinned) | 2136/2136 (100%) |
 | EDHREC top 2000 | 3668/3669 (99.97%) |
-| All parsed abilities | 52358/52383 (99.95%) |
+| All parsed abilities | 52359/52384 (99.95%) |
 
 `tests/roundtrip.rs` holds every pinned ability to it. A second test renames
 each pinned card, in its name and in its text (the whole name, and a leading

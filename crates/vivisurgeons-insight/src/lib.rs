@@ -2846,4 +2846,33 @@ mod round_nine_d {
         );
         assert!(!s.contains("name: \"haste\""), "{s}");
     }
+
+    #[test]
+    fn counters_cant_be_put_on_a_group() {
+        let s = format!(
+            "{:?}",
+            read(
+                "Enchantment",
+                "Counters can't be put on artifacts, creatures, enchantments, or lands."
+            )
+        );
+        assert!(s.contains("rule: CantHaveCountersPut"), "{s}");
+    }
+
+    #[test]
+    fn counters_cant_be_put_on_one_object_is_not_read() {
+        let face = Face {
+            name: "Some Card",
+            type_line: "Enchantment",
+            text: "Counters can't be put on target creature.",
+        };
+        let s = format!(
+            "{:?}",
+            read_face_unresolved(&face, "Some Card")
+                .iter()
+                .map(|l| l.parsed.as_ref().ok())
+                .collect::<Vec<_>>()
+        );
+        assert!(!s.contains("CantHaveCountersPut"), "{s}");
+    }
 }

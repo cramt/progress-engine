@@ -783,7 +783,7 @@ cost: {2}{W}
 > Players can't get counters.
 > Counters can't be put on artifacts, creatures, enchantments, or lands.
 = Static([PlayerRestrict { who: Each, rules: [CantGetCounters] }])
-= BROKE at "," after: counters can't be put on artifacts
+= Static([Restrict { what: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")], [Type("creature")], [Type("enchantment")], [Type("land")]], kind: None, posts: [], or: None } }, rule: CantHaveCountersPut }])
 
 ## Spara's Headquarters
 face: Spara's Headquarters
