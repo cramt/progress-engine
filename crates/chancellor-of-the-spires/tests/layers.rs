@@ -381,3 +381,27 @@ fn cr_613_7c_losing_all_abilities_after_a_double_strike_counter_removes_it() {
     s.resolve([c], vec![Op::LoseAll]);
     assert!(!has(&s, c, Ability::Keyword(Keyword::DoubleStrike)));
 }
+
+/// CR 113.6b, 613.7a, 613.7d: a static of a card in a graveyard has the
+/// timestamp the card got entering it, so "loses all abilities" from
+/// before that takes nothing it grants, and from after takes it.
+#[test]
+fn a_graveyard_static_applies_in_the_order_the_card_entered_the_graveyard() {
+    let flying = Ability::Keyword(Keyword::Flying);
+    let grants = of(vec![Op::Grant(flying)], vec![creatures(), Pred::YouControl]);
+    for enters_last in [false, true] {
+        let mut s = State::default();
+        let c = s.enter(creature(pt(2, 2), 2, Color::Green), vec![]);
+        let card = creature(pt(2, 2), 4, Color::Blue);
+        if enters_last {
+            s.resolve([c], vec![Op::LoseAll]);
+            let stamp = s.stamp();
+            s.in_graveyard(card, YOU, vec![grants.clone()], stamp);
+        } else {
+            let stamp = s.stamp();
+            s.in_graveyard(card, YOU, vec![grants.clone()], stamp);
+            s.resolve([c], vec![Op::LoseAll]);
+        }
+        assert_eq!(has(&s, c, flying), enters_last);
+    }
+}

@@ -208,6 +208,7 @@ const INDEXED: &[&str] = &[
     "Accumulated Knowledge",
     "Plague Belcher",
     "Dread Wanderer",
+    "Wonder",
 ];
 
 fn index() -> &'static IndexFile {
@@ -3627,4 +3628,55 @@ fn a_revealed_card_the_filter_doesnt_match_diverges() {
             what: "Grizzly Bears from among the cards Commune with Dinosaurs looked at".into()
         })
     );
+}
+
+/// CR 113.6b, 109.5: Wonder discarded to Careful Study gives alice's
+/// creatures flying from her graveyard while she controls an Island, and
+/// bob's none.
+#[test]
+fn wonder_in_a_graveyard_gives_its_owners_creatures_flying() {
+    let (_, r) = run("
+        alice chooses to play first.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Island].
+        alice casts [Careful Study].
+        alice draws two cards with [Careful Study].
+        alice discards [Wonder].
+        alice discards [Island].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Forest].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Forest].
+        alice casts [Llanowar Elves].
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Forest].
+        bob casts [Grizzly Bears].
+        Turn 3: alice
+        alice draws a card.
+        alice has conceded from the game.
+        bob wins the game.
+        Winner: bob
+    ");
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.expect("set up");
+    let flying = |name: &str| {
+        let chars = game.characteristics();
+        let (id, _) = game
+            .permanents()
+            .iter()
+            .find(|(_, p)| game.card(p.card).is_some_and(|t| t.name == name))
+            .expect(name);
+        chars[id]
+            .abilities
+            .contains(&chancellor_of_the_spires::model::Ability::Keyword(
+                chancellor_of_the_spires::model::Keyword::Flying,
+            ))
+    };
+    assert_eq!(named_in(&game, game.player(ALICE).graveyard(), "Wonder"), 1);
+    assert!(flying("Llanowar Elves"));
+    assert!(!flying("Grizzly Bears"));
 }

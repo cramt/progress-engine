@@ -105,8 +105,52 @@ impl Run<'_> {
     fn timestamp(&self, e: Effect) -> Timestamp {
         match e {
             // CR 613.7a, without abilities granted by a later effect.
-            Effect::Static(o, _) => self.state.objects[&o].timestamp,
+            Effect::Static(o, _) => match self.state.graveyard_sources.get(&o) {
+                Some(g) => g.timestamp,
+                None => self.state.objects[&o].timestamp,
+            },
             Effect::Resolved(i) => self.state.resolved[i].timestamp,
+        }
+    }
+
+    /// A static's source as its abilities read it: a permanent as the
+    /// layers have made it so far, or a card in a graveyard as it is
+    /// printed: the engine's continuous effects reach only the
+    /// battlefield, so none changes it.
+    fn source_chars<'b>(
+        &'b self,
+        source: ObjectId,
+        now: &'b BTreeMap<ObjectId, Chars>,
+    ) -> &'b Chars {
+        match self.state.graveyard_sources.get(&source) {
+            Some(g) => &g.printed,
+            None => &now[&source],
+        }
+    }
+
+    /// `id` as a static of `source` sees it. A card in a graveyard is
+    /// attached to nothing and chose no type (CR 400.7: it is a new
+    /// object there).
+    fn seen<'b>(
+        &'b self,
+        id: ObjectId,
+        chars: &'b Chars,
+        source: ObjectId,
+        source_chars: &'b Chars,
+    ) -> Seen<'b> {
+        let object = self.state.objects.get(&source);
+        Seen {
+            id,
+            chars,
+            source,
+            source_chars,
+            source_attached_to: object.and_then(|o| o.attached_to),
+            source_chosen: object.and_then(|o| o.chosen_type.as_ref()),
+            token: self.state.objects[&id].token,
+            attacking: self.state.attacking.contains(&id),
+            // The layers see no combat; only provoke's target, which the
+            // game checks, says "defending player".
+            source_defending: None,
         }
     }
 
@@ -119,8 +163,15 @@ impl Run<'_> {
                 Ability::Keyword(_) | Ability::Unread(_) | Ability::Intrinsic(_) => None,
             })
         });
+        let in_graveyards = self.state.graveyard_sources.iter().flat_map(|(o, g)| {
+            g.printed.abilities.iter().filter_map(move |a| match a {
+                Ability::Static(s) => Some(Effect::Static(*o, *s)),
+                Ability::Keyword(_) | Ability::Unread(_) | Ability::Intrinsic(_) => None,
+            })
+        });
         let resolved = (0..self.state.resolved.len()).map(Effect::Resolved);
         statics
+            .chain(in_graveyards)
             .chain(resolved)
             .chain(self.started.keys().copied())
             .filter(|e| self.has_part_in(*e, layer))
@@ -133,7 +184,9 @@ impl Run<'_> {
     fn exists(&self, e: Effect, now: &BTreeMap<ObjectId, Chars>) -> bool {
         match e {
             Effect::Static(o, s) => {
-                now[&o].abilities.contains(&Ability::Static(s))
+                self.source_chars(o, now)
+                    .abilities
+                    .contains(&Ability::Static(s))
                     && self.state.statics[&s]
                         .condition
                         .as_ref()
@@ -146,7 +199,7 @@ impl Run<'_> {
     /// "As long as you control a Mountain": counted among the permanents
     /// the source's controller controls.
     fn holds(&self, cond: &Condition, source: ObjectId, now: &BTreeMap<ObjectId, Chars>) -> bool {
-        let source_chars = &now[&source];
+        let source_chars = self.source_chars(source, now);
         let cond = match cond {
             Condition::YouControl(c) => c,
             Condition::YourTurn => return self.state.active == Some(source_chars.controller),
@@ -176,21 +229,10 @@ impl Run<'_> {
             .iter()
             .filter(|(id, c)| {
                 c.controller == source_chars.controller
-                    && cond.any_of.iter().any(|f| {
-                        f.matches(&Seen {
-                            id: **id,
-                            chars: c,
-                            source,
-                            source_chars,
-                            source_attached_to: self.state.objects[&source].attached_to,
-                            source_chosen: self.state.objects[&source].chosen_type.as_ref(),
-                            token: self.state.objects[*id].token,
-                            attacking: self.state.attacking.contains(*id),
-                            // The layers see no combat; only provoke's target, which the
-                            // game checks, says "defending player".
-                            source_defending: None,
-                        })
-                    })
+                    && cond
+                        .any_of
+                        .iter()
+                        .any(|f| f.matches(&self.seen(**id, c, source, source_chars)))
             })
             .count();
         cond.count.holds(n as u32)
@@ -204,17 +246,9 @@ impl Run<'_> {
         chars: &Chars,
         source_chars: &Chars,
     ) -> bool {
-        ability.filter.matches(&Seen {
-            id,
-            chars,
-            source,
-            source_chars,
-            source_attached_to: self.state.objects[&source].attached_to,
-            source_chosen: self.state.objects[&source].chosen_type.as_ref(),
-            token: self.state.objects[&id].token,
-            attacking: self.state.attacking.contains(&id),
-            source_defending: None,
-        })
+        ability
+            .filter
+            .matches(&self.seen(id, chars, source, source_chars))
     }
 
     /// What the effect applies to: the set it began with, or for one that
@@ -239,7 +273,13 @@ impl Run<'_> {
             Effect::Static(source, s) => now
                 .iter()
                 .filter(|(id, c)| {
-                    self.matches(&self.state.statics[&s], source, **id, c, &now[&source])
+                    self.matches(
+                        &self.state.statics[&s],
+                        source,
+                        **id,
+                        c,
+                        self.source_chars(source, now),
+                    )
                 })
                 .map(|(id, _)| *id)
                 .collect(),
@@ -283,12 +323,9 @@ impl Run<'_> {
                 return true;
             }
         }
-        let source_after = if o == source {
-            after_a
-        } else {
-            &self.now[&source]
-        };
-        self.matches(ability, source, o, before, &self.now[&source])
+        let source_before = self.source_chars(source, &self.now);
+        let source_after = if o == source { after_a } else { source_before };
+        self.matches(ability, source, o, before, source_before)
             != self.matches(ability, source, o, after_a, source_after)
     }
 

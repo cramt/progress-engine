@@ -569,3 +569,157 @@ hand.\n{T}: Add {G}{W}.",
     enter(&mut s, &HUMILITY);
     assert_eq!(characteristics(&s)[&k].abilities.len(), 3);
 }
+
+const WONDER: Card = card(
+    "Wonder",
+    "Creature — Incarnation",
+    "Flying\nAs long as this card is in your graveyard and you control an Island, creatures you \
+control have flying.",
+    4,
+    &[Color::Blue],
+    Some(Pt {
+        power: 2,
+        toughness: 2,
+    }),
+);
+
+const ISLAND: Card = Card {
+    name: "Island",
+    type_line: "Basic Land — Island",
+    oracle_text: "({T}: Add {U}.)",
+    mana_value: 0,
+    colors: &[],
+    pt: None,
+};
+
+/// CR 113.6b, 109.5: Wonder's static functions only from its owner's
+/// graveyard, where "you" is its owner: their creatures fly while they
+/// control an Island, an opponent's don't, and Wonder on the battlefield
+/// gives none but its own flying.
+#[test]
+fn wonder_gives_flying_from_its_owners_graveyard_while_they_control_an_island() {
+    let flying = Ability::Keyword(Keyword::Flying);
+    let wonder = read(&WONDER);
+    assert!(wonder.statics.is_empty(), "{:?}", wonder.statics);
+    assert_eq!(wonder.graveyard_statics.len(), 1);
+    let opponent = PlayerId(1);
+    for island in [false, true] {
+        let mut s = State::default();
+        if island {
+            enter(&mut s, &ISLAND);
+        }
+        enter(&mut s, &FOREST);
+        let bears = enter(&mut s, &GRIZZLY_BEARS);
+        let theirs = {
+            let mut c = read(&GRIZZLY_BEARS).chars;
+            c.controller = opponent;
+            s.enter(c, vec![])
+        };
+        let stamp = s.stamp();
+        s.in_graveyard(
+            wonder.chars.clone(),
+            PlayerId(0),
+            wonder.graveyard_statics.clone(),
+            stamp,
+        );
+        let now = characteristics(&s);
+        assert_eq!(now[&bears].abilities.contains(&flying), island);
+        assert!(!now[&theirs].abilities.contains(&flying));
+    }
+    // On the battlefield it is a 2/2 flier and nothing more.
+    let mut s = State::default();
+    enter(&mut s, &ISLAND);
+    let bears = enter(&mut s, &GRIZZLY_BEARS);
+    let on_battlefield = enter(&mut s, &WONDER);
+    let now = characteristics(&s);
+    assert!(now[&on_battlefield].abilities.contains(&flying));
+    assert!(!now[&bears].abilities.contains(&flying));
+}
+
+/// A card in a graveyard isn't a permanent, so a graveyard static whose
+/// filter reads its source as one is refused, not read off a card that
+/// has no battlefield to be "other" on.
+#[test]
+fn a_graveyard_static_over_other_creatures_is_refused() {
+    const OTHER: Card = card(
+        "Test Incarnation",
+        "Creature — Incarnation",
+        "As long as this card is in your graveyard, other creatures you control have flying.",
+        4,
+        &[Color::Blue],
+        Some(Pt {
+            power: 2,
+            toughness: 2,
+        }),
+    );
+    let refusal = lower::card(&OTHER).err().expect("refused");
+    assert!(
+        refusal
+            .to_string()
+            .contains("a graveyard static over Other"),
+        "{refusal}"
+    );
+}
+
+/// Anger is Wonder's shape with a Mountain and haste: none without the
+/// Mountain, haste for its owner's creatures with it, and none for the
+/// creatures of a player whose graveyard it isn't in, though they control
+/// the Mountain (CR 113.6b, 109.5: "you" is its owner).
+#[test]
+fn anger_gives_haste_only_to_its_owners_creatures_while_they_control_a_mountain() {
+    const ANGER: Card = card(
+        "Anger",
+        "Creature — Incarnation",
+        "Haste\nAs long as this card is in your graveyard and you control a Mountain, creatures \
+you control have haste.",
+        4,
+        &[Color::Red],
+        Some(Pt {
+            power: 2,
+            toughness: 2,
+        }),
+    );
+    const MOUNTAIN: Card = Card {
+        name: "Mountain",
+        type_line: "Basic Land — Mountain",
+        oracle_text: "({T}: Add {R}.)",
+        mana_value: 0,
+        colors: &[],
+        pt: None,
+    };
+    let haste = Ability::Keyword(Keyword::Haste);
+    let anger = read(&ANGER);
+    let them = PlayerId(1);
+    for (owner, mountain) in [(them, false), (them, true), (PlayerId(0), true)] {
+        let mut s = State::default();
+        if mountain {
+            let mut c = read(&MOUNTAIN).chars;
+            c.controller = them;
+            s.enter(c, vec![]);
+        }
+        let mine = enter(&mut s, &GRIZZLY_BEARS);
+        let theirs = {
+            let mut c = read(&GRIZZLY_BEARS).chars;
+            c.controller = them;
+            s.enter(c, vec![])
+        };
+        let stamp = s.stamp();
+        s.in_graveyard(
+            anger.chars.clone(),
+            owner,
+            anger.graveyard_statics.clone(),
+            stamp,
+        );
+        let now = characteristics(&s);
+        let theirs_hasty = owner == them && mountain;
+        assert_eq!(
+            now[&theirs].abilities.contains(&haste),
+            theirs_hasty,
+            "{owner:?} {mountain}"
+        );
+        assert!(
+            !now[&mine].abilities.contains(&haste),
+            "{owner:?} {mountain}"
+        );
+    }
+}

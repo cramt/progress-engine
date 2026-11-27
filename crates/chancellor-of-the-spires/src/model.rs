@@ -659,6 +659,20 @@ pub struct Object {
     pub chosen_type: Option<Subtype>,
 }
 
+/// A card in a graveyard with a static ability that functions there (CR
+/// 113.6b): not on the battlefield, so the layers change nothing of it,
+/// but the source of effects on what is.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct GraveyardSource {
+    /// Its own characteristics, with its static abilities. A card in a
+    /// graveyard has no controller (CR 109.4); `controller` holds its
+    /// owner, whom its "you" then means (CR 109.5).
+    pub printed: Chars,
+    /// The one it got as it was put into the graveyard (CR 613.7d), which
+    /// its effects have (CR 613.7a).
+    pub timestamp: Timestamp,
+}
+
 /// The battlefield, as the layers need it. Persistent, so search can fork it.
 #[derive(Clone, Debug, Default, Hash)]
 pub struct State {
@@ -679,6 +693,10 @@ pub struct State {
     /// characteristic-defining ability that counts them; the game sets it
     /// only while a static on the battlefield reads it.
     pub graveyard_cards: Vector<Chars>,
+    /// The cards in graveyards whose statics function there, each an
+    /// object id no permanent has; the game sets them as it reads the
+    /// layers.
+    pub graveyard_sources: OrdMap<ObjectId, GraveyardSource>,
     pub objects: OrdMap<ObjectId, Object>,
     pub statics: OrdMap<StaticId, StaticAbility>,
     pub resolved: Vector<Resolved>,
@@ -695,6 +713,33 @@ impl State {
     /// timestamp (CR 613.7d).
     pub fn enter(&mut self, printed: Chars, statics: Vec<StaticAbility>) -> ObjectId {
         self.arrive(printed, statics, false)
+    }
+
+    /// A timestamp for an object entering a zone other than the
+    /// battlefield (CR 613.7d), ordered among the battlefield's.
+    pub fn stamp(&mut self) -> Timestamp {
+        Timestamp(self.tick())
+    }
+
+    /// A card in its owner's graveyard whose statics function there (CR
+    /// 113.6b), with the timestamp it got entering it.
+    pub fn in_graveyard(
+        &mut self,
+        mut printed: Chars,
+        owner: PlayerId,
+        statics: Vec<StaticAbility>,
+        timestamp: Timestamp,
+    ) -> ObjectId {
+        for s in statics {
+            let id = StaticId(self.tick());
+            self.statics.insert(id, s);
+            printed.abilities.insert(Ability::Static(id));
+        }
+        printed.controller = owner;
+        let id = ObjectId(self.tick());
+        self.graveyard_sources
+            .insert(id, GraveyardSource { printed, timestamp });
+        id
     }
 
     /// A token is created on the battlefield (CR 111.1, 613.7d).

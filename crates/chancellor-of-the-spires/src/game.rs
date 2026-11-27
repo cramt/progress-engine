@@ -2084,6 +2084,10 @@ pub struct Game {
     /// has been.
     presume_inert: bool,
     presumed: OrdSet<CardId>,
+    /// The timestamp each card got as it was last put into a graveyard
+    /// (CR 613.7d), which a static of it that functions there has (CR
+    /// 613.7a). Every card in a graveyard has one.
+    graveyard_stamps: OrdMap<CardId, model::Timestamp>,
     /// Libraries an instruction shuffled this turn.
     shuffled: u32,
     /// Permanents returned to a hand this turn, by a cost or an
@@ -2332,6 +2336,7 @@ impl Game {
             unknowable: Default::default(),
             presume_inert: false,
             presumed: OrdSet::new(),
+            graveyard_stamps: OrdMap::new(),
             returned: 0,
             transformed: 0,
             copies: Vector::new(),
@@ -2937,6 +2942,14 @@ impl Game {
         }
     }
 
+    /// Put a card on top of its owner's graveyard (CR 404.1), a new object
+    /// with a new timestamp (CR 400.7, 613.7d).
+    fn put_into_graveyard(&mut self, owner: PlayerId, card: CardId) {
+        self.players[owner.0 as usize].graveyard.push_back(card);
+        let stamp = self.battlefield.stamp();
+        self.graveyard_stamps.insert(card, stamp);
+    }
+
     /// Put a card into exile, a new object linked to none and plotted by
     /// nothing earlier (CR 400.7).
     fn put_in_exile(&mut self, card: CardId) {
@@ -2961,6 +2974,25 @@ impl Game {
         for (card, object) in self.exiled_with.iter() {
             if self.exile.contains(card) {
                 *state.exiled_with.entry(*object).or_insert(0) += 1;
+            }
+        }
+        // CR 113.6b: Wonder's flying from its owner's graveyard. A hidden
+        // card there has none the game runs; `refused_in_graveyard` says
+        // when that can't be presumed.
+        for (q, p) in self.players.iter().enumerate() {
+            for c in &p.graveyard {
+                let Some(Ok(runs)) = self.known(*c).map(|k| &k.runs) else {
+                    continue;
+                };
+                if runs.lowered.graveyard_statics.is_empty() {
+                    continue;
+                }
+                state.in_graveyard(
+                    runs.lowered.chars.clone(),
+                    PlayerId(q as u8),
+                    runs.lowered.graveyard_statics.clone(),
+                    self.graveyard_stamps[c],
+                );
             }
         }
         // Only while something counts them: they are read every time the
@@ -4342,7 +4374,7 @@ impl Game {
                         let owner = self.owner(card);
                         // It never entered, so it is no copy (CR 707.5).
                         self.cards[card.0 as usize].copy = None;
-                        self.players[owner.0 as usize].graveyard.push_back(card);
+                        self.put_into_graveyard(owner, card);
                         self.proceed(then);
                     }
                     _ => return Err(Rejected::Illegal(answer)),
@@ -6404,7 +6436,7 @@ impl Game {
             self.put_in_exile(card);
         } else {
             let owner = self.owner(card);
-            self.players[owner.0 as usize].graveyard.push_back(card);
+            self.put_into_graveyard(owner, card);
         }
     }
 
@@ -6836,7 +6868,7 @@ impl Game {
                     if self.madness.remove(&card).is_some() && self.exile.contains(&card) {
                         self.exile.retain(|c| *c != card);
                         let owner = self.owner(card);
-                        self.players[owner.0 as usize].graveyard.push_back(card);
+                        self.put_into_graveyard(owner, card);
                     }
                 }
                 // CR 702.62a, 702.62d: "if it's exiled", cast from exile
@@ -7764,7 +7796,7 @@ impl Game {
                         let player = &mut self.players[owner.0 as usize];
                         player.library.retain(|x| *x != c);
                         player.hand.retain(|x| *x != c);
-                        player.graveyard.push_back(c);
+                        self.put_into_graveyard(owner, c);
                     }
                 }
                 Effect::IfAmount { n, cmp, than, .. } => {
@@ -10505,7 +10537,7 @@ impl Game {
                         ordered: false,
                     });
                 }
-                None => self.players[p.0 as usize].graveyard.push_back(*c),
+                None => self.put_into_graveyard(p, *c),
             }
         }
     }
@@ -11044,15 +11076,14 @@ impl Game {
         self.turn_up(perm.card, Side::Front);
         self.cards[perm.card.0 as usize].copy = None;
         let owner = self.owner(perm.card);
-        let player = &mut self.players[owner.0 as usize];
         match to {
-            Zone::Graveyard => player.graveyard.push_back(perm.card),
+            Zone::Graveyard => self.put_into_graveyard(owner, perm.card),
             Zone::Hand => {
-                player.hand.push_back(perm.card);
+                self.players[owner.0 as usize].hand.push_back(perm.card);
                 self.returned += 1;
             }
             Zone::Exile => self.put_in_exile(perm.card),
-            Zone::LibraryBottom => player.library.push_back(perm.card),
+            Zone::LibraryBottom => self.players[owner.0 as usize].library.push_back(perm.card),
         }
         if to != Zone::Hand && self.cards[perm.card.0 as usize].commander {
             self.commanders_moved.push_back(perm.card);

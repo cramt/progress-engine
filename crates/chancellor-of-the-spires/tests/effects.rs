@@ -953,27 +953,40 @@ fn gravecrawler_isnt_cast_from_the_graveyard_by_their_zombie_or_my_bear() {
 }
 
 /// CR 113.6b: Anger's haste works while it is in my graveyard, and the
-/// engine doesn't run it, so once it is discarded there the game refuses
-/// to go on rather than play on without it.
+/// engine runs it from there, so once it is discarded the game goes on,
+/// its haste waiting on a Mountain I never control here.
 #[test]
-fn anger_in_a_graveyard_is_refused() {
+fn anger_in_a_graveyard_is_run_from_there() {
     let mut game = deal(&[("Anger", 60)], &[("Island", 60)], &[("Anger", 7)]);
     my_next_main(&mut game);
-    let refused = (0..200).find_map(|_| {
+    let mut refused = None;
+    for _ in 0..200 {
         let answer = match game.decision() {
             Decision::Discard { count, hand, .. } => Answer::Discard(hand[..count].to_vec()),
             Decision::Attackers { .. } => Answer::Attack(vec![]),
             _ => Answer::Act(Action::Pass),
         };
-        game.step(answer).err()
-    });
-    assert!(
-        game.player(ME).graveyard().len() == 1,
+        if let Err(r) = game.step(answer) {
+            refused = Some(r);
+            break;
+        }
+        if !game.player(ME).graveyard().is_empty() {
+            break;
+        }
+    }
+    assert!(refused.is_none(), "{refused:?}");
+    assert_eq!(
+        game.player(ME).graveyard().len(),
+        1,
         "discarded to hand size"
     );
-    match refused {
-        Some(Rejected::Refused { card, .. }) => assert_eq!(card, "Anger"),
-        other => panic!("{other:?}"),
+    for _ in 0..20 {
+        let answer = match game.decision() {
+            Decision::Discard { count, hand, .. } => Answer::Discard(hand[..count].to_vec()),
+            Decision::Attackers { .. } => Answer::Attack(vec![]),
+            _ => Answer::Act(Action::Pass),
+        };
+        assert!(game.step(answer).is_ok(), "goes on with Anger there");
     }
 }
 

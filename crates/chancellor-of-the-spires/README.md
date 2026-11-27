@@ -509,7 +509,11 @@ graveyards, CR 604.3, 613.4a) and 7b–7d (setting, modifying, switching),
 counters in 7c, filters over type, supertype,
 subtype, colour, controller, "nontoken", "other", "this" and "enchanted",
 and alternatives of one type, supertype or colour each ("artifact or
-enchantment").
+enchantment"). A static that says it works while its card is in its
+owner's graveyard (Wonder, Anger) comes from there, its "you" the owner
+and its timestamp the one the card got entering the graveyard (CR 113.6b,
+109.5, 613.7a, 613.7d); one reading its card as a permanent ("other",
+"this", "enchanted", its counters) is refused.
 `tests/layers.rs` has CR 613.4d, 613.5, 613.6 and 613.9's worked
 examples, built by hand since their cards are hypothetical. `tests/oracle.rs`
 reads real cards from their Oracle text: Glorious Anthem with counters,
@@ -1103,11 +1107,11 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-27 181 of the 500 replay to
-the end and 61.76% of their lines are followed** (19,553 of 31,659), 3
+Worked card by card from there, **on 2026-11-27 186 of the 500 replay to
+the end and 62.29% of their lines are followed** (19,720 of 31,659), 3
 of them relying on a land the log never names (2 to the end) and 11 on a
 card no one named in a graveyard having no ability there (2 to the end),
-and 181 games have no card the engine refuses before any game (from 21). The
+and 188 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
 Warchief); "for each" sizes counted on resolution (Goblin Piledriver);
@@ -1456,7 +1460,13 @@ under the control of the player following it, an Aura returned that way
 refused, as an ability whose source a cost sacrifices beside a target in
 a graveyard and one moving its own card out of a graveyard are (CR
 602.5d, 601.2h, 110.2a, 303.4f, 113.6m: Recurring Nightmare, whose 3
-games replay to the end).
+games replay to the end); and a static that says it works while its card
+is in its owner's graveyard, "you" being that owner and its timestamp the
+one the card got entering the graveyard, refused where it reads its card
+as a permanent (CR 113.6b, 109.4, 109.5, 613.7a, 613.7d: Wonder, whose 5
+games go on, four to the end and one to Gaea's Blessing, and Anger, whose
+2 go on, one to the end, the other's Fyndhorn Elves tapping for mana the
+turn it was cast).
 And
 the replay's inferences: a card played or cast while its player may
 play cards from exile taken from there before the hand, the hand the

@@ -112,6 +112,11 @@ pub struct Card<'a> {
 pub struct Lowered {
     pub chars: Chars,
     pub statics: Vec<StaticAbility>,
+    /// "As long as this card is in your graveyard and you control an
+    /// Island, creatures you control have flying": static abilities that
+    /// function only while the card is in its owner's graveyard (CR
+    /// 113.6b), never on the battlefield, so they never enter with it.
+    pub graveyard_statics: Vec<StaticAbility>,
     /// The abilities the layers carry but don't read, in the order of
     /// `Ability::Unread`'s index, for the state machine to run.
     pub unread: Vec<i::Ability>,
@@ -229,6 +234,7 @@ pub fn card(card: &Card) -> Result<Lowered, Refusal> {
             controller: PlayerId(0),
         },
         statics: Vec::new(),
+        graveyard_statics: Vec::new(),
         unread: Vec::new(),
         unread_text: Vec::new(),
     };
@@ -272,7 +278,10 @@ impl Lowered {
             // Carried with its binders, since the state machine resolves
             // them: the targets, the trigger's objects.
             a if carried(&a) => self.unread(a),
-            i::Ability::Static(parts) => self.statics.push(static_ability(&parts, &[])?),
+            i::Ability::Static(parts) => match graveyard_static(&parts)? {
+                Some(s) => self.graveyard_statics.push(s),
+                None => self.statics.push(static_ability(&parts, &[])?),
+            },
             // A static's objects, bound so another sentence of it can say
             // "its" ([binders] in Insight's SEMANTICS.md).
             i::Ability::Let { bind, ability } => match *ability {
@@ -932,6 +941,81 @@ fn count_of(op: i::Op, v: u32) -> Result<Count, String> {
         i::Op::Lt if v > 0 => Count::AtMost(v - 1),
         _ => return Err("AsLongAs(AmountIs) of exactly a number".into()),
     })
+}
+
+/// "As long as this card is in your graveyard and you control an Island,
+/// creatures you control have flying": a static that says it functions
+/// in its owner's graveyard, so only there (CR 113.6b), where "you" is
+/// its owner (CR 109.5), a card in a graveyard having no controller (CR
+/// 109.4).
+/// `None` if the ability doesn't say so. The card isn't a permanent
+/// there, so what reads the source as one (itself, what it is attached
+/// to, its chosen type, its counters, the cards it exiled) is refused
+/// rather than read off a card that has none of them.
+fn graveyard_static(parts: &[i::Static]) -> Result<Option<StaticAbility>, String> {
+    let [i::Static::AsLongAs { order, cond, then }] = parts else {
+        return Ok(None);
+    };
+    let in_graveyard = |c: &i::Condition| {
+        matches!(c, i::Condition::In {
+            what,
+            zone: i::Zone::Graveyard(i::Player::You) | i::Zone::OwnersGraveyard,
+        } if what.quant == Quant::SelfRef && what.filter == i::Filter::default())
+    };
+    let rest: Vec<&i::Condition> = match cond {
+        c if in_graveyard(c) => Vec::new(),
+        i::Condition::And(cs) if cs.iter().any(in_graveyard) => {
+            cs.iter().filter(|c| !in_graveyard(c)).collect()
+        }
+        _ => return Ok(None),
+    };
+    let ability = match rest.as_slice() {
+        [] => static_ability(then, &[])?,
+        [c] => static_ability(
+            &[i::Static::AsLongAs {
+                order: *order,
+                cond: (*c).clone(),
+                then: then.clone(),
+            }],
+            &[],
+        )?,
+        _ => return Err("a graveyard static with more than one other condition".into()),
+    };
+    if let Some(p) = ability.filter.0.iter().find(|p| {
+        matches!(
+            p,
+            Pred::Itself
+                | Pred::Other
+                | Pred::AttachedTo
+                | Pred::OfChosenType
+                | Pred::DefendingControls
+        )
+    }) {
+        return Err(format!("a graveyard static over {}", short(p)));
+    }
+    match &ability.condition {
+        None => {}
+        Some(Condition::YouControl(c))
+            if !c.any_of.iter().flat_map(|f| &f.0).any(|p| {
+                matches!(
+                    p,
+                    Pred::Itself
+                        | Pred::Other
+                        | Pred::AttachedTo
+                        | Pred::OfChosenType
+                        | Pred::DefendingControls
+                )
+            }) => {}
+        Some(other) => return Err(format!("a graveyard static as long as {}", short(other))),
+    }
+    if let Some(op) = ability
+        .ops
+        .iter()
+        .find(|op| !matches!(op, Op::Grant(_) | Op::Lose(_) | Op::ModifyPt(_)))
+    {
+        return Err(format!("a graveyard static that does {}", short(op)));
+    }
+    Ok(Some(ability))
 }
 
 /// A static ability is one ability however many sentences it has: each
