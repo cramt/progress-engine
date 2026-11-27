@@ -2136,6 +2136,13 @@ pub struct Game {
     /// Spells cast for their evoke cost, and the permanents they became,
     /// which evoke's trigger sacrifices (CR 702.74a).
     evoked: OrdSet<CardId>,
+    /// Cards madness exiled as they were discarded (CR 702.35a), read only
+    /// while the trigger it gave each is waiting, on the stack or
+    /// resolving.
+    madness: OrdSet<CardId>,
+    /// The card whose madness trigger is casting it, the trigger done once
+    /// the cast is (CR 608.2g).
+    cast_resolving: Option<CardId>,
     command: Vector<CardId>,
     /// How many times each commander has been cast from the command zone
     /// (CR 903.8).
@@ -2337,6 +2344,8 @@ impl Game {
             extra_lands_this_turn: OrdMap::new(),
             hasty: OrdSet::new(),
             evoked: OrdSet::new(),
+            madness: OrdSet::new(),
+            cast_resolving: None,
             command,
             commander_casts: OrdMap::new(),
             commanders_moved: Vector::new(),
@@ -2669,6 +2678,35 @@ impl Game {
     pub fn may_cast_suspended(&self) -> bool {
         matches!(&self.waiting, Waiting::May { at, .. }
             if matches!(at.what, Instructions::Triggered(_, TriggerOf::Suspend(true))))
+    }
+    /// The cards madness exiled as they were discarded, whose triggers
+    /// haven't resolved (CR 702.35a).
+    pub fn madness_exiled(&self) -> impl Iterator<Item = CardId> + '_ {
+        // One whose trigger was countered (Stifle) or left with its
+        // controller stays exiled, with no trigger to come.
+        let live = |c: CardId| {
+            let Some(n) = self.madness_trigger(c) else {
+                return false;
+            };
+            let ability = TriggerOf::Printed(Printed::Face(Side::Front), n);
+            self.pending
+                .iter()
+                .any(|p| p.source == c && p.ability == ability)
+                || self.stack.iter().any(|o| {
+                    matches!(o, StackObject::Trigger { source, ability: a, .. }
+                        if *source == c && *a == ability)
+                })
+                || matches!(&self.waiting, Waiting::May { at, .. }
+                    if at.what == Instructions::Triggered(c, ability))
+        };
+        self.madness.iter().copied().filter(move |c| live(*c))
+    }
+    /// Whether the "may" waiting is madness's, to cast the card it exiled
+    /// for its madness cost (CR 702.35a).
+    pub fn may_cast_madness(&self) -> bool {
+        matches!(&self.waiting, Waiting::May { at, .. }
+            if matches!(at.what, Instructions::Triggered(c, TriggerOf::Printed(_, n))
+                if self.madness_trigger(c) == Some(n)))
     }
     /// The adventurer cards in exile `p` may cast, their Adventure having
     /// resolved (CR 715.3d).
@@ -5905,12 +5943,16 @@ impl Game {
         let creature = runs.lowered.chars.is(CardType::Creature);
         // CR 702.74a: cast for its evoke cost.
         let evoked = matches!(via, Via::Alternative(n) if runs.alternatives[&n].evoked);
+        // CR 702.35a: from the exile madness put it in.
+        let madness = matches!(via, Via::Alternative(n)
+            if runs.alternatives[&n].from == lower::CastFrom::Madness);
         let before = self.clone();
         self.turn_up(card, side);
         // CR 601.2a: from wherever it is.
         self.command.retain(|c| *c != card);
         if self.adventuring.remove(&card).is_some()
             || via == Via::Suspend
+            || madness
             || self.plotted.remove(&card).is_some()
             || self.may_play.remove(&card).is_some()
         {
@@ -6263,6 +6305,12 @@ impl Game {
             card: spell,
             controller: player,
         });
+        // CR 608.2g, 117.3b: cast as an ability resolved, which is then
+        // done, the active player getting priority.
+        if let Some(source) = self.cast_resolving.take() {
+            self.last_resolved = Some(source);
+            return self.give_priority(self.active, 0);
+        }
         self.give_priority(player, 0);
     }
 
@@ -6687,6 +6735,47 @@ impl Game {
                         ),
                     });
                     return;
+                }
+                // CR 702.35a, 608.2g: cast by its madness cost, from
+                // exile, as the trigger resolves; the ability is done.
+                Effect::CastMadness => {
+                    let card = at.what.card();
+                    // CR 601.2c: one with no legal target can't be cast,
+                    // and goes to the graveyard.
+                    let targetable = self.known(card).is_some_and(|k| {
+                        k.runs
+                            .as_ref()
+                            .is_ok_and(|r| self.spell_targetable(r, p, k.printed.as_ref()))
+                    });
+                    if self.madness.contains(&card) && self.exile.contains(&card) && targetable {
+                        let Some((n, _)) = self
+                            .runs_of(card)
+                            .alternatives
+                            .iter()
+                            .find(|(_, a)| a.from == lower::CastFrom::Madness)
+                        else {
+                            unreachable!("only a card with madness has its trigger")
+                        };
+                        let n = *n;
+                        // Left in `madness`, which only a live trigger
+                        // reads, so a cast taken back (`Payment::Cancel`)
+                        // finds the card madness's still.
+                        match self.cast(p, card, Via::Alternative(n), Side::Front) {
+                            Ok(()) => self.cast_resolving = Some(card),
+                            Err(r) => self.halted = Some(r),
+                        }
+                        return;
+                    }
+                }
+                // CR 702.35a: not cast, the card still in exile goes to its
+                // owner's graveyard.
+                Effect::MadnessToGraveyard => {
+                    let card = at.what.card();
+                    if self.madness.remove(&card).is_some() && self.exile.contains(&card) {
+                        self.exile.retain(|c| *c != card);
+                        let owner = self.owner(card);
+                        self.players[owner.0 as usize].graveyard.push_back(card);
+                    }
                 }
                 // CR 702.62a, 702.62d: "if it's exiled", cast from exile
                 // without paying its mana cost; the ability is done.
@@ -10285,10 +10374,50 @@ impl Game {
         self.chosen_from_hand(p, count, cards) && cards.iter().all(|c| self.known(*c).is_some())
     }
 
+    /// CR 701.9a: from the hand to the graveyard, but a card with
+    /// madness to exile instead, its trigger waiting (CR 702.35a).
     fn discard(&mut self, p: PlayerId, cards: &[CardId]) {
         let player = &mut self.players[p.0 as usize];
         player.hand.retain(|c| !cards.contains(c));
-        player.graveyard.extend(cards.iter().copied());
+        for c in cards {
+            // A card the engine refuses may still have madness, which
+            // would replace this discard.
+            if let Some(k) = self.known(*c) {
+                if let (Err(why), true) = (&k.runs, says_madness(&k.text.rules_text())) {
+                    self.halted = Some(Rejected::Refused {
+                        card: k.text.name.clone(),
+                        refusal: why.clone(),
+                    });
+                    return;
+                }
+            }
+            match self.madness_trigger(*c) {
+                Some(n) => {
+                    self.put_in_exile(*c);
+                    self.madness.insert(*c);
+                    self.pending.push_back(Pending {
+                        source: *c,
+                        object: None,
+                        ability: TriggerOf::Printed(Printed::Face(Side::Front), n),
+                        controller: p,
+                        triggering: None,
+                        amount: None,
+                        player: None,
+                        ordered: false,
+                    });
+                }
+                None => self.players[p.0 as usize].graveyard.push_back(*c),
+            }
+        }
+    }
+
+    /// The index of a card's madness trigger, if it has madness.
+    fn madness_trigger(&self, c: CardId) -> Option<u16> {
+        let runs = self.known(c)?.runs.as_ref().ok()?;
+        runs.triggered
+            .iter()
+            .find(|(_, t)| t.event == TriggerEvent::ExiledByMadness)
+            .map(|(n, _)| *n)
     }
 
     /// CR 121.1, 121.4: a card drawn, which what waits for it triggers
@@ -10439,8 +10568,9 @@ impl Game {
                         }
                     }
                     // CR 514.3a: no one gets priority unless state-based
-                    // actions were performed.
-                    if self.state_based_actions() != Checked::Nothing {
+                    // actions were performed or abilities triggered
+                    // (madness's, of a card discarded to hand size).
+                    if self.state_based_actions() != Checked::Nothing || !self.pending.is_empty() {
                         return self.give_priority(self.active, 0);
                     }
                 }
@@ -10989,6 +11119,13 @@ fn face_down_chars(controller: PlayerId) -> Chars {
     }
 }
 
+/// Whether a card's words give it madness, read without Insight, so a card
+/// the engine refuses is known to have it (CR 702.35a).
+fn says_madness(text: &str) -> bool {
+    text.lines()
+        .any(|l| l.trim_start().to_lowercase().starts_with("madness"))
+}
+
 /// Abilities that work only from a hand or a graveyard, which nothing
 /// offers yet (CR 702.29a, 702.29e, 702.53a; eternalize, embalm, unearth,
 /// scavenge and plot, CR 702.129a, 702.128a, 702.84a, 702.97a, 702.170a),
@@ -11203,6 +11340,14 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
                             }
                             Err(node) => runs.dormant.push(format!("evoke: {node}")),
                         }
+                    } else if let Some(madness) = lower::madness(k) {
+                        // Its discard is replaced whether or not its cost
+                        // can be paid, so one that can't is refused.
+                        let (alt, t) = madness.map_err(|node| {
+                            Unrunnable::new(node.clone(), format!("the game can't run {node} yet"))
+                        })?;
+                        runs.alternatives.insert(n, alt);
+                        runs.triggered.insert(n, t);
                     } else if let Some(alt) = lower::flashback(k) {
                         // One the engine can't pay for is carried and
                         // never offered: the card is still cast from hand.

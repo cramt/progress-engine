@@ -1297,6 +1297,19 @@ impl Driver<'_> {
                     self.did(i, "cast without paying its mana cost (CR 702.62a)");
                     return Ok(Next::Line(i + 1));
                 }
+                // A card madness exiled is cast as its trigger resolves,
+                // which `may` reads this line for; declined (a way back),
+                // the line casts another card of its name.
+                if self.cast_by_madness(cast) {
+                    if !self.until_consumed(i)? {
+                        return Err(Stop::Unfollowed {
+                            event: "Casts a madness card no trigger offers".into(),
+                            card: Some(card.name().to_string()),
+                        });
+                    }
+                    self.did(i, "cast for its madness cost (CR 702.35a)");
+                    return Ok(Next::Line(i + 1));
+                }
                 // Flashback, suspend, kicker, an alternative cost: the line
                 // shows which, though older logs print nothing for
                 // Fireblast's sacrifice. Of these, an alternative cost from
@@ -3960,6 +3973,20 @@ impl Driver<'_> {
             self.pass()?;
         }
         Ok(format!("a time counter removed from {name} (CR 702.62a)"))
+    }
+
+    /// Whether a line saying nothing of how it casts names a card of its
+    /// player's madness exiled, its trigger yet to resolve (CR 702.35a).
+    fn cast_by_madness(&self, cast: &log::Cast) -> bool {
+        let Object::Card(card) = &cast.card else {
+            return false;
+        };
+        let game = self.game.as_ref().expect("set up");
+        let p = self.seat(cast.player);
+        cast.via.is_none()
+            && game
+                .madness_exiled()
+                .any(|x| game.owner(x) == p && game.card(x).is_some_and(|t| t.name == card.name()))
     }
 
     /// Whether a line casts a card by suspend: it says so, or names a
@@ -6719,6 +6746,64 @@ impl Driver<'_> {
             self.act(Answer::May(true))?;
             let paid = self.aim_and_pay(k, &targets, &name)?;
             self.did(k, format!("cast {name} by suspend, {paid}"));
+            return Ok(());
+        }
+        // CR 702.35a, 608.2g: a card madness exiled is cast as its
+        // trigger resolves, so only by the line the replay resolved the
+        // trigger to follow. Another card of its name in the hand could
+        // be the one that line casts, so declining is a way back: the
+        // card then in the graveyard, the line is followed as a cast from
+        // the hand.
+        if self.game().may_cast_madness() {
+            let owner = self.game().owner(card);
+            let q = self.player_of(owner);
+            let at = self.at;
+            let cast = match &self.entries[at].event {
+                Event::Casts(c)
+                    if Some(c.player) == q
+                        && !self.consumed.contains(&at)
+                        && matches!(&c.card, Object::Card(x) if x.name() == name) =>
+                {
+                    Some(c.targets.clone())
+                }
+                _ => None,
+            };
+            let Some(targets) = cast else {
+                self.act(Answer::May(false))?;
+                self.did(
+                    at,
+                    format!("put {name} into the graveyard from madness's exile, which this line doesn't cast"),
+                );
+                return Ok(());
+            };
+            let game = self.game().clone();
+            self.checkpoints.push(Checkpoint {
+                game,
+                entry: at,
+                trace: self.trace.len(),
+                resume: at,
+                others: vec![Retry::Answer(
+                    Answer::May(false),
+                    format!("put {name} into the graveyard from madness's exile"),
+                )],
+                knew: self.knew(),
+                back: Back::Any,
+            });
+            self.consumed.insert(at);
+            self.act(Answer::May(true))?;
+            // Gone from exile, or with no legal target, it isn't cast.
+            if !self
+                .game()
+                .stack()
+                .iter()
+                .any(|o| matches!(o, StackObject::Spell { card: c, .. } if *c == card))
+            {
+                return Err(Stop::Diverged(Divergence::NeverOffered {
+                    what: format!("casting {name} by madness"),
+                }));
+            }
+            let paid = self.aim_and_pay(at, &targets, &name)?;
+            self.did(at, format!("cast {name} by madness, {paid}"));
             return Ok(());
         }
         let said = self

@@ -1553,6 +1553,13 @@ pub enum Effect {
     /// alternative cost of none (CR 608.2g, 118.9). Read, but not run:
     /// reaching it refuses by name.
     CastWithoutPaying(Slot),
+    /// Madness's "its owner may cast it by paying [cost] rather than
+    /// paying its mana cost", of the card whose trigger this is, if it is
+    /// still the card madness exiled (CR 702.35a, 608.2g).
+    CastMadness,
+    /// Madness's "If that player doesn't, they put this card into their
+    /// graveyard" (CR 702.35a).
+    MadnessToGraveyard,
     /// "Search your library for a Mountain or Forest card": `who`
     /// searches their library and may find a card the filter matches (CR
     /// 701.23a–b), bound to `into`. `enters` if an instruction after puts
@@ -2287,6 +2294,10 @@ pub enum TriggerEvent {
     /// "When you cast this spell": its controller casts it, the ability
     /// triggering from the stack (CR 113.6k, 601.2i).
     CastsItself,
+    /// Madness's "When this card is exiled this way": its owner discarded
+    /// it and madness exiled it instead (CR 702.35a), the ability
+    /// triggering from exile. Only that discard fires it.
+    ExiledByMadness,
     /// "Whenever this land becomes tapped": a permanent the filter
     /// matches becomes tapped, for mana, a cost or anything else.
     BecomesTapped(Filter),
@@ -5725,6 +5736,9 @@ pub enum Arranged {
 pub enum CastFrom {
     Hand,
     Graveyard,
+    /// Madness's: from exile, only as its own trigger resolves (CR
+    /// 702.35a, 608.2g), never offered with priority.
+    Madness,
 }
 
 /// A cost a card may be cast for rather than its mana cost (CR 118.9),
@@ -5993,6 +6007,48 @@ pub fn suspend(k: &i::Keyword) -> Option<Result<Suspend, String>> {
             targets: Vec::new(),
             effects: vec![Effect::May(Who::You, vec![Effect::CastSuspended])],
         },
+    }))
+}
+
+/// "Madness {2}{G}": "If a player would discard this card, that player
+/// discards it, but exiles it instead of putting it into their graveyard"
+/// and "When this card is exiled this way, its owner may cast it by paying
+/// [cost] rather than paying its mana cost. If that player doesn't, they
+/// put this card into their graveyard" (CR 702.35a). Its cost follows
+/// the rules for alternative costs (CR 702.35b). `None` if the keyword
+/// isn't madness; the node it can't lower if its cost is one a spell's
+/// cost can't be paid with.
+pub fn madness(k: &i::Keyword) -> Option<Result<(Alternative, Triggered), String>> {
+    if !k.name.eq_ignore_ascii_case("madness") {
+        return None;
+    }
+    let Some(i::KeywordParam::Cost(cost)) = &k.param else {
+        return Some(Err("madness without a cost".into()));
+    };
+    Some(spell_cost(cost).map(|(mana, other)| {
+        (
+            Alternative {
+                from: CastFrom::Madness,
+                mana,
+                other,
+                exiled: false,
+                instant_or_sorcery: false,
+                when: CastWhen::AsItsType,
+                evoked: false,
+            },
+            Triggered {
+                event: TriggerEvent::ExiledByMadness,
+                program: Program {
+                    targets: Vec::new(),
+                    effects: vec![
+                        Effect::May(Who::You, vec![Effect::CastMadness]),
+                        Effect::MadnessToGraveyard,
+                    ],
+                },
+                condition: None,
+                during: None,
+            },
+        )
     }))
 }
 

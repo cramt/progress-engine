@@ -8352,3 +8352,221 @@ fn an_evoked_creature_reanimated_isnt_sacrificed_again() {
         "a new object stays"
     );
 }
+
+/// CR 702.35a, 608.2g: Careful Study's discard of Basking Rootwalla exiles
+/// it instead, and its trigger asks its owner whether to cast it for its
+/// madness cost: taken, it is cast from exile and enters; declined, it
+/// goes to the graveyard. The Island discarded beside it goes there either
+/// way.
+#[test]
+fn a_card_with_madness_is_exiled_as_it_is_discarded_and_may_be_cast() {
+    for take in [true, false] {
+        let mut game = deal(
+            &[
+                ("Island", 30),
+                ("Careful Study", 10),
+                ("Basking Rootwalla", 20),
+            ],
+            &[("Island", 60)],
+            &[
+                ("Island", 2),
+                ("Careful Study", 1),
+                ("Basking Rootwalla", 1),
+            ],
+        );
+        play(&mut game, "Island");
+        cast(&mut game, "Careful Study", None);
+        let Decision::Discard { count, .. } = resolve(&mut game) else {
+            panic!("the discard")
+        };
+        assert_eq!(count, 2);
+        let walla = in_hand(&game, ME, "Basking Rootwalla").unwrap();
+        let island = in_hand(&game, ME, "Island").unwrap();
+        step(&mut game, Answer::Discard(vec![walla, island]));
+        assert!(game.exile().contains(&walla), "exiled, not discarded");
+        assert!(!game.player(ME).graveyard().contains(&walla));
+        assert!(game.player(ME).graveyard().contains(&island));
+        let d = resolve(&mut game);
+        assert_eq!(
+            d,
+            Decision::May {
+                player: ME,
+                card: walla
+            }
+        );
+        let d = step(&mut game, Answer::May(take));
+        if take {
+            assert!(matches!(d, Decision::Pay { .. }), "{d:?}");
+            assert!(!game.exile().contains(&walla));
+            // Taken back, the cast is the "may" asked again (CR 733.1).
+            let d = step(&mut game, Answer::Pay(Payment::Cancel));
+            assert_eq!(
+                d,
+                Decision::May {
+                    player: ME,
+                    card: walla
+                }
+            );
+            assert!(game.exile().contains(&walla));
+            let mut d = step(&mut game, Answer::May(true));
+            while let Decision::Pay { actions, .. } = d {
+                d = step(&mut game, Answer::Pay(actions[0]));
+            }
+            assert!(!game.exile().contains(&walla));
+            assert_eq!(game.stack().len(), 1, "the Rootwalla spell");
+            resolve(&mut game);
+            assert!(creature(&game, "Basking Rootwalla").is_some());
+        } else {
+            assert!(game.exile().is_empty());
+            assert!(game.player(ME).graveyard().contains(&walla));
+            assert!(creature(&game, "Basking Rootwalla").is_none());
+        }
+    }
+}
+
+/// Careful Study cast and resolved to its discard, these two cards of my
+/// hand discarded.
+fn study_discarding(game: &mut Game, first: &str, second: &str) -> Result<Decision, Rejected> {
+    play(game, "Island");
+    cast(game, "Careful Study", None);
+    let Decision::Discard { .. } = resolve(game) else {
+        panic!("the discard")
+    };
+    let a = in_hand(game, ME, first).unwrap();
+    let b = game
+        .player(ME)
+        .hand()
+        .iter()
+        .copied()
+        .find(|c| *c != a && game.card(*c).is_some_and(|t| t.name == second))
+        .unwrap();
+    game.step(Answer::Discard(vec![a, b]))
+}
+
+/// CR 514.3a, 702.35a: Basking Rootwalla discarded to hand size in the
+/// cleanup step is exiled, and its trigger goes on the stack then, its
+/// owner getting priority in that cleanup step.
+#[test]
+fn a_madness_card_discarded_to_hand_size_triggers_in_the_cleanup_step() {
+    let mut game = deal(
+        &[("Island", 30), ("Basking Rootwalla", 30)],
+        &[("Island", 60)],
+        &[("Basking Rootwalla", 1)],
+    );
+    my_next_main(&mut game);
+    let walla = in_hand(&game, ME, "Basking Rootwalla").unwrap();
+    let mut d = game.decision();
+    for _ in 0..50 {
+        if let Decision::Discard { .. } = d {
+            break;
+        }
+        d = step(&mut game, Answer::Act(Action::Pass));
+    }
+    assert!(matches!(d, Decision::Discard { count: 1, .. }), "{d:?}");
+    let d = step(&mut game, Answer::Discard(vec![walla]));
+    assert!(game.exile().contains(&walla));
+    assert!(matches!(d, Decision::Priority { player: ME, .. }), "{d:?}");
+    assert_eq!(game.step_now(), Step::Cleanup);
+    assert_eq!(game.active(), ME);
+    let d = resolve(&mut game);
+    assert_eq!(
+        d,
+        Decision::May {
+            player: ME,
+            card: walla
+        }
+    );
+}
+
+/// CR 608.2g, 117.3b: my Rootwalla discarded to their Thoughtseize is cast
+/// as its trigger resolves on their turn, and then they, the active
+/// player, get priority, not I who cast it.
+#[test]
+fn after_a_madness_cast_the_active_player_gets_priority() {
+    let mut game = deal_both(
+        &[("Island", 30), ("Basking Rootwalla", 30)],
+        &[("Swamp", 30), ("Thoughtseize", 30)],
+        &[("Basking Rootwalla", 1)],
+        &[("Swamp", 1), ("Thoughtseize", 1)],
+    );
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Swamp");
+    cast_as(
+        &mut game,
+        THEM,
+        "Thoughtseize",
+        Some(vec![Target::Player(ME)]),
+    );
+    let Decision::ChooseFromHand { .. } = resolve(&mut game) else {
+        panic!("{:?}", game.decision())
+    };
+    let walla = in_hand(&game, ME, "Basking Rootwalla").unwrap();
+    step(&mut game, Answer::Pick(Some(walla)));
+    assert!(game.exile().contains(&walla));
+    let d = resolve(&mut game);
+    assert_eq!(
+        d,
+        Decision::May {
+            player: ME,
+            card: walla
+        }
+    );
+    let mut d = step(&mut game, Answer::May(true));
+    while let Decision::Pay { actions, .. } = d {
+        d = step(&mut game, Answer::Pay(actions[0]));
+    }
+    assert!(
+        matches!(d, Decision::Priority { player: THEM, .. }),
+        "{d:?}"
+    );
+    assert_eq!(game.stack().len(), 1, "the Rootwalla spell");
+}
+
+/// CR 702.35a: Avacyn's Judgment's "Madness {X}{R}" is a cost the engine
+/// can't pay, so the card is refused; discarding it is refused too, since
+/// its madness would replace that discard.
+#[test]
+fn discarding_a_refused_card_with_madness_is_refused() {
+    let mut game = deal(
+        &[
+            ("Island", 30),
+            ("Careful Study", 10),
+            ("Avacyn's Judgment", 20),
+        ],
+        &[("Island", 60)],
+        &[
+            ("Island", 1),
+            ("Careful Study", 1),
+            ("Avacyn's Judgment", 2),
+        ],
+    );
+    let refused = study_discarding(&mut game, "Avacyn's Judgment", "Avacyn's Judgment");
+    match refused {
+        Err(Rejected::Refused { card, .. }) => assert_eq!(card, "Avacyn's Judgment"),
+        r => panic!("{r:?}"),
+    }
+}
+
+/// CR 601.2c, 702.35a: Just the Wind discarded with no creature on the
+/// battlefield to target can't be cast as its trigger resolves, so it goes to the
+/// graveyard even when its owner would cast it.
+#[test]
+fn a_madness_spell_with_no_legal_target_goes_to_the_graveyard() {
+    let mut game = deal(
+        &[("Island", 30), ("Careful Study", 10), ("Just the Wind", 20)],
+        &[("Island", 60)],
+        &[("Island", 2), ("Careful Study", 1), ("Just the Wind", 1)],
+    );
+    study_discarding(&mut game, "Just the Wind", "Island").unwrap();
+    assert_eq!(named(&game, game.exile(), "Just the Wind"), 1);
+    let Decision::May { card, .. } = resolve(&mut game) else {
+        panic!("{:?}", game.decision())
+    };
+    step(&mut game, Answer::May(true));
+    assert!(game
+        .stack()
+        .iter()
+        .all(|o| !matches!(o, StackObject::Spell { card: c, .. } if *c == card)));
+    assert!(game.player(ME).graveyard().contains(&card));
+    assert!(!game.exile().contains(&card));
+}

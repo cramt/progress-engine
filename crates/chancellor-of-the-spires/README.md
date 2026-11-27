@@ -1096,11 +1096,11 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-26 174 of the 500 replay to
-the end and 60.31% of their lines are followed** (19,092 of 31,659), 3
+Worked card by card from there, **on 2026-11-27 175 of the 500 replay to
+the end and 60.52% of their lines are followed** (19,160 of 31,659), 3
 of them relying on a land the log never names (2 to the end) and 11 on a
 card no one named in a graveyard having no ability there (2 to the end),
-and 176 games have no card the engine refuses before any game (from 21). The
+and 178 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
 Warchief); "for each" sizes counted on resolution (Goblin Piledriver);
@@ -1406,7 +1406,15 @@ and "when you cast this spell", triggering from the stack, never for a
 spell cast face down (CR 702.74a, 113.6k, 400.7, 708.2: Nulldrifter,
 whose 6 games go on, one to the end, the rest to Devastating Onslaught,
 Combustible Gearhulk, Phyrexian Obliterator, Shark Typhoon and Forbid's
-buyback).
+buyback); and madness, a discard of a card with it replaced by exile and
+its trigger from there, its owner casting it for its madness cost as the
+trigger resolves, or not, when it goes to the graveyard, the active
+player getting priority after such a cast and a cleanup step's trigger
+giving priority there, a card the engine refuses that has madness
+refused as it is discarded, and one with no legal target not cast (CR
+702.35a, 608.2g, 117.3b, 514.3a, 601.2c: Basking Rootwalla, whose 5 games go on, one to the end, the rest to
+Circular Logic, Genesis (2) and Opposition; and Psychatog's discard of a
+Circular Logic, refused there now, which went to the graveyard before).
 And
 the replay's inferences: a card played or cast while its player may
 play cards from exile taken from there before the hand, the hand the
@@ -1416,6 +1424,9 @@ instruction has a player sacrifice, from the log's "sacrifices" lines,
 one each, every other choice of permanents of those names a way back;
 a cast "by paying {2U} with evoke" for that cost, and a cast line saying
 nothing of how never evoke's;
+a card madness exiled cast only by the line its trigger resolved before,
+and otherwise put into the graveyard, a cast from the hand of another
+card of its name the way back;
 which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, the card a Shoal exiles

@@ -198,6 +198,9 @@ const INDEXED: &[&str] = &[
     "Diabolic Edict",
     "Ulamog's Crusher",
     "Nulldrifter",
+    "Basking Rootwalla",
+    "Arrogant Wurm",
+    "Careful Study",
 ];
 
 fn index() -> &'static IndexFile {
@@ -3175,4 +3178,120 @@ fn a_card_cast_face_down_and_never_named_stays_hidden() {
     let down: Vec<_> = game.permanents().values().filter(|p| p.face_down).collect();
     assert_eq!(down.len(), 1);
     assert!(game.card(down[0].card).is_none(), "never named");
+}
+
+fn named_in(
+    game: &chancellor_of_the_spires::game::Game,
+    cards: &imbl::Vector<chancellor_of_the_spires::game::CardId>,
+    name: &str,
+) -> usize {
+    cards
+        .iter()
+        .filter(|c| game.card(**c).is_some_and(|t| t.name == name))
+        .count()
+}
+
+/// The lines of a game where alice's Careful Study discards Basking
+/// Rootwalla and an Island, madness exiles the Rootwalla, and `then`
+/// follows its trigger.
+fn careful_study(then: &str) -> String {
+    format!(
+        "
+        alice chooses to play first.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Island].
+        alice casts [Careful Study].
+        alice draws two cards with [Careful Study].
+        alice discards [Basking Rootwalla].
+        alice discards [Island].
+        alice puts triggered ability from [Basking Rootwalla] onto the stack (Madness {{0}}).
+        {then}
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Forest].
+        alice has conceded from the game.
+        bob wins the game.
+        Winner: bob
+    "
+    )
+}
+
+/// CR 702.35a, 608.2g: a discarded Basking Rootwalla is exiled instead,
+/// and its trigger resolving, the cast line after it casts the Rootwalla
+/// for its madness cost from exile.
+#[test]
+fn a_card_discarded_with_madness_is_cast_from_exile_by_its_trigger() {
+    let (_, r) = run(&careful_study("alice casts [Basking Rootwalla]."));
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.expect("set up");
+    assert_eq!(on_battlefield(&game, "Basking Rootwalla"), 1);
+    let alice = game.player(ALICE);
+    assert_eq!(named_in(&game, alice.graveyard(), "Basking Rootwalla"), 0);
+    assert_eq!(named_in(&game, alice.graveyard(), "Island"), 1);
+    assert_eq!(named_in(&game, alice.graveyard(), "Careful Study"), 1);
+    assert!(game.exile().is_empty(), "{:?}", game.exile());
+}
+
+/// CR 702.35a: with no line casting it, the Rootwalla madness exiled goes
+/// to its owner's graveyard as the trigger resolves.
+#[test]
+fn a_card_madness_exiled_and_not_cast_goes_to_the_graveyard() {
+    let (_, r) = run(&careful_study(""));
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.expect("set up");
+    assert_eq!(on_battlefield(&game, "Basking Rootwalla"), 0);
+    let alice = game.player(ALICE);
+    assert_eq!(named_in(&game, alice.graveyard(), "Basking Rootwalla"), 1);
+    assert!(game.exile().is_empty(), "{:?}", game.exile());
+}
+
+/// CR 702.35a, 608.2g, 603.3b: two madness cards discarded at once, their
+/// triggers put on the stack in the log's order: the Rootwalla's, on top,
+/// casts it for {0}; it resolves, and Arrogant Wurm's trigger casts the
+/// Wurm for {2G}, its mana paid as that trigger resolves.
+#[test]
+fn two_madness_triggers_cast_each_card_as_each_resolves() {
+    let (_, r) = run("
+        alice chooses to play first.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Forest].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Forest].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Forest].
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Forest].
+        Turn 3: alice
+        alice draws a card.
+        alice plays [Forest].
+        Turn 3: bob
+        bob draws a card.
+        bob plays [Forest].
+        Turn 4: alice
+        alice draws a card.
+        alice plays [Island].
+        alice casts [Careful Study].
+        alice draws two cards with [Careful Study].
+        alice discards [Arrogant Wurm].
+        alice discards [Basking Rootwalla].
+        alice puts triggered ability from [Arrogant Wurm] onto the stack (Madness {2G}).
+        alice puts triggered ability from [Basking Rootwalla] onto the stack (Madness {0}).
+        alice casts [Basking Rootwalla].
+        alice casts [Arrogant Wurm].
+        Turn 4: bob
+        bob draws a card.
+        alice has conceded from the game.
+        bob wins the game.
+        Winner: bob
+    ");
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.expect("set up");
+    assert_eq!(on_battlefield(&game, "Basking Rootwalla"), 1);
+    assert_eq!(on_battlefield(&game, "Arrogant Wurm"), 1);
+    assert!(game.exile().is_empty(), "{:?}", game.exile());
 }
