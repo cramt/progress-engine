@@ -7771,10 +7771,9 @@ impl Game {
                             owed,
                             at: here,
                         },
-                        // CR 702.24a: counted as it resolves, from the
-                        // permanent as it last existed if it is gone.
-                        lower::UnlessCost::ManaPerCounter { each, counter } => {
-                            let n = at.object.map_or(0, |o| self.counters_on(o, &counter));
+                        // CR 702.24a, 608.2h: counted as it resolves.
+                        lower::UnlessCost::ManaTimes { each, times } => {
+                            let n = self.amount(&at, times);
                             Waiting::PayUnless {
                                 player: q,
                                 owed: each.times(n),

@@ -3855,6 +3855,111 @@ fn mana_leak_counters_unless_its_controller_pays() {
     }
 }
 
+/// As `pass_until`, declining every "may" on the way.
+fn pass_until_declining(game: &mut Game, who: PlayerId, s: Step) {
+    for _ in 0..1000 {
+        match game.decision() {
+            Decision::May { .. } => {
+                step(game, Answer::May(false));
+            }
+            Decision::Priority { player, .. }
+                if player == who && game.active() == who && game.step_now() == s =>
+            {
+                return;
+            }
+            Decision::Discard { count, hand, .. } => {
+                step(game, Answer::Discard(hand[..count].to_vec()));
+            }
+            Decision::Attackers { .. } => {
+                step(game, Answer::Attack(vec![]));
+            }
+            Decision::Blockers { .. } => {
+                step(game, Answer::Block(vec![]));
+            }
+            _ => {
+                step(game, Answer::Act(Action::Pass));
+            }
+        }
+    }
+    panic!("never reached {s:?}")
+}
+
+/// CR 608.2h, 118.12a: Circular Logic counters the spell unless its
+/// controller pays {1} for each card in Circular Logic's controller's
+/// graveyard, counted as it resolves, with Circular Logic itself still on
+/// the stack (CR 608.2n).
+#[test]
+fn circular_logic_asks_one_for_each_card_in_its_controllers_graveyard() {
+    for pays in [false, true] {
+        let mut game = deal_both(
+            &[("Island", 40), ("Circular Logic", 20)],
+            &[("Forest", 40), ("Grizzly Bears", 20)],
+            &[("Island", 2), ("Circular Logic", 1)],
+            &[("Forest", 5), ("Grizzly Bears", 1)],
+        );
+        play(&mut game, "Island");
+        let mut islands = 1;
+        // Three Islands and no more, so the cleanup discards the rest.
+        for _ in 0..2 {
+            pass_until_declining(&mut game, THEM, Step::PrecombatMain);
+            if in_hand(&game, THEM, "Forest").is_some() {
+                play_as(&mut game, THEM, "Forest");
+            }
+            // A Circular Logic the cleanup discards is exiled by its
+            // madness (CR 702.35a), and not cast: it goes to the graveyard.
+            pass_until_declining(&mut game, THEM, Step::Upkeep);
+            pass_until_declining(&mut game, ME, Step::PrecombatMain);
+            if islands < 3 && in_hand(&game, ME, "Island").is_some() {
+                play(&mut game, "Island");
+                islands += 1;
+            }
+        }
+        pass_until_declining(&mut game, THEM, Step::PrecombatMain);
+        play_as(&mut game, THEM, "Forest");
+        let mine = game.player(ME).graveyard().len() as u32;
+        assert!(mine > 0, "the cleanup discarded");
+        assert_ne!(mine, game.player(THEM).graveyard().len() as u32);
+        let bears = in_hand(&game, THEM, "Grizzly Bears").unwrap();
+        cast_as(&mut game, THEM, "Grizzly Bears", None);
+        step(&mut game, Answer::Act(Action::Pass));
+        cast(
+            &mut game,
+            "Circular Logic",
+            Some(vec![Target::Spell(bears)]),
+        );
+        let Decision::PayUnless {
+            player,
+            owed,
+            actions,
+            ..
+        } = resolve(&mut game)
+        else {
+            panic!("{:?}", game.decision())
+        };
+        assert_eq!((player, owed.generic), (THEM, mine));
+        if pays {
+            let mut actions = actions;
+            loop {
+                let pay = actions
+                    .iter()
+                    .find(|a| matches!(a, Payment::Spend(_)))
+                    .or_else(|| actions.iter().find(|a| matches!(a, Payment::Mana(_))))
+                    .copied()
+                    .expect("Forests untapped");
+                match step(&mut game, Answer::Pay(pay)) {
+                    Decision::PayUnless { actions: a, .. } => actions = a,
+                    _ => break,
+                }
+            }
+            resolve(&mut game);
+            assert!(creature(&game, "Grizzly Bears").is_some());
+        } else {
+            step(&mut game, Answer::Pay(Payment::Cancel));
+            assert!(game.player(THEM).graveyard().contains(&bears));
+        }
+    }
+}
+
 /// CR 702.30a: echo triggers in the upkeep after the permanent came under
 /// its controller's control, and it is sacrificed unless the echo is paid;
 /// a turn later it doesn't trigger again.

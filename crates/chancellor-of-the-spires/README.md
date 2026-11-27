@@ -1096,11 +1096,11 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-27 175 of the 500 replay to
-the end and 60.60% of their lines are followed** (19,185 of 31,659), 3
+Worked card by card from there, **on 2026-11-27 176 of the 500 replay to
+the end and 61.03% of their lines are followed** (19,321 of 31,659), 3
 of them relying on a land the log never names (2 to the end) and 11 on a
 card no one named in a graveyard having no ability there (2 to the end),
-and 176 games have no card the engine refuses before any game (from 21). The
+and 178 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
 Warchief); "for each" sizes counted on resolution (Goblin Piledriver);
@@ -1424,7 +1424,10 @@ that the filter matches, none the "may" declined, the "may" folded into
 the choice so a card chosen and kept back can't be (CR 609.3, 701.20a:
 Commune with Dinosaurs, whose 3 games go on to Tail the Suspect,
 Unmoored Ego and Magmatic Hellkite; Ancient Stirrings, Peer Through
-Depths and Grisly Salvage run too).
+Depths and Grisly Salvage run too); and "unless its controller pays {1}
+for each card in your graveyard", the mana once for each card in the
+counterspell's controller's graveyard as it resolves, hidden cards
+counted too (CR 608.2h, 118.12a: Circular Logic).
 And
 the replay's inferences: a card played or cast while its player may
 play cards from exile taken from there before the hand, the hand the

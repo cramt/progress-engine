@@ -2027,12 +2027,12 @@ pub enum UnlessCost {
     /// or greater": any number of permanents of theirs the filter
     /// matches, their powers adding up to at least `power` (CR 701.21a).
     SacrificePower { filter: Filter, power: u32 },
-    /// Cumulative upkeep's "pay [cost] for each age counter on it": the
-    /// cost once for each counter of the kind on the source as the
-    /// instruction resolves (CR 702.24a).
-    ManaPerCounter {
+    /// "Pays {1} for each card in your graveyard", cumulative upkeep's
+    /// "pay [cost] for each age counter on it": the cost once for each of
+    /// what the amount counts as the instruction resolves (CR 702.24a).
+    ManaTimes {
         each: crate::mana::ManaCost,
-        counter: Counter,
+        times: Amount,
     },
 }
 
@@ -2947,9 +2947,9 @@ pub fn keyword_trigger(k: &i::Keyword) -> Option<Triggered> {
                     },
                     Effect::Unless {
                         who: Who::You,
-                        cost: UnlessCost::ManaPerCounter {
+                        cost: UnlessCost::ManaTimes {
                             each: crate::mana::ManaCost::from_symbols(m).ok()?,
-                            counter: age,
+                            times: Amount::CountersOnItself(age),
                         },
                         otherwise: vec![Effect::Sacrifice(Obj::Itself)],
                     },
@@ -3831,12 +3831,28 @@ impl<'a> Scope<'a> {
                 if self.obj(of)? != Obj::Target(slot) {
                     return Err(format!("{} unless another's controller pays", node()));
                 }
-                let [i::Cost::Mana(m)] = cost.as_slice() else {
-                    return Err(format!("{} unless a cost other than mana is paid", node()));
+                let cost = match cost.as_slice() {
+                    [i::Cost::Mana(m)] => UnlessCost::Mana(crate::mana::ManaCost::from_symbols(m)?),
+                    // Circular Logic's "{1} for each card in your
+                    // graveyard", counted as it resolves (CR 608.2h).
+                    [i::Cost::ManaPer { mana: m, per }] => {
+                        let Some(times) = cards_in_graveyards(per) else {
+                            return Err(format!(
+                                "{} unless mana per {} is paid",
+                                node(),
+                                short(per)
+                            ));
+                        };
+                        UnlessCost::ManaTimes {
+                            each: crate::mana::ManaCost::from_symbols(m)?,
+                            times: times?,
+                        }
+                    }
+                    _ => return Err(format!("{} unless a cost other than mana is paid", node())),
                 };
                 Effect::Unless {
                     who: Who::SpellController(slot),
-                    cost: UnlessCost::Mana(crate::mana::ManaCost::from_symbols(m)?),
+                    cost,
                     otherwise: vec![Effect::Counter(slot)],
                 }
             }
