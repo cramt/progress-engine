@@ -49,6 +49,11 @@ breach after the fact:
   report.json, and leave its bytes as they were. Grammar questions are yours
   to settle in SEMANTICS.md (the brief says how); escalate only exclusions and
   what the tool is for.
+- Never `pkill -f` or `pgrep -f ... | kill` a pattern: it matches your own
+  shell's command line and kills it. Batch c28 did this twice, and the second
+  time it killed a mutation loop before the loop restored `game.rs`. Find the
+  PID in one call and kill it in the next. Wait for any background loop that
+  restores files to finish before you start a gate.
 - No AI attribution in any commit (Co-Authored-By, "Generated with").
 - You are the only writer. Sub-agents are for blind review and the method
   review alone: a nested writer measured ~3% of trees wrong in game-changing

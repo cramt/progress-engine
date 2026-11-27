@@ -164,6 +164,11 @@ Forty-five threads in a row then found the tree dirty and stopped.
 
 - You are the only writer. Sub-agents are for reading and review, not for
   writing engine code.
+- Never `pkill -f` or `pgrep -f ... | kill` a pattern: it matches your own
+  shell's command line and kills it. Batch c28 did this twice, and the second
+  time it killed a mutation loop before the loop restored `game.rs`. Find the
+  PID in one call and kill it in the next. Wait for any background loop that
+  restores files to finish before you start a gate.
 - Never touch `milestones/replay-500.txt`, the CR pin or the cached logs.
 - The logs are cached in `~/.cache/chancellor/pdlogs`; never commit them or
   anything quoting a player's name.
