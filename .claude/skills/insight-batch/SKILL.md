@@ -69,9 +69,15 @@ breach after the fact:
    about 15 commits or 3 hours from the brief's start time, whichever comes
    first; `gate` prints both. Every new rewrite, resolver or lexer rule gets
    a negative test beside its positive one: a phrase just outside its
-   SEMANTICS row that the guard must refuse. Reviewers only see trees that
-   moved, so a guard broader than its row is otherwise caught only when a later
-   card trips it. Done when the tree is clean and every commit carries its
+   SEMANTICS row that the guard must refuse. Make it a near miss: it carries
+   the rule's own keyword ("from", "can't") so it reaches the new arm, and
+   the filter is what refuses it. Check by widening the filter: if the test
+   still passes, it guards nothing (b49's enters-from test had no "from").
+   Reviewers only see trees that moved, so a guard broader than its row is
+   otherwise caught only when a later card trips it. Then sweep for
+   siblings: grep the snapshot's unparsed lines for the phrase's variants
+   (another subject, "or"-joined, another zone) and take or note each one.
+   b49's if-can't rule left "If the player can't" unread on 4 cards. Done when the tree is clean and every commit carries its
    measured counts.
 3. **Gate.** Run `gate`. Exit 0: go to step 5. Exit 1: the report lists each
    failure (also in `batches/<n>/gates-<sha>.md`).
