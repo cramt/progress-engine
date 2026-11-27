@@ -2603,4 +2603,42 @@ mod round_nine_d {
             "{s}"
         );
     }
+
+    #[test]
+    fn least_power_or_tied_is_no_creature_with_less() {
+        let s = format!(
+            "{:?}",
+            read(
+                "Sorcery",
+                "Destroy target creature if it has the least power or is tied for least power among creatures on the battlefield."
+            )
+        );
+        assert!(
+            s.contains("cond: AmountIs { n: PowerOf(")
+                && s.contains("op: Le, value: Least { stat: Power"),
+            "{s}"
+        );
+    }
+
+    #[test]
+    fn a_tie_on_another_end_or_stat_is_not_read() {
+        for text in [
+            "Destroy target creature if it has the greatest power or is tied for least power among creatures on the battlefield.",
+            "Destroy target creature if it has the least power or is tied for least toughness among creatures on the battlefield.",
+        ] {
+            let face = Face {
+                name: "Some Card",
+                type_line: "Sorcery",
+                text,
+            };
+            let s = format!(
+                "{:?}",
+                read_face_unresolved(&face, "Some Card")
+                    .iter()
+                    .map(|l| l.parsed.as_ref().ok())
+                    .collect::<Vec<_>>()
+            );
+            assert!(!s.contains("Least {") && !s.contains("Greatest {"), "{s}");
+        }
+    }
 }

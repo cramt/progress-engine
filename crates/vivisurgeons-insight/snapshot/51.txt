@@ -1203,7 +1203,7 @@ face: Wretched Banquet
 type: Sorcery
 cost: {B}
 > Destroy target creature if it has the least power or is tied for least power among creatures on the battlefield.
-= BROKE at "least" after: destroy target creature if it has the
+= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Spell([If { order: Trailing, cond: AmountIs { n: PowerOf(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), op: Le, value: Least { stat: Power, among: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [In(Battlefield)], or: None } } } }, then: [Destroy { what: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, no_regen: false }] }]) }
 
 ## Your Temple Is Under Attack
 face: Your Temple Is Under Attack

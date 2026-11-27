@@ -763,6 +763,25 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
                     let c = Condition::SameName { what: what.clone(), as_any_of };
                     Some(if not { Condition::Not(Box::new(c)) } else { c })
                 },
+                // "if it has the least power or is tied for least power among
+                // creatures on the battlefield" (Wretched Banquet): no other
+                // has less ([tied-for-extreme]). Only with the tie said.
+                |p| {
+                    p.words("has the")?;
+                    let end = p.one_of(&["greatest", "least"])?;
+                    let stat = super::amounts::stat(p)?;
+                    p.words("or is tied for")?;
+                    p.word(end)?;
+                    (super::amounts::stat(p)? == stat).then_some(())?;
+                    p.word("among")?;
+                    let among = Box::new(objects(p)?);
+                    let (op, value) = if end == "greatest" {
+                        (Op::Ge, Amount::Greatest { stat, among })
+                    } else {
+                        (Op::Le, Amount::Least { stat, among })
+                    };
+                    Some(Condition::AmountIs { n: super::amounts::stat_of(stat, what.clone()), op, value })
+                },
                 // "If that card has the chosen name" (Cursed Scroll): it is a
                 // card with that name ([has-chosen-name]).
                 |p| {

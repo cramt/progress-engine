@@ -552,6 +552,11 @@ pub enum Amount {
         stat: Stat,
         among: Box<Objects>,
     },
+    /// "the least power among creatures on the battlefield".
+    Least {
+        stat: Stat,
+        among: Box<Objects>,
+    },
     /// "your devotion to black".
     Devotion {
         who: Player,

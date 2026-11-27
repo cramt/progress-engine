@@ -3790,6 +3790,12 @@ fn measure_said(o: &mut Out, a: &Amount) {
             o.w("among");
             objects(o, among);
         }
+        Amount::Least { stat, among } => {
+            o.w("the least");
+            o.w(stat_name(*stat));
+            o.w("among");
+            objects(o, among);
+        }
         Amount::Devotion { who, to } => {
             whose(o, who);
             o.w("devotion to");
@@ -13826,6 +13832,34 @@ fn done_this_game(o: &mut Out, e: &Event) {
 }
 
 fn amount_is(o: &mut Out, n: &Amount, op: Op, value: &Amount) {
+    // "it has the least power or is tied for least power among creatures
+    // on the battlefield" ([tied-for-extreme]).
+    let own = match n {
+        Amount::PowerOf(x) => Some((Stat::Power, x)),
+        Amount::ToughnessOf(x) => Some((Stat::Toughness, x)),
+        Amount::ManaValueOf(x) => Some((Stat::ManaValue, x)),
+        _ => None,
+    };
+    let extreme = match (op, value) {
+        (Op::Ge, Amount::Greatest { stat, among }) => Some(("greatest", *stat, among)),
+        (Op::Le, Amount::Least { stat, among }) => Some(("least", *stat, among)),
+        _ => None,
+    };
+    if let (Some((s, x)), Some((end, stat, among))) = (own, extreme) {
+        if s == stat {
+            pronoun_or(o, x, syn::it, |o| objects(o, x));
+            o.w("has");
+            o.w("the");
+            o.w(end);
+            o.w(stat_name(stat));
+            o.w("or is tied for");
+            o.w(end);
+            o.w(stat_name(stat));
+            o.w("among");
+            objects(o, among);
+            return;
+        }
+    }
     match n {
         // "you've cycled a card named ~ four or more times this game".
         Amount::TimesThisGame(e) if op == Op::Ge => {

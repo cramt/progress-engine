@@ -271,6 +271,9 @@ impl Walk for Amount {
             Amount::Greatest { among, .. } => {
                 Walk::walk(&mut **among, v);
             }
+            Amount::Least { among, .. } => {
+                Walk::walk(&mut **among, v);
+            }
             Amount::Devotion { who, to } => {
                 Walk::walk(who, v);
                 Walk::walk(to, v);
