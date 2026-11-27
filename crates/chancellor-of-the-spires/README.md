@@ -1444,6 +1444,9 @@ the card, and none with no such line;
 a card madness exiled cast only by the line its trigger resolved before,
 and otherwise put into the graveyard, a cast from the hand of another
 card of its name the way back;
+a trigger to be ordered beside others that no line of the turn shows
+stopped as one the log doesn't have, as a lone one is, so a City of
+Brass tapped to pay beside another trigger is paid for otherwise;
 which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, the card a Shoal exiles

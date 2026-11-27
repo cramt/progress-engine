@@ -2754,9 +2754,13 @@ impl Driver<'_> {
                             .collect::<Vec<_>>(),
                     );
                 }
-                if order.len() != names.len() {
-                    return Err(Stop::Diverged(Divergence::Unlogged {
-                        what: "the order triggered abilities go on the stack".into(),
+                // One the turn's lines never show is a trigger the log
+                // doesn't have, as a lone one is when it is passed
+                // (City of Brass tapped to pay): another payment may
+                // explain it.
+                if let Some(k) = (0..names.len()).find(|k| !order.contains(k)) {
+                    return Err(Stop::Diverged(Divergence::UnloggedTrigger {
+                        card: names[k].clone(),
                     }));
                 }
                 // Triggers of one name the log can't tell apart (two

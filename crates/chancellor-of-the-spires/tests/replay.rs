@@ -1279,7 +1279,8 @@ fn aether_vial_s_upkeep_trigger_counts_up_or_is_declined() {
 
 /// Two Aether Vials trigger at alice's upkeep, and the log shows the
 /// first go on the stack: bob conceding then leaves the second unshown,
-/// put on after it, while a game going on would have shown it.
+/// put on after it, while a game going on would have shown it: the
+/// second is a trigger the log doesn't have, the stop a lone one gets.
 fn two_vials(then: &str) -> String {
     let vial = "alice puts triggered ability from [Aether Vial] onto the stack (At the beginning of your upkeep, you may put a charge counter on Aether Vial.).";
     format!(
@@ -1321,7 +1322,7 @@ fn triggers_a_concession_leaves_unshown_go_on_the_stack_after_those_shown() {
         panic!("{:?}", r.end)
     };
     assert!(
-        matches!(stop, Stop::Diverged(Divergence::Unlogged { what }) if what.contains("order")),
+        matches!(stop, Stop::Diverged(Divergence::UnloggedTrigger { card }) if card == "Aether Vial"),
         "{stop:?}"
     );
 }
