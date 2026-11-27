@@ -2423,6 +2423,9 @@ impl Walk for Post {
             Post::GreatestAmong { among, .. } => {
                 Walk::walk(&mut **among, v);
             }
+            Post::LeastAmong { among, .. } => {
+                Walk::walk(&mut **among, v);
+            }
             Post::WasDealtDamageThisTurn { by, .. } => {
                 if let Some(x0) = (by).as_mut() {
                     Walk::walk(&mut **x0, v);

@@ -1039,7 +1039,7 @@ cost: {4}{B}{B}
 > Flying
 > Whenever Witch-king attacks, defending player sacrifices a creature with the least power among creatures they control.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "least" after: whenever ~ attacks , defending player sacrifices a creature with the
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Sacrifice { who: DefendingPlayer, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [LeastAmong { stat: Power, among: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(That)], or: None } } }], or: None } } }], limits: [] }
 
 ## Wojek Embermage
 face: Wojek Embermage

@@ -1652,6 +1652,28 @@ pub fn effects(p: &mut P) -> Option<Vec<Effect>> {
         {
             continue;
         }
+        // "Destroy the creature with the least power. … If two or more
+        // creatures are tied for least power, you choose one of them."
+        // (Porphyry Nodes): the effect's controller makes its choices (CR
+        // 608.2d), so the sentence says what the one object already does
+        // ([tied-you-choose]).
+        if let Some((_, least, stat)) = picked_by_extreme(&v) {
+            if p.attempt(|p| {
+                p.words("if two or more")?;
+                filter(p)?;
+                p.words("are tied for")?;
+                p.attempt(|p| p.word("the"));
+                p.word(if least { "least" } else { "greatest" })?;
+                (super::stat(p)? == stat).then_some(())?;
+                p.tok(&Tok::Comma)?;
+                p.words("you choose one of them")?;
+                p.end_sentence()
+            })
+            .is_some()
+            {
+                continue;
+            }
+        }
         let s = match v.last().and_then(controllers_of_each) {
             Some(each) => p.attempt(|p| those_players(p, each)),
             None => None,

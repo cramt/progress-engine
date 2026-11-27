@@ -1223,6 +1223,16 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
             }).is_some();
             Some(Post::Greatest { stat, or_tied })
         },
+        // "the creature with the least power" (Porphyry Nodes), "a creature
+        // with the least power among creatures they control" (Witch-king).
+        |p| {
+            p.words("with the least")?;
+            let stat = stat(p)?;
+            match p.attempt(|p| { p.word("among")?; objects(p) }) {
+                Some(among) => Some(Post::LeastAmong { stat, among: Box::new(among) }),
+                None => Some(Post::Least(stat)),
+            }
+        },
         |p| {
             p.one_of(&["that had a counter put on them this way", "that had a counter put on it this way"])?;
             let on = antecedent();
@@ -1980,7 +1990,7 @@ fn objects_read(p: &mut P) -> Option<Objects> {
         |p| {
             p.word("the")?;
             let filter = filter(p)?;
-            filter.posts.iter().any(|q| matches!(q, Post::Greatest { .. })).then_some(Objects { quant: Quant::One, filter })
+            filter.posts.iter().any(|q| matches!(q, Post::Greatest { .. } | Post::Least(_))).then_some(Objects { quant: Quant::One, filter })
         },
         pronoun,
         // "put a counter on each of up to two target creatures": each target.

@@ -580,7 +580,7 @@ face: Purging Scythe
 type: Artifact
 cost: {5}
 > At the beginning of your upkeep, this artifact deals 2 damage to the creature with the least toughness. If two or more creatures are tied for least toughness, you choose one of them.
-= BROKE at "least" after: at the beginning of your upkeep , this artifact deals 2 damage to the creature with the
+= Triggered { trigger: At(Upkeep(Yours)), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Least(Toughness)], or: None } })] }], limits: [] }
 
 ## Quick-Draw Dagger
 face: Quick-Draw Dagger

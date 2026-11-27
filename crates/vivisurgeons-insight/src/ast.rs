@@ -1366,6 +1366,15 @@ pub enum Post {
         stat: Stat,
         among: Box<Objects>,
     },
+    /// "the creature with the least power" (Porphyry Nodes): the smallest
+    /// on the battlefield, as `Greatest` is the largest.
+    Least(Stat),
+    /// "a creature with the least power among creatures they control"
+    /// (Witch-king, Bringer of Ruin): least within those.
+    LeastAmong {
+        stat: Stat,
+        among: Box<Objects>,
+    },
     /// "a permanent dealt damage this way".
     DealtDamageThisWay,
     /// "a creature dealt damage by this creature this turn", "target
@@ -2538,6 +2547,35 @@ impl Keeps {
             _ => Keeps::Supertypes,
         }
     }
+}
+
+/// "the creature with the least power", "the creature card in your
+/// graveyard with the greatest power": one object picked by the extreme of a
+/// stat, which a later "If two or more creatures are tied for least power,
+/// you choose one of them" is about ([tied-you-choose]). Its filter, whether
+/// it is the least, and the stat.
+pub fn picked_by_extreme(es: &[Effect]) -> Option<(Filter, bool, Stat)> {
+    struct Find(Option<(Filter, bool, Stat)>);
+    impl crate::walk::Visitor for Find {
+        fn enter(&mut self, o: &mut Objects) -> bool {
+            if self.0.is_none() && o.quant == Quant::One {
+                self.0 = o.filter.posts.iter().find_map(|p| match p {
+                    Post::Greatest {
+                        stat,
+                        or_tied: false,
+                    } => Some((o.filter.clone(), false, *stat)),
+                    Post::Least(stat) => Some((o.filter.clone(), true, *stat)),
+                    _ => None,
+                });
+            }
+            true
+        }
+    }
+    let mut f = Find(None);
+    for e in es {
+        crate::walk::Walk::walk(&mut e.clone(), &mut f);
+    }
+    f.0
 }
 
 impl Effect {

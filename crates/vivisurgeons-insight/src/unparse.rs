@@ -1244,6 +1244,14 @@ mod syn {
         alt(o, vec![Out::default(), said]);
     }
 
+    /// "Destroy the creature with the least power. If two or more creatures
+    /// are tied for least power, you choose one of them." (Porphyry Nodes):
+    /// the effect's controller makes its choices (CR 608.2d), so the
+    /// sentence says nothing the one object doesn't ([tied-you-choose]).
+    pub fn tied_you_choose(o: &mut Out, said: Out) {
+        alt(o, vec![Out::default(), said]);
+    }
+
     /// "when each opponent casts their first spell of the game, …" and "for
     /// each opponent, when that player casts …": "each" said inside the
     /// event or before it, one delayed trigger per opponent either way.
@@ -4588,7 +4596,10 @@ fn objects_plain(o: &mut Out, x: &Objects) {
         }
         Quant::One => {
             // "the artifact with the greatest mana value": one, picked out.
-            let greatest = f.posts.iter().any(|q| matches!(q, Post::Greatest { .. }));
+            let greatest = f
+                .posts
+                .iter()
+                .any(|q| matches!(q, Post::Greatest { .. } | Post::Least(_)));
             if greatest {
                 syn::the_greatest(o);
             } else {
@@ -5963,6 +5974,16 @@ fn post(o: &mut Out, q: &Post, n: Num) {
             o.w("among");
             objects(o, among);
         }
+        Post::Least(stat) => {
+            o.w("with the least");
+            o.w(stat_name(*stat));
+        }
+        Post::LeastAmong { stat, among } => {
+            o.w("with the least");
+            o.w(stat_name(*stat));
+            o.w("among");
+            objects(o, among);
+        }
         Post::DealtDamageThisWay => o.w("dealt damage this way"),
         Post::WasDealtDamageThisTurn { by, combat } => {
             let rest = out(|o| {
@@ -6574,6 +6595,28 @@ fn sentences(o: &mut Out, es: &[Effect], cx: &Cx) {
     };
     if !es.last().is_some_and(modal) {
         o.period();
+    }
+    // "If two or more creatures are tied for least power, you choose one of
+    // them.": what the one object already says ([tied-you-choose]).
+    if let Some((f, least, stat)) = picked_by_extreme(es) {
+        let noun = match (&f.kind, f.alts.first().and_then(|g| g.last())) {
+            (Some(Noun::Card), _) => Some("card".to_string()),
+            (_, Some(Adj::Type(t))) => Some(t.clone()),
+            _ => None,
+        };
+        if let Some(noun) = noun {
+            let said = out(|o| {
+                o.w("if two or more");
+                o.noun(&noun, Num::Pl);
+                o.w("are tied for");
+                o.w(if least { "least" } else { "greatest" });
+                o.w(stat_name(stat));
+                o.tok(Tok::Comma);
+                o.w("you choose one of them");
+                o.period();
+            });
+            syn::tied_you_choose(o, said);
+        }
     }
 }
 
