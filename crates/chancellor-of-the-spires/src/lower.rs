@@ -379,6 +379,13 @@ fn not_characteristics(s: &i::Static) -> bool {
             then,
             ..
         } => !then.is_empty() && then.iter().all(not_characteristics),
+        // "You may cast this card from your graveyard as long as you
+        // control a Zombie": a permission while it holds (CR 601.3).
+        AsLongAs {
+            cond: i::Condition::YouControl(_),
+            then,
+            ..
+        } => !then.is_empty() && then.iter().all(|s| matches!(s, PlayFrom { .. })),
         _ => listed_not_characteristics(s),
     }
 }
@@ -6202,6 +6209,51 @@ pub fn plot(k: &i::Keyword) -> Option<Result<crate::mana::ManaCost, String>> {
         [i::Cost::Mana(m)] => crate::mana::ManaCost::from_symbols(m),
         _ => Err("plot with a cost other than mana".into()),
     })
+}
+
+/// When a card's own ability lets its owner cast it from their graveyard,
+/// paying its mana cost (CR 601.3, 113.6f).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum FromGraveyard {
+    Always,
+    /// Gravecrawler's "as long as you control a Zombie": read with no
+    /// source on the battlefield, so only what each permanent is.
+    WhileYouControl(YouControl),
+}
+
+/// "You may cast this card from your graveyard", "… as long as you
+/// control a Zombie": `None` if the static isn't that permission.
+pub fn from_graveyard(parts: &[i::Static]) -> Option<Result<FromGraveyard, String>> {
+    let casts_itself = |then: &[i::Static]| {
+        matches!(then, [i::Static::PlayFrom {
+            verb: i::CastVerb::Cast,
+            what,
+            zone: i::Zone::Graveyard(i::Player::You),
+        }] if itself(what))
+    };
+    match parts {
+        then if casts_itself(then) => Some(Ok(FromGraveyard::Always)),
+        [i::Static::AsLongAs { cond, then, .. }] if casts_itself(then) => Some(match cond {
+            i::Condition::YouControl(o) => you_control(o).and_then(|c| {
+                // A card in a graveyard is no permanent's source, so a
+                // predicate relative to one can't be read (`matches_card`).
+                match c.any_of.iter().flat_map(|f| &f.0).find(|p| {
+                    !matches!(
+                        p,
+                        Pred::Is(_) | Pred::IsNot(_) | Pred::IsAny(_) | Pred::ManaValue(..)
+                    )
+                }) {
+                    Some(p) => Err(format!("a graveyard permission's condition {p:?}")),
+                    None => Ok(FromGraveyard::WhileYouControl(c)),
+                }
+            }),
+            other => Err(format!(
+                "a graveyard permission as long as {}",
+                short(other)
+            )),
+        }),
+        _ => None,
+    }
 }
 
 /// "You may sacrifice two Mountains rather than pay this spell's mana

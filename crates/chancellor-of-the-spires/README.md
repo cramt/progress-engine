@@ -436,7 +436,11 @@ like any (CR 118.9d), the rest of it (life, sacrificing permanents a
 filter matches) paid after the mana (CR 601.2h), offered only when it
 can be, and a spell cast for flashback exiled whenever it would leave the
 stack; one whose cost isn't mana, life or a sacrifice is carried, never
-offered. Suspend is a special action whenever the card could begin to
+offered. A card whose own ability lets it be cast from its owner's
+graveyard (CR 601.3, 113.6f: Gravecrawler's "as long as you control a
+Zombie") is offered there for its mana cost as its type allows, the
+condition counted over the permanents its owner controls by what each
+is; one relative to anything else is refused. Suspend is a special action whenever the card could begin to
 be cast from hand, a card with no mana cost too (Lotus Bloom, Ancestral
 Vision): its cost paid, it is exiled with its time counters without the
 stack (CR 702.62a, 116.2f); at its owner's upkeep its trigger removes
@@ -749,7 +753,9 @@ A cast line says how the spell was cast when it wasn't plainly from
 hand for its mana cost ("from the graveyard", "with Flashback{1U}, Pay 3
 life from the graveyard", "by sacrificing 2 Mountains"), and whether it
 was kicked ("with kicker", "(with kicker)", beside any of those), and
-the replay casts it that way, its kicker paid only when the line says so, by the card's alternative cost from that zone; older
+the replay casts it that way, its kicker paid only when the line says so, by the card's alternative cost from that zone ("from the graveyard" by
+flashback or the card's own permission to be cast from there, whichever
+it has); older
 logs print nothing for Fireblast's sacrifice, so a line that says nothing
 is cast for the mana cost and, if that can't be paid, for an
 alternative cost from a hand. The permanents sacrificed to pay are never
@@ -1098,7 +1104,7 @@ mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
 Worked card by card from there, **on 2026-11-27 178 of the 500 replay to
-the end and 61.47% of their lines are followed** (19,461 of 31,659), 3
+the end and 61.64% of their lines are followed** (19,514 of 31,659), 3
 of them relying on a land the log never names (2 to the end) and 11 on a
 card no one named in a graveyard having no ability there (2 to the end),
 and 181 games have no card the engine refuses before any game (from 21). The
@@ -1437,7 +1443,12 @@ an event that is both, and "each opponent loses 1 life", each opponent
 still in the game (CR 603.2c, 119.3, 800.4a: Ayara, First of Locthwain,
 whose 4 games go on to Reactor Raid, Phyrexian Obliterator's damage
 trigger, Arahbo and a choice the replay doesn't follow; Plague Belcher,
-whose game goes on to Wight of the Reliquary).
+whose game goes on to Wight of the Reliquary); and a card's own "you
+may cast this card from your graveyard as long as you control a
+Zombie", cast for its mana cost as its type allows while its owner
+controls one, by what each permanent is (CR 601.3, 113.6f:
+Gravecrawler, whose 4 games go on to Oath of Nissa, Headless Rider,
+Cascading Cataracts and Underworld Breach).
 And
 the replay's inferences: a card played or cast while its player may
 play cards from exile taken from there before the hand, the hand the
@@ -1458,6 +1469,8 @@ stopped as one the log doesn't have, as a lone one is, so a City of
 Brass tapped to pay beside another trigger is paid for otherwise;
 counters that leave the creature dead to state-based actions on it as it
 last existed, the trigger of its dying the next line's;
+"from the graveyard" by flashback or by the card's own permission,
+whichever it has, and stopped by name if it has both;
 which of a card's abilities a
 line activates, a spell cast in response when the triggers after say so,
 a search's card from the line that reveals it, the card a Shoal exiles

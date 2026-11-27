@@ -852,6 +852,106 @@ fn squee_returns_from_the_graveyard_at_my_upkeep() {
     assert!(game.player(ME).graveyard().is_empty());
 }
 
+/// Whether `c` is offered to be cast for its mana cost now.
+fn offered_cast(game: &Game, c: CardId) -> bool {
+    matches!(game.decision(), Decision::Priority { actions, .. }
+        if actions.contains(&Action::Cast(c)))
+}
+
+/// My first Gravecrawler, cast and Bolted into my graveyard on their
+/// turn, and my next main phase.
+fn bolted_gravecrawler(game: &mut Game) -> CardId {
+    play(game, "Swamp");
+    let first = in_hand(game, ME, "Gravecrawler").expect("dealt");
+    cast(game, "Gravecrawler", None);
+    resolve(game);
+    let on = creature(game, "Gravecrawler").expect("entered");
+    pass_until(game, THEM, Step::PrecombatMain);
+    play_as(game, THEM, "Mountain");
+    cast_as(game, THEM, "Lightning Bolt", Some(vec![Target::Object(on)]));
+    resolve(game);
+    assert!(game.player(ME).graveyard().contains(&first));
+    pass_until(game, ME, Step::PrecombatMain);
+    first
+}
+
+/// CR 601.3, 113.6f: Gravecrawler's "You may cast this card from your
+/// graveyard as long as you control a Zombie" works from my graveyard,
+/// for its mana cost: not while I control no Zombie, and once another
+/// Gravecrawler is on the battlefield, it is offered and cast from there.
+#[test]
+fn gravecrawler_is_cast_from_the_graveyard_while_i_control_a_zombie() {
+    let mut game = deal_both(
+        &[("Swamp", 30), ("Gravecrawler", 30)],
+        &[("Mountain", 30), ("Lightning Bolt", 30)],
+        &[("Swamp", 2), ("Gravecrawler", 2)],
+        &[("Mountain", 1), ("Lightning Bolt", 1)],
+    );
+    let first = bolted_gravecrawler(&mut game);
+    assert!(!offered_cast(&game, first), "no Zombie yet");
+    play(&mut game, "Swamp");
+    let second = in_hand(&game, ME, "Gravecrawler").expect("dealt");
+    cast_card(&mut game, second, None);
+    resolve(&mut game);
+    assert!(offered_cast(&game, first), "a Zombie now");
+    cast_card(&mut game, first, None);
+    assert!(!game.player(ME).graveyard().contains(&first));
+    resolve(&mut game);
+    let crawlers = game
+        .permanents()
+        .values()
+        .filter(|p| game.card(p.card).is_some_and(|t| t.name == "Gravecrawler"))
+        .count();
+    assert_eq!(crawlers, 2);
+}
+
+/// CR 601.3: "as long as you control a Zombie" counts only mine: their
+/// Diregraf Ghoul, and my Grizzly Bears, which is no Zombie, don't let
+/// Gravecrawler be cast from my graveyard.
+#[test]
+fn gravecrawler_isnt_cast_from_the_graveyard_by_their_zombie_or_my_bear() {
+    let mut game = deal_both(
+        &[
+            ("Swamp", 20),
+            ("Forest", 20),
+            ("Gravecrawler", 10),
+            ("Grizzly Bears", 10),
+        ],
+        &[
+            ("Mountain", 15),
+            ("Swamp", 15),
+            ("Lightning Bolt", 15),
+            ("Diregraf Ghoul", 15),
+        ],
+        &[
+            ("Swamp", 1),
+            ("Forest", 2),
+            ("Gravecrawler", 1),
+            ("Grizzly Bears", 1),
+        ],
+        &[
+            ("Mountain", 1),
+            ("Swamp", 1),
+            ("Lightning Bolt", 1),
+            ("Diregraf Ghoul", 1),
+        ],
+    );
+    let first = bolted_gravecrawler(&mut game);
+    play(&mut game, "Forest");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Swamp");
+    cast_as(&mut game, THEM, "Diregraf Ghoul", None);
+    resolve(&mut game);
+    assert!(creature(&game, "Diregraf Ghoul").is_some());
+    pass_until(&mut game, ME, Step::PrecombatMain);
+    assert!(!offered_cast(&game, first), "their Zombie isn't mine");
+    play(&mut game, "Forest");
+    cast(&mut game, "Grizzly Bears", None);
+    resolve(&mut game);
+    assert!(creature(&game, "Grizzly Bears").is_some());
+    assert!(!offered_cast(&game, first), "my Bear is no Zombie");
+}
+
 /// CR 113.6b: Anger's haste works while it is in my graveyard, and the
 /// engine doesn't run it, so once it is discarded there the game refuses
 /// to go on rather than play on without it.

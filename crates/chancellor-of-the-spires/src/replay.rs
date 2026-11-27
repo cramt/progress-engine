@@ -1354,10 +1354,30 @@ impl Driver<'_> {
                         vec![Route::ManaCost, Route::Alternative(CastFrom::Hand)]
                     }
                     None => vec![Route::ManaCost],
+                    // Flashback and a card's own permission print the
+                    // same words; the card says which it has, and one
+                    // with both is a choice the log doesn't show.
+                    Some("from the graveyard") => {
+                        let permitted =
+                            Game::casts_from_graveyard(&text).map_err(|r| Stop::Refused {
+                                card: card.name().to_string(),
+                                node: r.node,
+                                why: r.why,
+                            })?;
+                        let flashback = zones.iter().any(|(z, _, _)| *z == CastFrom::Graveyard);
+                        match (flashback, permitted) {
+                            (true, true) => return Err(Stop::Unfollowed {
+                                event:
+                                    "Casts from the graveyard by flashback or its own permission"
+                                        .into(),
+                                card: Some(card.name().to_string()),
+                            }),
+                            (false, true) => vec![Route::FromGraveyard],
+                            _ => vec![Route::Alternative(CastFrom::Graveyard)],
+                        }
+                    }
                     Some(v)
-                        if v == "from the graveyard"
-                            || v.starts_with("with Flashback")
-                                && v.ends_with("from the graveyard") =>
+                        if v.starts_with("with Flashback") && v.ends_with("from the graveyard") =>
                     {
                         vec![Route::Alternative(CastFrom::Graveyard)]
                     }
@@ -1426,6 +1446,7 @@ impl Driver<'_> {
                     .filter(|r| match r {
                         Route::ManaCost | Route::Plotted => true,
                         Route::Alternative(from) => zones.iter().any(|(z, _, _)| z == from),
+                        Route::FromGraveyard => true,
                     })
                     .collect();
                 let Some((last, before)) = routes.split_last() else {
@@ -5690,6 +5711,7 @@ impl Driver<'_> {
                                 Side::Front,
                                 Action::CastAlternative(x, _),
                             )
+                            | (Kind::Cast(Route::FromGraveyard), Side::Front, Action::Cast(x))
                             | (Kind::Cast(Route::Plotted), Side::Front, Action::CastPlotted(x)) => {
                                 *x == c
                             }
@@ -5822,7 +5844,7 @@ impl Driver<'_> {
     }
 
     /// The card of `p`'s named `name` where `kind` casts or plays it from:
-    /// their graveyard for flashback, otherwise their hand, naming a
+    /// their graveyard for flashback or a card's own permission, otherwise their hand, naming a
     /// hidden card of it if none is known to be.
     fn find(&mut self, p: PlayerId, name: &str, kind: Kind) -> Result<Option<CardId>, Stop> {
         if kind == Kind::Cast(Route::Plotted) {
@@ -5852,7 +5874,10 @@ impl Driver<'_> {
         {
             return self.exiled_or_in_hand(p, name);
         }
-        if kind != Kind::Cast(Route::Alternative(CastFrom::Graveyard)) {
+        if !matches!(
+            kind,
+            Kind::Cast(Route::Alternative(CastFrom::Graveyard) | Route::FromGraveyard)
+        ) {
             return self.in_hand(p, name);
         }
         let text = self.text(name)?;
@@ -7882,6 +7907,9 @@ enum Kind {
 enum Route {
     ManaCost,
     Alternative(CastFrom),
+    /// From its owner's graveyard for its mana cost, by its own
+    /// permission (CR 601.3, 113.6f: Gravecrawler).
+    FromGraveyard,
     /// From exile as a plotted card (CR 702.170d).
     Plotted,
 }

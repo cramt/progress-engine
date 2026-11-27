@@ -425,6 +425,9 @@ struct Runnable {
     /// where (CR 118.9): flashback, Fireblast's sacrifice. By the index of
     /// the ability that allows it.
     alternatives: BTreeMap<u16, lower::Alternative>,
+    /// Its own permission to be cast from its owner's graveyard for its
+    /// mana cost (CR 601.3, 113.6f), by index.
+    from_graveyard: BTreeMap<u16, lower::FromGraveyard>,
     /// Kicker's cost, the additional cost it may be cast with (CR 702.33a).
     kicker: Option<ManaCost>,
     /// An Aura's enchant ability: what it targets as a spell and may
@@ -4876,6 +4879,22 @@ impl Game {
                 }
             }
         }
+        // CR 601.3, 113.6f: a card its own ability lets its owner cast
+        // from their graveyard, as its type allows (CR 117.1a).
+        for c in player.graveyard.iter() {
+            let Some(known) = self.known(*c) else {
+                continue;
+            };
+            let Ok(runs) = &known.runs else { continue };
+            if runs
+                .from_graveyard
+                .values()
+                .any(|g| self.permits_from_graveyard(p, g))
+                && castable(known)
+            {
+                actions.push(Action::Cast(*c));
+            }
+        }
         // CR 601.3: a card exiled with an effect allowing it to be
         // played, cast as its type allows (CR 117.1a).
         for c in self.may_play(p) {
@@ -5151,6 +5170,34 @@ impl Game {
                 .map(|a| (a.from, a.when, a.evoked))
                 .collect(),
             Err(_) => Vec::new(),
+        }
+    }
+
+    /// Whether a card's own ability lets it be cast from its graveyard,
+    /// before any game (CR 601.3, 113.6f), or why the engine can't run
+    /// the card.
+    pub fn casts_from_graveyard(text: &CardText) -> Result<bool, Unrunnable> {
+        known(text.clone())
+            .runs
+            .as_ref()
+            .map(|r| !r.from_graveyard.is_empty())
+            .map_err(Clone::clone)
+    }
+
+    /// Whether `p` may begin to cast a card of theirs from their graveyard
+    /// by this permission now: Gravecrawler's Zombie counted among the
+    /// permanents `p` controls by what each is (CR 601.3).
+    fn permits_from_graveyard(&self, p: PlayerId, g: &lower::FromGraveyard) -> bool {
+        match g {
+            lower::FromGraveyard::Always => true,
+            lower::FromGraveyard::WhileYouControl(c) => {
+                let n = self
+                    .characteristics()
+                    .values()
+                    .filter(|ch| ch.controller == p && c.any_of.iter().any(|f| f.matches_card(ch)))
+                    .count();
+                c.count.holds(n as u32)
+            }
         }
     }
 
@@ -11200,6 +11247,7 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
         attack_rules: BTreeMap::new(),
         combat_rules: BTreeMap::new(),
         alternatives: BTreeMap::new(),
+        from_graveyard: BTreeMap::new(),
         kicker: None,
         enchant: None,
         mana_triggers: BTreeMap::new(),
@@ -11456,6 +11504,17 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
                 if let [i::Static::ExtraLand(i::Amount::N(k))] = parts.as_slice() {
                     runs.extra_lands.insert(n, *k);
                 }
+            }
+            i::Ability::Static(parts) if lower::from_graveyard(parts).is_some() => {
+                let permission = lower::from_graveyard(parts)
+                    .expect("a graveyard permission")
+                    .map_err(|node| {
+                        Unrunnable::new(
+                            node.clone(),
+                            format!("the game can't run its permission to cast it: {node}"),
+                        )
+                    })?;
+                runs.from_graveyard.insert(n, permission);
             }
             i::Ability::Static(parts) if lower::alternative_cost(parts).is_some() => {
                 match lower::alternative_cost(parts).expect("an alternative cost") {

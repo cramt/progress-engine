@@ -146,6 +146,8 @@ const INDEXED: &[&str] = &[
     "Aether Vial",
     "Leyline of Sanctity",
     "Lightning Bolt",
+    "Gravecrawler",
+    "Marang River Prowler",
     "Swords to Plowshares",
     "Mishra's Factory",
     "Cascade Bluffs",
@@ -1803,6 +1805,123 @@ fn cabal_therapy_names_and_flashes_back() {
     assert_eq!(game.exile().len(), 1);
     assert_eq!(game.player(BOB).graveyard().len(), 3);
     assert_eq!(game.player(BOB).hand().len(), 4);
+}
+
+/// The log's "from the graveyard" is flashback's or, for Gravecrawler, its
+/// own "You may cast this card from your graveyard as long as you control
+/// a Zombie" (CR 601.3, 113.6f): Bolted there, it is cast from there for
+/// {B} once another Gravecrawler is on the battlefield, and not before.
+fn gravecrawler_bolted(then: &str) -> (log::Game, Replay) {
+    run(&format!(
+        "
+        alice chooses to play first.
+        Turn 1: alice
+        alice plays [Swamp].
+        alice casts [Gravecrawler].
+        Turn 1: bob
+        bob plays [Mountain].
+        bob casts [Lightning Bolt] targeting [Gravecrawler].
+        Turn 2: alice
+        alice plays [Swamp].
+        {then}
+        bob has conceded from the game.
+    "
+    ))
+}
+
+#[test]
+fn gravecrawler_is_cast_from_the_graveyard_beside_a_zombie() {
+    let (_, r) = gravecrawler_bolted(
+        "alice casts [Gravecrawler].
+        alice casts [Gravecrawler] from the graveyard.",
+    );
+    assert_eq!(r.end, End::Finished, "{:#?}", r.trace);
+    let game = r.game.unwrap();
+    // The one from the graveyard is on the stack as bob concedes.
+    assert_eq!(on_battlefield(&game, "Gravecrawler"), 1);
+    assert_eq!(game.stack().len(), 1);
+    assert!(game.player(ALICE).graveyard().is_empty());
+}
+
+#[test]
+fn gravecrawler_isnt_cast_from_the_graveyard_with_no_zombie() {
+    let (_, r) = gravecrawler_bolted("alice casts [Gravecrawler] from the graveyard.");
+    // The engine never offers it: the log disagrees with the rules.
+    assert!(
+        matches!(
+            &r.end,
+            End::Stopped {
+                stop: Stop::Diverged(Divergence::NeverOffered { what }),
+                ..
+            } if what.contains("Gravecrawler")
+        ),
+        "{:?} {:#?}",
+        r.end,
+        r.trace
+    );
+}
+
+/// A graveyard permission the engine can't run is refused by its own
+/// node, not filed as a cast by some cost it lacks: Marang River
+/// Prowler's "a black or green permanent".
+#[test]
+fn a_graveyard_permission_the_engine_cant_run_is_refused() {
+    let (_, r) = run("
+        alice chooses to play first.
+        Turn 1: alice
+        alice plays [Swamp].
+        alice casts [Marang River Prowler] from the graveyard.
+        bob has conceded from the game.
+    ");
+    let End::Stopped {
+        stop: Stop::Refused { card, .. },
+        ..
+    } = &r.end
+    else {
+        panic!("{:?}", r.end)
+    };
+    assert_eq!(card, "Marang River Prowler");
+}
+
+/// A card with flashback and its own permission to be cast from its
+/// graveyard: "from the graveyard" doesn't say which, and flashback exiles
+/// it (CR 702.34a), so the replay stops by name rather than pick one.
+#[test]
+fn flashback_or_a_permission_is_a_choice_the_log_doesnt_show() {
+    let crawler = || {
+        let mut c = face(
+            "Test Crawler",
+            "Creature — Zombie",
+            "{B}",
+            "Flashback {B}\nYou may cast this card from your graveyard as long as you control a Zombie.",
+            &[Color::Black],
+        );
+        c.pt = Some(pt(1, 1));
+        c
+    };
+    let (_, r) = run_with(
+        "
+        alice chooses to play first.
+        Turn 1: alice
+        alice plays [Swamp].
+        alice casts [Test Crawler] from the graveyard.
+        bob has conceded from the game.
+    ",
+        &mut |n| match n {
+            "Test Crawler" => Some(crawler()),
+            n => cards(n),
+        },
+        &[],
+    );
+    let End::Stopped {
+        stop: Stop::Unfollowed { event, card },
+        ..
+    } = &r.end
+    else {
+        panic!("{:?}", r.end)
+    };
+    assert_eq!(card.as_deref(), Some("Test Crawler"));
+    assert!(event.contains("flashback or its own permission"), "{event}");
 }
 
 /// CR 106.3, 500.5: Dark Ritual's mana stays in the pool through the main
