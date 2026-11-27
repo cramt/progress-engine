@@ -1225,7 +1225,7 @@ face: Wild Mongrel
 type: Creature — Dog
 cost: {1}{G}
 > Discard a card: This creature gets +1/+1 and becomes the color of your choice until end of turn.
-= BROKE at "becomes" after: discard a card : this creature gets <pt> and
+= Activated { cost: [Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }, Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, types: [ColorFrom(ChoiceOf(You))], gains: [], keeps: OtherTypes, dur: UntilEndOfTurn }], limits: [] }
 
 ## Willow Dryad
 face: Willow Dryad

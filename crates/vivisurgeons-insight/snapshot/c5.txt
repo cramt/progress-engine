@@ -736,7 +736,7 @@ cost: {4}{R}
 > Menace (This creature can't be blocked except by two or more creatures.)
 > Dinosaur Formula — {1}{R}, Discard this card: Until end of turn, target creature you control gets +3/+1 and becomes a Dinosaur in addition to its other types.
 = Keywords([Keyword { name: "menace", param: None }])
-= BROKE at "a" after: dinosaur formula — {1} {R} , discard this card : until end of turn , target creature you control gets <pt> and becomes
+= Labelled { label: "dinosaur formula", ability: Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }], ability: Activated { cost: [Mana(Mana(["1", "R"])), Discard(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [During { dur: UntilEndOfTurn, then: [Modify { what: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(1), signed: true }), gains: [], dur: Permanent }, Becomes { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, types: [Subtype("dinosaur")], gains: [], keeps: OtherTypes, dur: Permanent }] }], limits: [] } } }
 
 ## Stonespeaker Crystal
 face: Stonespeaker Crystal

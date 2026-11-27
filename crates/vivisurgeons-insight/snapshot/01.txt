@@ -748,7 +748,7 @@ face: Thran Forge
 type: Artifact
 cost: {3}
 > {2}: Until end of turn, target nonartifact creature gets +1/+0 and becomes an artifact in addition to its other types.
-= BROKE at "an" after: {2} : until end of turn , target nonartifact creature gets <pt> and becomes
+= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("artifact"), Type("creature")]], kind: None, posts: [], or: None } }], ability: Activated { cost: [Mana(Mana(["2"]))], effect: [During { dur: UntilEndOfTurn, then: [Modify { what: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), gains: [], dur: Permanent }, Becomes { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [[Non("artifact"), Type("creature")]], kind: None, posts: [], or: None } }, pt: None, types: [Type("artifact")], gains: [], keeps: OtherTypes, dur: Permanent }] }], limits: [] } }
 
 ## Tidebinder Mage
 face: Tidebinder Mage

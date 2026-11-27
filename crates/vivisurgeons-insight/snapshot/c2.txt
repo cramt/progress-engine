@@ -1039,7 +1039,7 @@ face: Ursine Champion
 type: Creature — Human Berserker
 cost: {1}{G}
 > {5}{G}: This creature gets +3/+3 and becomes a Bear Berserker until end of turn. Activate only once each turn.
-= BROKE at "becomes" after: {5} {G} : this creature gets <pt> and
+= Activated { cost: [Mana(Mana(["5", "G"]))], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: true }), gains: [], dur: UntilEndOfTurn }, Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, types: [Subtype("bear"), Subtype("berserker")], gains: [], keeps: AllButSubtypesOfSet, dur: UntilEndOfTurn }], limits: [OncePerTurn] }
 
 ## Virtus the Veiled
 face: Virtus the Veiled

@@ -357,6 +357,32 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
                 Effect::Loses { what, lost, dur },
             ])
         },
+        // "This creature gets +1/+1 and becomes the color of your choice
+        // until end of turn" (Wild Mongrel), "gets +3/+3 and becomes a Bear
+        // Berserker until end of turn" (Ursine Champion): a bonus (layer 7c)
+        // and new types or a colour (layers 4 and 5), one subject, one
+        // duration ([gets-and-becomes]).
+        |p| {
+            let what = objects(p)?;
+            p.verb("get")?;
+            let pt = pt_signed(p)?;
+            p.word("and")?;
+            p.verb("become")?;
+            p.attempt(|p| p.one_of(&["a", "an"]));
+            let types = becomes_types(p);
+            if types.is_empty() { return None; }
+            let kept = p.attempt(keeps);
+            let dur = match p.attempt(duration) {
+                Some(d) => d,
+                None if p.during => Duration::Permanent,
+                None => return None,
+            };
+            let keeps = kept.unwrap_or_else(|| Keeps::implied_by(&types));
+            Some(vec![
+                Effect::Modify { what: what.clone(), pt: Some(pt), gains: vec![], dur: dur.clone() },
+                Effect::Becomes { what, pt: None, types, gains: vec![], keeps, dur },
+            ])
+        },
         // "This land becomes a 2/2 creature with all creature types until end
         // of turn. It's still a land.": the new types, and all creature types
         // on top of them.

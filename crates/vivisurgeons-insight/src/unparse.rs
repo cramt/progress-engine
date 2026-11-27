@@ -7032,6 +7032,51 @@ fn clauses_in(o: &mut Out, es: &[Effect], cx: &Cx, top: bool) {
                 continue;
             }
         }
+        // "This creature gets +1/+1 and becomes the color of your choice
+        // until end of turn" (Wild Mongrel): one subject, one duration
+        // ([gets-and-becomes]).
+        if let (
+            Effect::Modify {
+                what,
+                pt: Some(pt),
+                gains,
+                dur: d,
+            },
+            Some(Effect::Becomes {
+                what: w2,
+                pt: None,
+                types,
+                gains: g2,
+                keeps: k,
+                dur: d2,
+            }),
+        ) = (e, es.get(i + 1))
+        {
+            if same_subject(what, w2)
+                && d == d2
+                && gains.is_empty()
+                && g2.is_empty()
+                && !types.is_empty()
+            {
+                let n = obj_num(what);
+                obj_subj(o, what, "get");
+                o.tok(Tok::Pt(*pt));
+                o.w("and");
+                o.verb("become", n);
+                let noun = types.last().is_some_and(is_typed);
+                if noun && n != Num::Pl {
+                    o.w("a");
+                }
+                for (j, a) in types.iter().enumerate() {
+                    let last = j + 1 == types.len();
+                    adj(o, a, (last && noun && n == Num::Pl).then_some(Num::Pl));
+                }
+                keeps_then_dur(o, k, types, d);
+                last = Out(o.0[start..].to_vec());
+                i += 2;
+                continue;
+            }
+        }
         // "creatures target player controls lose all abilities and have base
         // power and toughness 0/2": one subject, one duration.
         if let (
