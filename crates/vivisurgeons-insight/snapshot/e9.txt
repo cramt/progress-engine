@@ -1015,7 +1015,7 @@ type: Instant
 cost: {2}{G/U}
 > Until end of turn, target creature loses all abilities and becomes a green Snake with base power and toughness 1/1.
 > Draw a card.
-= BROKE at "a" after: until end of turn , target creature loses all abilities and becomes
+= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Spell([During { dur: UntilEndOfTurn, then: [Loses { what: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, lost: [All { other: false, of: Abilities }], dur: Permanent }, Becomes { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), types: [Color(Green), Subtype("snake")], gains: [], keeps: AllButSubtypesOfSet, dur: Permanent }] }]) }
 = Spell([Draw { who: You, n: N(1) }])
 
 ## Soaring Drake

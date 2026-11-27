@@ -7170,6 +7170,41 @@ fn clauses_in(o: &mut Out, es: &[Effect], cx: &Cx, top: bool) {
                 continue;
             }
         }
+        // "target creature loses all abilities and becomes a blue Frog with
+        // base power and toughness 1/1" ([loses-and-becomes]).
+        if let (
+            Effect::Loses { what, lost, dur: d },
+            Some(Effect::Becomes {
+                what: w2,
+                pt: pt @ Some(_),
+                types,
+                gains,
+                keeps: k,
+                dur: d2,
+            }),
+        ) = (e, es.get(i + 1))
+        {
+            if same_subject(what, w2)
+                && d == d2
+                && !types.is_empty()
+                && matches!(
+                    lost.as_slice(),
+                    [Lost::All {
+                        other: false,
+                        of: Characteristic::Abilities
+                    }]
+                )
+            {
+                obj_subj(o, what, "lose");
+                lost_words(o, lost);
+                o.w("and");
+                o.verb("become", obj_num(what));
+                becomes_rest(o, obj_num(what), pt, types, gains, k, d);
+                last = Out(o.0[start..].to_vec());
+                i += 2;
+                continue;
+            }
+        }
         // "it loses all land types and abilities and has "{T}: Add {C}.""
         // (Ultima): one subject, one duration, the abilities it has after
         // what it loses.
@@ -8878,59 +8913,7 @@ fn effect_said(o: &mut Out, e: &Effect, cx: &Cx) {
                 } else {
                     obj_subj(o, what, "become");
                 }
-                // "becomes a 2/2 creature", "becomes blue": an article only
-                // before a noun, and only for one object: "Artifacts you
-                // control become artifact creatures".
-                let n = obj_num(what);
-                let noun = types.last().is_some_and(is_typed);
-                if (pt.is_some() || noun) && n != Num::Pl {
-                    o.w("a");
-                }
-                let type_words = |o: &mut Out| {
-                    for (i, a) in types.iter().enumerate() {
-                        let last = i + 1 == types.len();
-                        // "a 4/4 black and green Horror creature".
-                        if i > 0
-                            && matches!(a, Adj::Color(_))
-                            && matches!(types[i - 1], Adj::Color(_))
-                        {
-                            o.w("and");
-                        }
-                        adj(o, a, (last && noun && n == Num::Pl).then_some(Num::Pl));
-                    }
-                };
-                let inline = out(|o| {
-                    if let Some(pt) = pt {
-                        o.tok(Tok::Pt(*pt));
-                    }
-                    type_words(o);
-                });
-                match pt {
-                    // "becomes a Kithkin Scout with base power and
-                    // toughness 2/3".
-                    Some(pt) if !types.is_empty() => {
-                        let with = out(|o| {
-                            type_words(o);
-                            o.w("with base power and toughness");
-                            o.tok(Tok::Pt(*pt));
-                        });
-                        syn::base_pt(o, inline, with);
-                    }
-                    _ => o.add(inline),
-                }
-                if !gains.is_empty() {
-                    let with = out(|o| {
-                        o.w("with");
-                        keyword_list(o, gains);
-                    });
-                    let and_gains = out(|o| {
-                        o.w("and");
-                        o.verb("gain", obj_num(what));
-                        keyword_list(o, gains);
-                    });
-                    syn::becomes_with(o, with, and_gains);
-                }
-                keeps_then_dur(o, k, types, d);
+                becomes_rest(o, obj_num(what), pt, types, gains, k, d);
             });
             match pt {
                 // "creatures you control have base power and toughness X/X".
@@ -11178,6 +11161,68 @@ fn order_words(o: &mut Out, order: &Option<Order>) {
 
 /// What a "becomes" keeps and how long: "that's still a land until end of
 /// turn", or "until end of turn. It's still a land."
+/// A `Becomes` after its verb: "a 1/1 blue Frog with flying until end of
+/// turn".
+fn becomes_rest(
+    o: &mut Out,
+    n: Num,
+    pt: &Option<Pt>,
+    types: &[Adj],
+    gains: &[Keyword],
+    k: &Keeps,
+    d: &Duration,
+) {
+    // "becomes a 2/2 creature", "becomes blue": an article only
+    // before a noun, and only for one object: "Artifacts you
+    // control become artifact creatures".
+    let noun = types.last().is_some_and(is_typed);
+    if (pt.is_some() || noun) && n != Num::Pl {
+        o.w("a");
+    }
+    let type_words = |o: &mut Out| {
+        for (i, a) in types.iter().enumerate() {
+            let last = i + 1 == types.len();
+            // "a 4/4 black and green Horror creature".
+            if i > 0 && matches!(a, Adj::Color(_)) && matches!(types[i - 1], Adj::Color(_)) {
+                o.w("and");
+            }
+            adj(o, a, (last && noun && n == Num::Pl).then_some(Num::Pl));
+        }
+    };
+    let inline = out(|o| {
+        if let Some(pt) = pt {
+            o.tok(Tok::Pt(*pt));
+        }
+        type_words(o);
+    });
+    match pt {
+        // "becomes a Kithkin Scout with base power and
+        // toughness 2/3".
+        Some(pt) if !types.is_empty() => {
+            let with = out(|o| {
+                type_words(o);
+                o.w("with base power and toughness");
+                o.tok(Tok::Pt(*pt));
+            });
+            syn::base_pt(o, inline, with);
+        }
+        _ => o.add(inline),
+    }
+    if !gains.is_empty() {
+        let with = out(|o| {
+            o.w("with");
+            keyword_list(o, gains);
+        });
+        let and_gains = out(|o| {
+            o.w("and");
+            o.verb("gain", n);
+            keyword_list(o, gains);
+        });
+        syn::becomes_with(o, with, and_gains);
+    }
+    keeps_then_dur(o, k, types, d);
+}
+
 fn keeps_then_dur(o: &mut Out, k: &Keeps, types: &[Adj], d: &Duration) {
     match k {
         // "becomes an artifact creature": what CR 205.1b keeps whether

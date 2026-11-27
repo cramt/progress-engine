@@ -681,7 +681,7 @@ face: Polymorphist's Jest
 type: Instant
 cost: {1}{U}{U}
 > Until end of turn, each creature target player controls loses all abilities and becomes a blue Frog with base power and toughness 1/1.
-= BROKE at "a" after: until end of turn , each creature target player controls loses all abilities and becomes
+= Spell([During { dur: UntilEndOfTurn, then: [Loses { what: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(Target)], or: None } }, lost: [All { other: false, of: Abilities }], dur: Permanent }, Becomes { what: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(Target)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), types: [Color(Blue), Subtype("frog")], gains: [], keeps: AllButSubtypesOfSet, dur: Permanent }] }])
 
 ## Raff Capashen, Ship's Mage
 face: Raff Capashen, Ship's Mage

@@ -494,7 +494,7 @@ cost: {2}{G}{G}
 > Trample
 > Lizard Formula — When Lizard, Connors's Curse enters, up to one other target creature loses all abilities and becomes a green Lizard creature with base power and toughness 4/4.
 = Keywords([Keyword { name: "trample", param: None }])
-= BROKE at "a" after: ~ formula — when ~ enters , up to one other target creature loses all abilities and becomes
+= BROKE at "~" after: ~ formula — when ~ enters , up to one other target creature loses all abilities and becomes a green
 
 ## Locked in the Cemetery
 face: Locked in the Cemetery
@@ -581,7 +581,7 @@ cost: {1}{G}{U}
 > +1: Target artifact or creature loses all abilities and becomes a green Elk creature with base power and toughness 3/3.
 > −5: Exchange control of target artifact or creature you control and target creature an opponent controls with power 3 or less.
 = Loyalty { change: N(2), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["food"], keywords: [], abilities: [], named: Some("food"), attacking: None } }] }
-= BROKE at "a" after: N(1) : target artifact or creature loses all abilities and becomes
+= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [], or: None } }], ability: Loyalty { change: N(1), effect: [Loses { what: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, lost: [All { other: false, of: Abilities }], dur: Permanent }, Becomes { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: false }), types: [Color(Green), Subtype("elk"), Type("creature")], gains: [], keeps: Supertypes, dur: Permanent }] } }
 = Loyalty { change: N(-5), effect: [ExchangeControl([Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(AnOpponent), With(Compare { stat: Power, op: Le, value: N(3) })], or: None } }])] }
 
 ## Ooze Garden

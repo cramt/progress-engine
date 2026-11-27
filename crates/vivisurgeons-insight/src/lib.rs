@@ -2700,4 +2700,36 @@ mod round_nine_d {
         );
         assert!(!s.contains("WithAttached"), "{s}");
     }
+
+    #[test]
+    fn losing_all_abilities_and_becoming_a_sized_creature() {
+        let s = format!(
+            "{:?}",
+            read(
+                "Instant",
+                "Until end of turn, target creature loses all abilities and becomes a blue Frog with base power and toughness 1/1."
+            )
+        );
+        assert!(
+            s.contains("Loses {") && s.contains("types: [Color(Blue), Subtype(\"frog\")]"),
+            "{s}"
+        );
+    }
+
+    #[test]
+    fn losing_all_abilities_and_becoming_an_unsized_type_is_not_read() {
+        let face = Face {
+            name: "Some Card",
+            type_line: "Instant",
+            text: "Target creature loses all abilities and becomes a Frog until end of turn.",
+        };
+        let s = format!(
+            "{:?}",
+            read_face_unresolved(&face, "Some Card")
+                .iter()
+                .map(|l| l.parsed.as_ref().ok())
+                .collect::<Vec<_>>()
+        );
+        assert!(!s.contains("Becomes {"), "{s}");
+    }
 }

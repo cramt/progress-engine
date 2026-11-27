@@ -420,6 +420,20 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
                 Effect::Becomes { what, pt: Some(pt), types: vec![], gains: vec![], keeps: Keeps::implied_by(&[]), dur },
             ])
         },
+        // "Until end of turn, target creature loses all abilities and
+        // becomes a blue Frog with base power and toughness 1/1" (Turn to
+        // Frog, [loses-and-becomes]): the abilities lost and the new
+        // characteristics, one subject, one duration (layers 4, 5, 6 and
+        // 7b, CR 613.1d-f, 613.4b). Only a sized becomes.
+        |p| {
+            let what = objects(p)?;
+            p.verb("lose")?;
+            p.words("all abilities and")?;
+            let becomes = effects::becomes(p, what.clone())?;
+            let Effect::Becomes { pt: Some(_), dur, .. } = &becomes else { return None };
+            let dur = dur.clone();
+            Some(vec![Effect::Loses { what, lost: vec![Lost::All { other: false, of: Characteristic::Abilities }], dur }, becomes])
+        },
         // "For as long as that land has a blight counter on it, it loses
         // all land types and abilities and has "{T}: Add {C}."" (Ultima):
         // what it loses and each quoted ability it has, one subject.

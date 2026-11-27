@@ -42,6 +42,68 @@ pub(super) fn becomes_types(p: &mut P) -> Vec<Adj> {
     types
 }
 
+/// "becomes a 2/2 blue Bird with flying until end of turn", from the verb
+/// on, for a subject already read.
+pub(super) fn becomes(p: &mut P, what: Objects) -> Option<Effect> {
+    p.verb("become")?;
+    p.attempt(|p| p.one_of(&["a", "an"]));
+    let pt = p.attempt(|p| match p.peek()? {
+        Tok::Pt(pt) if !pt.signed => {
+            let pt = *pt;
+            p.bump();
+            Some(pt)
+        }
+        _ => None,
+    });
+    p.attempt(|p| p.words("base power and toughness"));
+    let types = becomes_types(p);
+    if types.is_empty() && pt.is_none() {
+        return None;
+    }
+    // "becomes a Kithkin Scout with base power and toughness 2/3":
+    // the size said after the types (CR 613.4b, as "a 2/3 Kithkin
+    // Scout").
+    let pt = match pt {
+        Some(pt) => Some(pt),
+        None => p.attempt(|p| {
+            p.words("with base power and toughness")?;
+            match p.peek()? {
+                Tok::Pt(pt) if !pt.signed => {
+                    let pt = *pt;
+                    p.bump();
+                    Some(pt)
+                }
+                _ => None,
+            }
+        }),
+    };
+    // "… with flying", "… and gains flying": what the same effect
+    // adds, in layer 6 either way (CR 613.1f, 613.6).
+    let gains = p
+        .attempt(|p| {
+            alt!(p; |p| p.word("with"), |p| { p.word("and")?; p.verb("gain") })?;
+            keyword_list(p)
+        })
+        .unwrap_or_default();
+    let keeps = p.attempt(keeps);
+    let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
+    // ". It's still a land." after the duration.
+    let keeps = match keeps {
+        None => p
+            .attempt(still)
+            .unwrap_or_else(|| Keeps::implied_by(&types)),
+        Some(k) => k,
+    };
+    Some(Effect::Becomes {
+        what,
+        pt,
+        types,
+        gains,
+        keeps,
+        dur,
+    })
+}
+
 /// ". It's still a land.": a sentence of its own after a "becomes", saying
 /// what "that's still a land" says inside it.
 pub(super) fn still(p: &mut P) -> Option<Keeps> {
@@ -897,36 +959,7 @@ fn effect_main(p: &mut P) -> Option<Effect> {
         },
         |p| {
             let what = objects(p)?;
-            p.verb("become")?;
-            p.attempt(|p| p.one_of(&["a", "an"]));
-            let pt = p.attempt(|p| match p.peek()? { Tok::Pt(pt) if !pt.signed => { let pt = *pt; p.bump(); Some(pt) } _ => None });
-            p.attempt(|p| p.words("base power and toughness"));
-            let types = becomes_types(p);
-            if types.is_empty() && pt.is_none() { return None; }
-            // "becomes a Kithkin Scout with base power and toughness 2/3":
-            // the size said after the types (CR 613.4b, as "a 2/3 Kithkin
-            // Scout").
-            let pt = match pt {
-                Some(pt) => Some(pt),
-                None => p.attempt(|p| {
-                    p.words("with base power and toughness")?;
-                    match p.peek()? { Tok::Pt(pt) if !pt.signed => { let pt = *pt; p.bump(); Some(pt) } _ => None }
-                }),
-            };
-            // "… with flying", "… and gains flying": what the same effect
-            // adds, in layer 6 either way (CR 613.1f, 613.6).
-            let gains = p.attempt(|p| {
-                alt!(p; |p| p.word("with"), |p| { p.word("and")?; p.verb("gain") })?;
-                keyword_list(p)
-            }).unwrap_or_default();
-            let keeps = p.attempt(keeps);
-            let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
-            // ". It's still a land." after the duration.
-            let keeps = match keeps {
-                None => p.attempt(still).unwrap_or_else(|| Keeps::implied_by(&types)),
-                Some(k) => k,
-            };
-            Some(Effect::Becomes { what, pt, types, gains, keeps, dur })
+            becomes(p, what)
         },
         |p| { let who = subject_player(p); p.verb("win")?; p.words("the game")?; Some(Effect::WinGame(who)) },
         // "your life total becomes 15", "target player's life total becomes 10".

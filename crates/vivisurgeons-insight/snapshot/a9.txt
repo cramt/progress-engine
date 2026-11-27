@@ -1138,7 +1138,7 @@ type: Instant
 cost: {2}{U}
 > Until end of turn, target creature loses all abilities and becomes a red Weird with base power and toughness 0/1.
 > Fuse (You may cast one or both halves of this card from your hand.)
-= BROKE at "a" after: until end of turn , target creature loses all abilities and becomes
+= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Spell([During { dur: UntilEndOfTurn, then: [Loses { what: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, lost: [All { other: false, of: Abilities }], dur: Permanent }, Becomes { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(0), toughness: N(1), signed: false }), types: [Color(Red), Subtype("weird")], gains: [], keeps: AllButSubtypesOfSet, dur: Permanent }] }]) }
 = Keywords([Keyword { name: "fuse", param: None }])
 
 ## Turn // Burn
