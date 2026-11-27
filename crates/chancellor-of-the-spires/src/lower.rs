@@ -1850,6 +1850,9 @@ pub enum Effect {
         filter: CardFilter,
         total_mana_value: Option<u32>,
         enters: bool,
+        /// An instruction after reveals the cards chosen ("You may reveal
+        /// a Dinosaur or land card from among them").
+        reveals: bool,
         into: Slot,
     },
     /// "An opponent separates those cards into two piles": an opponent
@@ -4680,7 +4683,14 @@ impl<'a> Scope<'a> {
             }
             // "Search your library for a basic land card": the card the
             // search finds, which it describes.
-            [o] if o.quant == Quant::One && o.filter.kind == Some(i::Noun::Card) => {
+            [o] if o.quant == Quant::One
+                && o.filter.kind == Some(i::Noun::Card)
+                && !o
+                    .filter
+                    .posts
+                    .iter()
+                    .any(|p| matches!(p, Post::FromAmong(_))) =>
+            {
                 let s = self.new_slot();
                 self.described
                     .insert(s, (o.clone(), enters_battlefield(then)));
@@ -4765,15 +4775,29 @@ impl<'a> Scope<'a> {
             // less from among them onto the battlefield": up to that many
             // of the cards found that the filter matches, their mana
             // values adding up to no more than the total (CR 202.3).
-            [o] if matches!(o.quant, Quant::UpTo(i::Amount::N(_)))
+            // "You may reveal a Dinosaur or land card from among them and
+            // put it into your hand": one, whose instructions are its
+            // chooser's "may", is up to one, none chosen the "may"
+            // declined, or none matching (CR 609.3).
+            [o] if (matches!(o.quant, Quant::UpTo(i::Amount::N(_)))
+                || o.quant == Quant::One
+                    && matches!(
+                        then.first(),
+                        Some(i::Effect::May {
+                            who: i::Player::You,
+                            ..
+                        })
+                    ))
                 && o.filter.kind == Some(i::Noun::Card)
                 && o.filter
                     .posts
                     .iter()
                     .any(|p| matches!(p, Post::FromAmong(_))) =>
             {
-                let Quant::UpTo(i::Amount::N(up_to)) = o.quant else {
-                    unreachable!("matched")
+                let up_to = match o.quant {
+                    Quant::UpTo(i::Amount::N(n)) => n,
+                    Quant::One => 1,
+                    _ => unreachable!("matched"),
                 };
                 let mut from = None;
                 let mut total_mana_value = None;
@@ -4819,8 +4843,30 @@ impl<'a> Scope<'a> {
                     filter,
                     total_mana_value,
                     enters: moves_onto_battlefield(then),
+                    reveals: reveals_chosen(then),
                     into,
                 });
+                // Its "may" first ("You may reveal it and put it into
+                // your hand"): the card chosen is the "may" taken, none
+                // declined, so one chosen and then kept back, left among
+                // "the rest", can't be.
+                if let (Quant::One, Some(i::Effect::May { then: taken, .. })) =
+                    (&o.quant, then.first())
+                {
+                    self.withs.push(Some(into));
+                    // Only its own instructions are under the "may".
+                    let outer = std::mem::replace(&mut self.in_may, true);
+                    let taken = self.effects(taken);
+                    self.in_may = outer;
+                    let lowered = taken.and_then(|mut t| {
+                        t.extend(self.effects(&then[1..])?);
+                        Ok(t)
+                    });
+                    self.withs.pop();
+                    out.extend(lowered?);
+                    mark_blind(&mut out, into);
+                    return Ok(out);
+                }
                 into
             }
             // "Choose two cards in your hand drawn this turn".
@@ -6188,6 +6234,17 @@ fn this_turn(cond: &i::Condition) -> Option<Result<ThisTurn, String>> {
         },
         _ => None,
     }
+}
+
+/// Whether the instructions reveal the card their binder chose.
+fn reveals_chosen(effects: &[i::Effect]) -> bool {
+    effects.iter().any(|e| match e {
+        i::Effect::Reveal { what, .. } => {
+            matches!(what.quant, Quant::Bound(0) | Quant::Introduced(0))
+        }
+        i::Effect::May { then, .. } => reveals_chosen(then),
+        _ => false,
+    })
 }
 
 /// Whether an instruction reveals the cards a binder holds ("reveal it",

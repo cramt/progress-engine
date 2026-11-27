@@ -8574,8 +8574,8 @@ fn a_madness_spell_with_no_legal_target_goes_to_the_graveyard() {
 /// CR 400.11, 400.11a: Living Wish's card "you own from outside the game"
 /// is one no search of a library finds, and the engine holds no cards
 /// outside the game (a sideboard's), so the spell is refused by name
-/// rather than resolving to nothing, as Commune with Dinosaurs's card
-/// "from among them" is. Demonic Tutor's search of the library still runs.
+/// rather than resolving to nothing. Demonic Tutor's search of the
+/// library still runs.
 #[test]
 fn a_card_from_outside_the_game_is_refused() {
     let game = deal(
@@ -8583,17 +8583,87 @@ fn a_card_from_outside_the_game_is_refused() {
         &[("Forest", 60)],
         &[("Living Wish", 1), ("Demonic Tutor", 1)],
     );
-    let commune = deal(
-        &[("Forest", 30), ("Commune with Dinosaurs", 30)],
-        &[("Forest", 60)],
-        &[("Commune with Dinosaurs", 1)],
-    );
-    let c = in_hand(&commune, ME, "Commune with Dinosaurs").unwrap();
-    let refusal = commune.refusal(c).expect("refused");
-    assert_eq!(refusal.node, "With a card no instruction finds");
     let wish = in_hand(&game, ME, "Living Wish").unwrap();
     let refusal = game.refusal(wish).expect("refused");
     assert_eq!(refusal.node, "With a card no instruction finds");
     let tutor = in_hand(&game, ME, "Demonic Tutor").unwrap();
     assert_eq!(game.refusal(tutor), None);
+}
+
+/// CR 608.2d, 701.20a, 401.4: Commune with Dinosaurs looks at the top five,
+/// and "You may reveal a Dinosaur or land card from among them and put it
+/// into your hand" is a choice of up to one card the filter matches, that
+/// card revealed: chosen, it goes to the hand and the other four to the
+/// bottom; none chosen, the "may" declined, all five go there. A card the
+/// filter doesn't match can't be chosen.
+#[test]
+fn commune_with_dinosaurs_puts_a_land_from_among_five_into_the_hand() {
+    let mut game = deal(
+        &[
+            ("Forest", 30),
+            ("Grizzly Bears", 10),
+            ("Commune with Dinosaurs", 20),
+        ],
+        &[("Forest", 60)],
+        &[("Forest", 1), ("Commune with Dinosaurs", 1)],
+    );
+    play(&mut game, "Forest");
+    cast(&mut game, "Commune with Dinosaurs", None);
+    let top: Vec<CardId> = game.player(ME).library().iter().take(5).copied().collect();
+    let d = resolve(&mut game);
+    let Decision::ChooseMatching {
+        player,
+        cards,
+        up_to,
+        reveals,
+        ..
+    } = d
+    else {
+        panic!("{d:?}")
+    };
+    assert_eq!((player, up_to, reveals), (ME, 1, true));
+    assert_eq!(cards, top);
+    let named = |game: &Game, n: &str| {
+        top.iter()
+            .copied()
+            .find(|c| game.card(*c).unwrap().name == n)
+    };
+    let other = top
+        .iter()
+        .copied()
+        .find(|c| game.card(*c).unwrap().name != "Forest")
+        .expect("a card not a land among the five");
+    assert!(matches!(
+        game.clone().step(Answer::Finds(vec![Found::Card(other)])),
+        Err(Rejected::Illegal(_))
+    ));
+    let to_bottom = |game: &mut Game, mut d: Decision| {
+        for _ in 0..5 {
+            match d {
+                Decision::Arrange { cards, .. } => d = step(game, Answer::Arrange(cards)),
+                _ => return d,
+            }
+        }
+        d
+    };
+    let hand = game.player(ME).hand().len();
+    let mut none = game.clone();
+    let d = step(&mut none, Answer::Finds(vec![]));
+    to_bottom(&mut none, d);
+    assert_eq!(none.player(ME).hand().len(), hand);
+    let library = none.player(ME).library();
+    assert!(top
+        .iter()
+        .all(|c| library.iter().skip(library.len() - 5).any(|x| x == c)));
+    let forest = named(&game, "Forest").expect("a Forest among five, of 30 in 60");
+    let d = step(&mut game, Answer::Finds(vec![Found::Card(forest)]));
+    to_bottom(&mut game, d);
+    assert_eq!(game.player(ME).hand().len(), hand + 1);
+    assert!(game.player(ME).hand().contains(&forest));
+    let library = game.player(ME).library();
+    let bottom: Vec<CardId> = library.iter().skip(library.len() - 4).copied().collect();
+    assert!(top
+        .iter()
+        .filter(|c| **c != forest)
+        .all(|c| bottom.contains(c)));
 }

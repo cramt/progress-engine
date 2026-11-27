@@ -1217,6 +1217,7 @@ enum Waiting {
         filter: CardFilter,
         total_mana_value: Option<u32>,
         enters: bool,
+        reveals: bool,
         into: Slot,
         hands: Vec<PlayerId>,
         hands_up_to: Option<u32>,
@@ -1627,6 +1628,8 @@ pub enum Decision {
         up_to: u32,
         filter: CardFilter,
         total_mana_value: Option<u32>,
+        /// The cards chosen are then revealed, so a line names them.
+        reveals: bool,
     },
     /// "Put them back in any order" (CR 401.4): `cards` go on top of
     /// their library, or the bottom, in the order `Answer::Arrange` gives,
@@ -3275,6 +3278,7 @@ impl Game {
                 up_to,
                 filter,
                 total_mana_value,
+                reveals,
                 ..
             } => Decision::ChooseMatching {
                 player: *player,
@@ -3282,6 +3286,7 @@ impl Game {
                 up_to: *up_to,
                 filter: filter.clone(),
                 total_mana_value: *total_mana_value,
+                reveals: *reveals,
             },
             Waiting::ChooseAmong {
                 player, cards, n, ..
@@ -4029,6 +4034,7 @@ impl Game {
                     filter,
                     total_mana_value,
                     enters,
+                    reveals,
                     into,
                     hands,
                     hands_up_to,
@@ -4105,6 +4111,7 @@ impl Game {
                             filter,
                             total_mana_value,
                             enters,
+                            reveals,
                             into,
                             hands: rest.to_vec(),
                             hands_up_to,
@@ -7543,6 +7550,7 @@ impl Game {
                     filter,
                     total_mana_value,
                     enters,
+                    reveals,
                     into,
                 } => {
                     let cards = self.still_in_library(&at, Cards::Bound(from));
@@ -7553,6 +7561,7 @@ impl Game {
                         filter,
                         total_mana_value,
                         enters,
+                        reveals,
                         into,
                         hands: Vec::new(),
                         hands_up_to: None,
@@ -7588,6 +7597,7 @@ impl Game {
                             filter,
                             total_mana_value: None,
                             enters: true,
+                            reveals: false,
                             into,
                             hands: rest.to_vec(),
                             hands_up_to: up_to,

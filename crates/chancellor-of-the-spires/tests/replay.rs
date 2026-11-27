@@ -201,6 +201,7 @@ const INDEXED: &[&str] = &[
     "Basking Rootwalla",
     "Arrogant Wurm",
     "Careful Study",
+    "Commune with Dinosaurs",
 ];
 
 fn index() -> &'static IndexFile {
@@ -3294,4 +3295,131 @@ fn two_madness_triggers_cast_each_card_as_each_resolves() {
     assert_eq!(on_battlefield(&game, "Basking Rootwalla"), 1);
     assert_eq!(on_battlefield(&game, "Arrogant Wurm"), 1);
     assert!(game.exile().is_empty(), "{:?}", game.exile());
+}
+
+/// Alice's Commune with Dinosaurs, then `then`, and a Forest played next
+/// turn.
+fn commune(then: &str) -> String {
+    format!(
+        "
+        alice chooses to play first.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Forest].
+        alice casts [Commune with Dinosaurs].
+        {then}
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Forest].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Forest].
+        alice has conceded from the game.
+        bob wins the game.
+        Winner: bob
+    "
+    )
+}
+
+/// CR 608.2d, 701.20a: the log's "reveals [Forest] with [Commune with
+/// Dinosaurs]." names the card chosen from among the five looked at, a
+/// hidden card, which goes to the hand; with no such line none is chosen,
+/// and all five go to the bottom.
+#[test]
+fn a_card_revealed_from_among_those_looked_at_is_the_one_chosen() {
+    let (_, r) = run(&commune(
+        "alice reveals [Forest] with [Commune with Dinosaurs].",
+    ));
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    assert!(
+        r.trace
+            .iter()
+            .any(|t| t.did == "chose Forest from among the cards Commune with Dinosaurs looked at"),
+        "{:?}",
+        r.trace
+    );
+    let game = r.game.expect("set up");
+    let library = game.player(ALICE).library();
+    let hidden_bottom = library
+        .iter()
+        .skip(library.len() - 4)
+        .filter(|c| game.card(**c).is_none())
+        .count();
+    assert_eq!(
+        hidden_bottom, 4,
+        "the other four, still hidden, on the bottom"
+    );
+
+    let (_, r) = run(&commune(""));
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    assert!(
+        r.trace.iter().any(|t| t.did
+            == "chose none of the cards Commune with Dinosaurs looked at, which no line reveals"),
+        "{:?}",
+        r.trace
+    );
+}
+
+/// Two Communes in one turn, the first revealing nothing: the reveal line
+/// after the second cast is the second's, so the first chooses none.
+#[test]
+fn a_reveal_line_belongs_to_the_last_cast_of_its_card_before_it() {
+    let (_, r) = run("
+        alice chooses to play first.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Forest].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Forest].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Forest].
+        alice casts [Commune with Dinosaurs].
+        alice casts [Commune with Dinosaurs].
+        alice reveals [Forest] with [Commune with Dinosaurs].
+        Turn 2: bob
+        bob draws a card.
+        alice has conceded from the game.
+        bob wins the game.
+        Winner: bob
+    ");
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let did: Vec<(usize, &str)> = r
+        .trace
+        .iter()
+        .filter(|t| t.did.contains("Commune with Dinosaurs looked at"))
+        .map(|t| (t.entry, t.did.as_str()))
+        .collect();
+    assert_eq!(
+        did.iter().map(|(_, d)| *d).collect::<Vec<_>>(),
+        vec![
+            "chose none of the cards Commune with Dinosaurs looked at, which no line reveals",
+            "chose Forest from among the cards Commune with Dinosaurs looked at",
+        ],
+        "{:?}",
+        r.trace
+    );
+}
+
+/// A reveal line naming a card the filter doesn't match is the log's
+/// choice and not one the engine offers: a divergence, by name.
+#[test]
+fn a_revealed_card_the_filter_doesnt_match_diverges() {
+    let (g, r) = run(&commune(
+        "alice reveals [Grizzly Bears] with [Commune with Dinosaurs].",
+    ));
+    let End::Stopped { entry, stop } = &r.end else {
+        panic!("{:?}", r.trace)
+    };
+    assert_eq!(
+        g.entries[*entry].text,
+        "alice reveals [Grizzly Bears] with [Commune with Dinosaurs]."
+    );
+    assert_eq!(
+        *stop,
+        Stop::Diverged(Divergence::NeverOffered {
+            what: "Grizzly Bears from among the cards Commune with Dinosaurs looked at".into()
+        })
+    );
 }

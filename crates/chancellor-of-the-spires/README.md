@@ -1097,7 +1097,7 @@ mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
 Worked card by card from there, **on 2026-11-27 175 of the 500 replay to
-the end and 60.50% of their lines are followed** (19,154 of 31,659), 3
+the end and 60.60% of their lines are followed** (19,185 of 31,659), 3
 of them relying on a land the log never names (2 to the end) and 11 on a
 card no one named in a graveyard having no ability there (2 to the end),
 and 176 games have no card the engine refuses before any game (from 21). The
@@ -1417,8 +1417,14 @@ Circular Logic, Genesis (2) and Opposition; and Psychatog's discard of a
 Circular Logic, refused there now, which went to the graveyard before);
 and a card bound for an instruction that no search finds refused by
 name, where it had resolved to nothing (CR 400.11, 400.11a: Living
-Wish's card from outside the game and Commune with Dinosaurs's from
-among those looked at, whose 5 games stop at it a line earlier).
+Wish's card from outside the game, whose 2 games stop at it a line
+earlier); and "you may reveal a Dinosaur or land card from among them and
+put it into your hand", a choice of up to one card of those looked at
+that the filter matches, none the "may" declined, the "may" folded into
+the choice so a card chosen and kept back can't be (CR 609.3, 701.20a:
+Commune with Dinosaurs, whose 3 games go on to Tail the Suspect,
+Unmoored Ego and Magmatic Hellkite; Ancient Stirrings, Peer Through
+Depths and Grisly Salvage run too).
 And
 the replay's inferences: a card played or cast while its player may
 play cards from exile taken from there before the hand, the hand the
@@ -1428,6 +1434,9 @@ instruction has a player sacrifice, from the log's "sacrifices" lines,
 one each, every other choice of permanents of those names a way back;
 a cast "by paying {2U} with evoke" for that cost, and a cast line saying
 nothing of how never evoke's;
+the card chosen from among those looked at and revealed, the log's
+"reveals [X] with [Commune with Dinosaurs]" line before the next cast of
+the card, and none with no such line;
 a card madness exiled cast only by the line its trigger resolved before,
 and otherwise put into the graveyard, a cast from the hand of another
 card of its name the way back;

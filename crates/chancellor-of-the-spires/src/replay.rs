@@ -2939,6 +2939,13 @@ impl Driver<'_> {
                 player,
                 cards,
                 up_to,
+                reveals: true,
+                ..
+            } => self.choose_revealed(player, cards, up_to),
+            Decision::ChooseMatching {
+                player,
+                cards,
+                up_to,
                 ..
             } => self.choose_matching(player, cards, up_to),
             Decision::Arrange { cards, .. } => self.act(Answer::Arrange(cards)),
@@ -7028,6 +7035,107 @@ impl Driver<'_> {
         }
         self.consumed.insert(k);
         self.act(Answer::Reveal(unnamed))
+    }
+
+    /// Cards chosen from among those looked at and then revealed: the
+    /// log's "reveals [Stomping Ground] with [Commune with Dinosaurs]."
+    /// names them, read ahead to the end of the turn, a hidden card taken
+    /// for one as a known card of its name isn't there. With no such line,
+    /// none is chosen: its "may" declined, or none matched.
+    fn choose_revealed(&mut self, p: PlayerId, cards: Vec<CardId>, up_to: u32) -> Followed {
+        let game = self.game.as_ref().expect("set up");
+        let Some(by) = game.resolving().map(|c| self.name_of(c)) else {
+            return Err(Stop::Unfollowed {
+                event: "a choice of cards looked at, with nothing resolving".into(),
+                card: None,
+            });
+        };
+        let said = self
+            .entries
+            .iter()
+            .enumerate()
+            .skip(self.at)
+            // Not past another cast of the card, whose line it would be,
+            // the line being followed too: this one resolved before it.
+            .take_while(|(k, e)| {
+                (*k == self.at || !matches!(&e.event, Event::TurnBegins(_)))
+                    && !matches!(&e.event, Event::Casts(c)
+                        if matches!(&c.card, Object::Card(x) if x.name() == by))
+            })
+            .find_map(|(k, e)| match &e.event {
+                Event::Reveals {
+                    player,
+                    cards,
+                    how: log::Reveal::With(log::Source::Card(s)),
+                } if self.seat(*player) == p && s.name() == by && !self.consumed.contains(&k) => {
+                    Some((
+                        k,
+                        cards
+                            .iter()
+                            .map(|c| c.name().to_string())
+                            .collect::<Vec<_>>(),
+                    ))
+                }
+                _ => None,
+            });
+        let at = self.at;
+        let Some((k, names)) = said else {
+            self.act(Answer::Finds(Vec::new()))?;
+            self.did(
+                at,
+                format!("chose none of the cards {by} looked at, which no line reveals"),
+            );
+            return Ok(());
+        };
+        if names.len() > up_to as usize {
+            return Err(Stop::Diverged(Divergence::NeverOffered {
+                what: format!("{} cards {by} reveals, of up to {up_to}", names.len()),
+            }));
+        }
+        let mut found = Vec::new();
+        let mut taken: Vec<CardId> = Vec::new();
+        for name in &names {
+            let game = self.game.as_ref().expect("set up");
+            let known = cards
+                .iter()
+                .find(|c| !taken.contains(c) && game.card(**c).is_some_and(|t| &t.name == name));
+            let hidden = cards
+                .iter()
+                .find(|c| !taken.contains(c) && game.card(**c).is_none());
+            match (known, hidden) {
+                (Some(c), _) => {
+                    taken.push(*c);
+                    found.push(Found::Card(*c));
+                }
+                (None, Some(c)) => {
+                    let c = *c;
+                    let text = self.text(name)?;
+                    taken.push(c);
+                    found.push(Found::Hidden(c, Box::new(text)));
+                }
+                (None, None) => {
+                    return Err(Stop::Diverged(Divergence::NeverOffered {
+                        what: format!("{name} from among the cards {by} looked at"),
+                    }))
+                }
+            }
+        }
+        // One the filter doesn't match is the log's, not the engine's.
+        if let Err(Rejected::Illegal(_)) = self.game().clone().step(Answer::Finds(found.clone())) {
+            return Err(Stop::Diverged(Divergence::NeverOffered {
+                what: format!("{} from among the cards {by} looked at", names.join(", ")),
+            }));
+        }
+        self.consumed.insert(k);
+        self.act(Answer::Finds(found))?;
+        self.did(
+            k,
+            format!(
+                "chose {} from among the cards {by} looked at",
+                names.join(", ")
+            ),
+        );
+        Ok(())
     }
 
     /// "Put up to two creature cards with total mana value 6 or less from
