@@ -2413,7 +2413,12 @@ impl Visitor for FromEachLibrary {
     fn enter(&mut self, o: &mut Objects) -> bool {
         let each = |p: &Player| matches!(p, Player::Each | Player::EachOpponent);
         let from_each = match &o.filter.posts[..] {
-            [Post::In(Zone::TopOfLibrary(p))] => each(p),
+            [Post::In(
+                Zone::TopOfLibrary(p)
+                | Zone::BottomOfLibrary(p)
+                | Zone::TopOfGraveyard(p)
+                | Zone::BottomOfGraveyard(p),
+            )] => each(p),
             [Post::In(Zone::Graveyard(p)) | Post::CastFrom(Zone::Graveyard(p))] => each(p),
             _ => false,
         };

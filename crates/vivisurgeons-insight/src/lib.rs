@@ -2518,4 +2518,31 @@ mod round_nine_d {
         );
         assert!(s.contains("quant: NFromEach(N(1))"), "{s}");
     }
+
+    #[test]
+    fn the_bottom_card_of_each_opponents_library_is_one_per_library() {
+        let s = format!(
+            "{:?}",
+            read(
+                "Sorcery",
+                "Exile the bottom card of each opponent's library."
+            )
+        );
+        assert!(s.contains("quant: NFromEach(N(1))"), "{s}");
+    }
+
+    #[test]
+    fn the_bottom_card_of_one_players_library_is_one_card() {
+        let s = format!(
+            "{:?}",
+            read(
+                "Sorcery",
+                "Exile the bottom card of target player's library."
+            )
+        );
+        assert!(
+            s.contains("BottomOfLibrary") && !s.contains("NFromEach"),
+            "{s}"
+        );
+    }
 }
