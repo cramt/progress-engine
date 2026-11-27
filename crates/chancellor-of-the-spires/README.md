@@ -931,7 +931,7 @@ stop by kind, its lines and the cards it presumed in a graveyard
 (`ratchet::Run`); the report ranks stops by games, with an example line, players
 renamed P1 and P2.
 
-`chancellor-logs gate BASELINE.json AFTER.json [--allow F]` is the ratchet
+`chancellor-logs gate BASELINE.json AFTER.json [--allow F]...` is the ratchet
 a batch passes (`.claude/skills/chancellor-batch`): it compares two
 `--json` runs game by game, since totals hide a finished game traded for
 a diverging one, and exits nonzero naming each milestone game that newly
@@ -942,7 +942,8 @@ longer replayed. A game that newly gives up is replayed again going back
 file is the batch's, one `<kind> <game> <why>` a line: `refusal` lets a
 game that now stops at a refusal follow fewer lines (a silent guess made a
 refusal), `gave-up` a give-up shown to be the search by forcing the finds,
-and `presumed` a new presumption read and found safe.
+and `presumed` a new presumption read and found safe. `--allow` may be
+given more than once, and the gate allows what any of the files allows.
 
 **Of 1,061 games replayed, 85 replay to the end** (82 to the log's winner
 line), 66 of them past the first turn, and **31.62% of their lines are

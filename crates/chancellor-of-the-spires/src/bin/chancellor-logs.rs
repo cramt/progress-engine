@@ -45,7 +45,7 @@ mod native {
     /// The margin keeps it under that whatever the clock does.
     const GAP: Duration = Duration::from_millis(1050);
 
-    const USAGE: &str = "usage: chancellor-logs fetch [--formats Freeform,PennyDreadful] [--max N] | chancellor-logs coverage [--bulk F] [--top N] | chancellor-logs replay [--bulk F] [--top N] [--game ID] [--finished F] [--lines F] [--json F] | chancellor-logs gate BASELINE.json AFTER.json [--allow F] [--bulk F] | chancellor-logs milestone [--bulk F] [--games N] | chancellor-logs card NAME...";
+    const USAGE: &str = "usage: chancellor-logs fetch [--formats Freeform,PennyDreadful] [--max N] | chancellor-logs coverage [--bulk F] [--top N] | chancellor-logs replay [--bulk F] [--top N] [--game ID] [--finished F] [--lines F] [--json F] | chancellor-logs gate BASELINE.json AFTER.json [--allow F]... [--bulk F] | chancellor-logs milestone [--bulk F] [--games N] | chancellor-logs card NAME...";
 
     pub fn main() -> Result<()> {
         let args: Vec<String> = std::env::args().skip(1).collect();
@@ -982,20 +982,21 @@ mod native {
     /// up with, to tell the search from the engine.
     const RERUN: usize = 64;
 
-    /// `gate BASELINE AFTER [--allow F]`: two runs' `replay --json`, and
+    /// `gate BASELINE AFTER [--allow F]...`: two runs' `replay --json`, and
     /// every milestone game a change broke (`ratchet::check`), failing if
     /// any. A game that newly gives up is replayed again going back `RERUN`
     /// times as often, and passes if it then gets past its line without
     /// diverging: its stop was the search, not the engine.
     fn gate(args: &[String]) -> Result<()> {
         let mut bulk = corpus::cache("oracle-cards.jsonl");
-        let mut allow: Option<String> = None;
+        // Repeatable: batch 26 passed two and silently kept only the last.
+        let mut allow: Vec<String> = Vec::new();
         let mut runs = Vec::new();
         let mut it = args.iter();
         while let Some(a) = it.next() {
             match a.as_str() {
                 "--bulk" => bulk = it.next().context("--bulk needs a path")?.clone(),
-                "--allow" => allow = Some(it.next().context("--allow needs a path")?.clone()),
+                "--allow" => allow.push(it.next().context("--allow needs a path")?.clone()),
                 path if !path.starts_with("--") => runs.push(path.to_string()),
                 other => bail!("unknown argument {other}\n{USAGE}"),
             }
@@ -1010,13 +1011,18 @@ mod native {
         let (baseline, after) = (read(baseline)?, read(after)?);
         // A batch that has allowed nothing has no allow file yet, and its
         // gate is the same command as one that has.
-        let allowed = match allow.filter(|path| std::path::Path::new(path).exists()) {
-            Some(path) => Allowed::parse(
-                &fs::read_to_string(&path).with_context(|| format!("reading {path}"))?,
-            )
-            .map_err(|e| anyhow::anyhow!("{path}: {e}"))?,
-            None => Allowed::default(),
-        };
+        let mut allow_text = String::new();
+        for path in allow
+            .iter()
+            .filter(|path| std::path::Path::new(path).exists())
+        {
+            let text = fs::read_to_string(path).with_context(|| format!("reading {path}"))?;
+            Allowed::parse(&text).map_err(|e| anyhow::anyhow!("{path}: {e}"))?;
+            allow_text.push_str(&text);
+            allow_text.push('\n');
+        }
+        let allowed = Allowed::parse(&allow_text)
+            .map_err(|e| anyhow::anyhow!("--allow files together: {e}"))?;
         for ms in &after.milestones {
             let count = |f: &dyn Fn(&GameEnd) -> bool| ms.games.iter().filter(|g| f(g)).count();
             let stopped = |kind| move |g: &GameEnd| matches!(&g.end, Ended::Stopped { stop, .. } if *stop == kind);
