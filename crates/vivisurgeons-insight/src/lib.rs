@@ -82,11 +82,17 @@ pub fn read_face_unresolved(face: &Face, card_name: &str) -> Vec<Line> {
         .flatten()
         // "Zurgo can't block creatures with power 2 or greater" (Zurgo
         // Bellstriker): a legendary card is called by its first name, a
-        // word that names no type on its type line (CR 201.5c); a
-        // planeswalker only by the rule above. Not where
+        // word that names no type at all (CR 201.5c): Dragon Cultist's
+        // "Dragon creature token" is the subtype, though its own type line
+        // has no Dragon. A planeswalker only by the rule above. Not where
         // it starts another name: Marit Lage's Slumber creates "Marit Lage".
         .or_else(|| {
             let first = face.name.split(' ').next()?;
+            let v = crate::vocab::vocab();
+            let lower = first.to_lowercase();
+            let names_a_type = v.subtypes.contains(&lower)
+                || v.card_types.contains(&lower)
+                || v.supertypes.contains(&lower);
             let starts_other = marked.match_indices(first).any(|(i, _)| {
                 let mut rest = marked[i + first.len()..].chars();
                 rest.next() == Some(' ') && rest.next().is_some_and(char::is_uppercase)
@@ -98,6 +104,7 @@ pub fn read_face_unresolved(face: &Face, card_name: &str) -> Vec<Line> {
                 && first.chars().next().is_some_and(char::is_uppercase)
                 && !["The", "A", "An"].contains(&first)
                 && !face.type_line.split_whitespace().any(|w| w == first)
+                && !names_a_type
                 && !starts_other)
                 .then_some(first)
         });
@@ -2010,6 +2017,22 @@ mod tests {
         );
         assert!(matches!(&a[0], Ability::Triggered { effect, .. }
             if matches!(&effect[0], Effect::Damage { source: Some(s), .. } if s.quant == Quant::SelfRef)));
+    }
+
+    #[test]
+    fn a_first_name_that_is_a_subtype_stays_the_subtype() {
+        let face = Face {
+            name: "Dragon Cultist",
+            type_line: "Legendary Enchantment — Background",
+            text:
+                "When this enchantment enters, create a 4/4 red Dragon creature token with flying.",
+        };
+        let lines = read_face_unresolved(&face, face.name);
+        assert!(
+            lines[0].text.contains("red Dragon creature token"),
+            "{}",
+            lines[0].text
+        );
     }
 
     #[test]
