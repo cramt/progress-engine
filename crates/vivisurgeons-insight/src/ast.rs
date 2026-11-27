@@ -1520,6 +1520,12 @@ pub enum Zone {
     Library(Player),
     TopOfLibrary(Player),
     BottomOfLibrary(Player),
+    /// "the top card of your graveyard" (Soldevi Digger), "the bottom card
+    /// of target player's graveyard" (Phyrexian Furnace): a graveyard is one
+    /// pile whose order players can't change (CR 404.2), so its ends are
+    /// places as a library's are.
+    TopOfGraveyard(Player),
+    BottomOfGraveyard(Player),
     OwnersHand,
     OwnersGraveyard,
     OwnersLibraryTop,

@@ -155,7 +155,7 @@ face: Cellar Door
 type: Artifact
 cost: {2}
 > {3}, {T}: Target player puts the bottom card of their library into their graveyard. If it's a creature card, you create a 2/2 black Zombie creature token.
-= BROKE at "card" after: {3} , {T} : target player puts the bottom
+= Activated { cost: [Mana(Mana(["3"])), Tap], effect: [With { bind: [/* moved */ Objects { quant: N(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [In(BottomOfLibrary(That))], or: None } }], then: [Performed { by: Target, effect: Move { what: Objects { quant: Introduced(0) /* moved */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Graveyard(That), tapped: false, transformed: false, under: None, order: None } }, If { order: Leading, cond: Is { what: Objects { quant: Bound(0) /* moved */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Black], types: ["zombie", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }] }], limits: [] }
 
 ## Collector's Case
 face: Collector's Case

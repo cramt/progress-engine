@@ -285,7 +285,7 @@ cost: {X}{B}{R}
 > Grenzo enters with X +1/+1 counters on it.
 > {2}: Put the bottom card of your library into your graveyard. If it's a creature card with power less than or equal to Grenzo's power, put it onto the battlefield.
 = Static([EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: X, kind: "+1/+1" }])
-= BROKE at "card" after: {2} : put the bottom
+= Activated { cost: [Mana(Mana(["2"]))], effect: [With { bind: [/* moved */ Objects { quant: N(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [In(BottomOfLibrary(You))], or: None } }], then: [Move { what: Objects { quant: Introduced(0) /* moved */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Graveyard(You), tapped: false, transformed: false, under: None, order: None }, If { order: Leading, cond: Is { what: Objects { quant: Bound(0) /* moved */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [With(Compare { stat: Power, op: Le, value: PowerOf(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }) })], or: None } }, then: [Move { what: Objects { quant: Bound(0) /* moved */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }] }], limits: [] }
 
 ## Grimoire Thief
 face: Grimoire Thief

@@ -1754,17 +1754,30 @@ pub(super) fn pronoun(p: &mut P) -> Option<Objects> {
         |p| { p.word("enchanted")?; let f = filter(p)?; Some(with_others(Quant::Enchanted, f)) },
         |p| { p.word("equipped")?; let f = filter(p)?; Some(with_others(Quant::Equipped, f)) },
         |p| {
-            p.words("the top")?;
+            p.word("the")?;
+            let top = p.one_of(&["top", "bottom"])? == "top";
             let n = p.attempt(amount).unwrap_or(Amount::N(1));
             p.one_of(&["cards", "card"])?;
-            // "Shuffle your library, then exile the top card": of the library
-            // just named, as "put it on top" is.
-            let zone = p.attempt(|p| {
+            // "Exile the bottom card of target player's graveyard" (Phyrexian
+            // Furnace), "Put the bottom card of your library into your
+            // graveyard" (Grenzo): either end of either ordered pile.
+            let of = p.attempt(|p| {
                 p.word("of")?;
                 let w = whose(p)?;
-                p.word("library")?;
-                Some(Zone::TopOfLibrary(w))
-            }).unwrap_or(Zone::OwnersLibraryTop);
+                Some(match (p.one_of(&["library", "graveyard"])? == "library", top) {
+                    (true, true) => Zone::TopOfLibrary(w),
+                    (true, false) => Zone::BottomOfLibrary(w),
+                    (false, true) => Zone::TopOfGraveyard(w),
+                    (false, false) => Zone::BottomOfGraveyard(w),
+                })
+            });
+            // "Shuffle your library, then exile the top card": of the library
+            // just named, as "put it on top" is.
+            let zone = match of {
+                Some(z) => z,
+                None if top => Zone::OwnersLibraryTop,
+                None => return None,
+            };
             Some(Objects {
                 quant: Quant::N(n),
                 filter: Filter { kind: Some(Noun::Card), posts: vec![Post::In(zone)], ..Filter::default() },

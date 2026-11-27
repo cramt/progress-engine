@@ -1361,6 +1361,22 @@ fn resolve_pass(lds: &[LineData], type_line: &str) -> Vec<Resolved> {
                     continue;
                 }
                 match &e.role {
+                    // "If it's a creature card with power less than or equal
+                    // to ~'s power, put it onto the battlefield" (Grenzo,
+                    // Dungeon Warden): the card's power, toughness or mana
+                    // value said as a measure in a condition about an object
+                    // already said is no candidate for the "it" after it
+                    // ([measure-not-candidate]).
+                    Role::SelfMention
+                        if intros.len() > out_n.0
+                            && e.frames.iter().any(|&f| ld.c.frames[f].kind == Fk::Cond)
+                            && e.frames.iter().any(|&f| {
+                                ld.c.frames[f].kind == Fk::Amount
+                                    && matches!(
+                                        ld.c.frames[f].verb.as_str(),
+                                        "PowerOf" | "ToughnessOf" | "ManaValueOf"
+                                    )
+                            }) => {}
                     Role::SelfMention => {
                         self_at = Some(at);
                         mentions.push(((li, ei), Target::SelfCard));

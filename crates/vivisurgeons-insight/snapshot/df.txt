@@ -1110,7 +1110,7 @@ type: Creature — Phyrexian Shapeshifter
 cost: {1}{U}{U}
 > As long as the top card of your graveyard is a creature card, this creature has the full text of that card and has the text "{2}: Discard a card." (This creature has that card's name, mana cost, color, types, abilities, power, and toughness.)
 > {2}: Discard a card.
-= BROKE at "graveyard" after: as long as the top card of your
+= BROKE at "the" after: as long as the top card of your graveyard is a creature card , this creature has
 = Activated { cost: [Mana(Mana(["2"]))], effect: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
 
 ## Vow of Wildness

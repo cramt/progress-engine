@@ -4618,6 +4618,26 @@ fn objects_plain(o: &mut Out, x: &Objects) {
                 rounded(o, *round_up);
                 return;
             }
+            // "the bottom card of target player's graveyard".
+            if f.kind == Some(Noun::Card) && f.alts.is_empty() && f.or.is_none() {
+                let end = match &f.posts[..] {
+                    [Post::In(Zone::BottomOfLibrary(w))] => Some(("the bottom", w, "library")),
+                    [Post::In(Zone::TopOfGraveyard(w))] => Some(("the top", w, "graveyard")),
+                    [Post::In(Zone::BottomOfGraveyard(w))] => Some(("the bottom", w, "graveyard")),
+                    _ => None,
+                };
+                if let Some((end, w, pile)) = end {
+                    o.w(end);
+                    if *k != Amount::N(1) {
+                        amount(o, k);
+                    }
+                    o.noun("card", n);
+                    o.w("of");
+                    whose(o, w);
+                    o.w(pile);
+                    return;
+                }
+            }
             // "the top three cards of your library", "the top card".
             if f.kind == Some(Noun::Card) && f.alts.is_empty() && f.or.is_none() {
                 let whose_library = match &f.posts[..] {
@@ -6260,6 +6280,15 @@ fn zone(o: &mut Out, z: &Zone) {
         Zone::BottomOfLibrary(w) => {
             o.w("the bottom of");
             library_of(o, w);
+        }
+        Zone::TopOfGraveyard(w) | Zone::BottomOfGraveyard(w) => {
+            o.w(if matches!(z, Zone::TopOfGraveyard(_)) {
+                "the top of"
+            } else {
+                "the bottom of"
+            });
+            whose(o, w);
+            o.noun("graveyard", possessor_num(w));
         }
         Zone::OwnersHand | Zone::OwnersGraveyard => {
             syn::its(o);

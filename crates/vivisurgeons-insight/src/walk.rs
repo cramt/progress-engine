@@ -3223,6 +3223,12 @@ impl Walk for Zone {
             Zone::BottomOfLibrary(f0) => {
                 Walk::walk(f0, v);
             }
+            Zone::TopOfGraveyard(f0) => {
+                Walk::walk(f0, v);
+            }
+            Zone::BottomOfGraveyard(f0) => {
+                Walk::walk(f0, v);
+            }
             Zone::AnywhereOtherThan(f0) => {
                 Walk::walk(&mut **f0, v);
             }

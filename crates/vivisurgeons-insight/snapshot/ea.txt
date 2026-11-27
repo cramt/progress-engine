@@ -649,7 +649,7 @@ cost: {1}{G}
 > Enchant creature
 > {1}, Exile the top card of your graveyard: Enchanted creature gets +1/+1 until end of turn.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
-= BROKE at "graveyard" after: {1} , exile the top card of your
+= Activated { cost: [Mana(Mana(["1"])), Exile(Objects { quant: N(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfGraveyard(You))], or: None } })], effect: [Modify { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 
 ## Necrogen Spellbomb
 face: Necrogen Spellbomb

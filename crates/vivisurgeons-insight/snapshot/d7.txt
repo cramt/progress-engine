@@ -987,7 +987,7 @@ face: Soldevi Digger
 type: Artifact
 cost: {2}
 > {2}: Put the top card of your graveyard on the bottom of your library.
-= BROKE at "graveyard" after: {2} : put the top card of your
+= Activated { cost: [Mana(Mana(["2"]))], effect: [Move { what: Objects { quant: N(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfGraveyard(You))], or: None } }, from: None, to: BottomOfLibrary(You), tapped: false, transformed: false, under: None, order: None }], limits: [] }
 
 ## Sothera, the Supervoid
 face: Sothera, the Supervoid

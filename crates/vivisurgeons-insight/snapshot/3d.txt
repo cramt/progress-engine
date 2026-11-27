@@ -696,7 +696,7 @@ face: Phyrexian Grimoire
 type: Artifact — Book
 cost: {3}
 > {4}, {T}: Target opponent chooses one of the top two cards of your graveyard. Exile that card and put the other one into your hand.
-= BROKE at "graveyard" after: {4} , {T} : target opponent chooses one of the top two cards of your
+= BROKE at "." after: {4} , {T} : target opponent chooses one of the top two cards of your graveyard
 
 ## Pillar of Flame
 face: Pillar of Flame
