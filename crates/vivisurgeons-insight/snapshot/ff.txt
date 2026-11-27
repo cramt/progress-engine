@@ -830,7 +830,7 @@ cost: {2}{R}{R}
 > Flying
 > Whenever you cast a Spirit or Arcane spell, you may gain control of target creature with that spell's mana value until end of turn.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "spell" after: whenever you cast a spirit or arcane spell , you may gain control of target creature with that
+= BROKE at "'s" after: whenever you cast a spirit or arcane spell , you may gain control of target creature with that spell
 
 ## Slumbering Walker
 face: Slumbering Walker

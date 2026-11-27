@@ -250,7 +250,7 @@ type: Enchantment — Aura
 cost: {W}{W}
 > Enchant creature with another Aura attached to it
 > Enchanted creature gets +3/+3 and has first strike, vigilance, and lifelink. (Damage dealt by the creature also causes its controller to gain that much life.)
-= BROKE at "it" after: enchant creature with another aura attached to
+= Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [WithAttached(Objects { quant: Another, filter: Filter { alts: [[Subtype("aura")]], kind: None, posts: [], or: None } })], or: None } })) }])
 = Static([Modify { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: true }), has: [Keyword { name: "first strike", param: None }, Keyword { name: "vigilance", param: None }, Keyword { name: "lifelink", param: None }], per: None }])
 
 ## Desperate Plea

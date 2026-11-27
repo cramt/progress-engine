@@ -896,7 +896,7 @@ cost: {2}{G}
 > Creatures you control with three or more +1/+1 counters on them have haste.
 > {T}: Add {G}.
 = BROKE at "minus" after: whenever you cast a creature spell with mana value 5 or greater , that creature enters with x additional <pt> counters on it , where x is its mana value
-= BROKE at "<pt>" after: creatures you control with three or more
+= BROKE at "have" after: creatures you control with three or more <pt> counters on them
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["G"])))], limits: [] }
 
 ## S.H.I.E.L.D. Flying Car

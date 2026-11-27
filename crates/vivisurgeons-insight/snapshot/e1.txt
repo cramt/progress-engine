@@ -82,7 +82,7 @@ cost: {1}{U}
 > Flying
 > This creature gets +3/+3 as long as you control a creature with three or more level counters on it.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "level" after: this creature gets <pt> as long as you control a creature with three or more
+= BROKE at "." after: this creature gets <pt> as long as you control a creature with three or more level counters on it
 
 ## Corpse Connoisseur
 face: Corpse Connoisseur

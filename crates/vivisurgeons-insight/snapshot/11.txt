@@ -422,7 +422,7 @@ cost: {6}{W}{W}
 > Flying
 > When this creature enters, if you cast it, return any number of target permanent cards with cycling abilities from your graveyard to the battlefield.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "abilities" after: when this creature enters , if you cast it , return any number of target permanent cards with cycling
+= BROKE at "to" after: when this creature enters , if you cast it , return any number of target permanent cards with cycling abilities from your graveyard
 
 ## Hydroid Krasis
 face: Hydroid Krasis

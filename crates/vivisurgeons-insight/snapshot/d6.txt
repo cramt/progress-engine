@@ -807,7 +807,7 @@ cost: {2}{B}
 > Whenever this creature attacks the player with the most life or tied for most life, create a 1/1 white Vampire creature token with lifelink.
 > Whenever this creature attacks while you have the most life or are tied for most life, you draw a card and you lose 1 life.
 = Keywords([Keyword { name: "deathtouch", param: None }])
-= BROKE at "most" after: whenever this creature attacks the player with the
+= BROKE at "life" after: whenever this creature attacks the player with the most
 = BROKE at "most" after: whenever this creature attacks while you have the
 
 ## Promise of Tomorrow

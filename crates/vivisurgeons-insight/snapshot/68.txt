@@ -171,7 +171,7 @@ cost: {2}{W}{W}
 > This enchantment enters with seven omen counters on it.
 > At the beginning of your upkeep, remove an omen counter from this enchantment. If there are no omen counters on this enchantment, the player with the highest life total wins the game. If two or more players are tied for highest life total, the game is a draw.
 = Static([EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(7), kind: "omen" }])
-= BROKE at "highest" after: at the beginning of your upkeep , remove an omen counter from this enchantment . if there are no omen counters on this enchantment , the player with the
+= BROKE at "life" after: at the beginning of your upkeep , remove an omen counter from this enchantment . if there are no omen counters on this enchantment , the player with the highest
 
 ## Coral Commando
 face: Coral Commando

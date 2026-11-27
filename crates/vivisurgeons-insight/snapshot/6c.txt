@@ -59,7 +59,7 @@ face: Azor's Gateway
 type: Legendary Artifact
 cost: {2}
 > {1}, {T}: Draw a card, then exile a card from your hand. If cards with five or more different mana values are exiled with Azor's Gateway, you gain 5 life, untap Azor's Gateway, and transform it.
-= BROKE at "different" after: {1} , {T} : draw a card , then exile a card from your hand . if cards with five or more
+= BROKE at "mana" after: {1} , {T} : draw a card , then exile a card from your hand . if cards with five or more different
 
 ## Azor's Gateway // Sanctum of the Sun
 face: Sanctum of the Sun

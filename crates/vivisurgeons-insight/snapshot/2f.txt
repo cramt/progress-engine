@@ -735,7 +735,7 @@ face: Oil-Gorger Troll
 type: Creature — Phyrexian Troll Warrior
 cost: {3}{G}{G}
 > When this creature enters, you gain 3 life. Then if you control a permanent with an oil counter on it, draw a card.
-= BROKE at "oil" after: when this creature enters , you gain 3 life . then if you control a permanent with an
+= BROKE at "a" after: when this creature enters , you gain 3 life . then if you control a permanent with an oil counter on it , draw
 
 ## Petra Sphinx
 face: Petra Sphinx

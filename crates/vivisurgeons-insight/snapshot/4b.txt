@@ -215,7 +215,7 @@ cost: {4}{R}{G}
 > This spell costs {1} less to cast for each permanent you control with oil counters on it.
 > Vigilance
 > When this creature enters, it deals 1 damage to each creature your opponents control.
-= BROKE at "it" after: this spell costs {1} less to cast for each permanent you control with oil counters on
+= BROKE at "." after: this spell costs {1} less to cast for each permanent you control with oil counters on it
 = Keywords([Keyword { name: "vigilance", param: None }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Objects(Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(EachOpponent)], or: None } })] }], limits: [] }
 
@@ -754,8 +754,8 @@ cost: {2}{G/U}
 > Each land with an everything counter on it is every land type in addition to its other types.
 > Each nonland creature with an everything counter on it is every creature type.
 = BROKE at "." after: whenever ~ enters or attacks , put an everything counter on each of up to one target land and up to one target creature
-= BROKE at "it" after: each land with an everything counter on
-= BROKE at "on" after: each nonland creature with an everything counter
+= BROKE at "is" after: each land with an everything counter on it
+= BROKE at "is" after: each nonland creature with an everything counter on it
 
 ## Ouroboroid
 face: Ouroboroid

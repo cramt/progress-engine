@@ -454,7 +454,7 @@ cost: {4}{U}
 > Genestealer's Kiss — Whenever this creature attacks, put an infection counter on target creature defending player controls.
 > Children of the Cult — Whenever a creature with an infection counter on it dies, you create a token that's a copy of that creature, except it's a Tyranid in addition to its other types.
 = Labelled { label: "genestealer's kiss", ability: Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [PutCounters { n: N(1), kind: "infection", on: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(DefendingPlayer)], or: None } } }], limits: [] } }
-= BROKE at "on" after: children of the cult — whenever a creature with an infection counter
+= BROKE at "dies" after: children of the cult — whenever a creature with an infection counter on it
 
 ## Goblin Racketeer
 face: Goblin Racketeer

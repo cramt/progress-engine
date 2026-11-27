@@ -675,7 +675,7 @@ cost: {1}{W}
 > Whenever equipped creature attacks the player with the most life or tied for most life, create a 4/4 white Angel creature token with flying that's tapped and attacking that player.
 > Equip {4}
 = Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }])
-= BROKE at "most" after: whenever equipped creature attacks the player with the
+= BROKE at "life" after: whenever equipped creature attacks the player with the most
 = Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["4"]))])) }])
 
 ## Shirei, Shizo's Caretaker

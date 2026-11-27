@@ -1071,7 +1071,7 @@ type: Sorcery
 cost: {4}{G}{G}
 > Corrupted — Create an X/X green Phyrexian Wurm creature token with trample and toxic 1, where X is the amount of mana spent to cast this spell. Then for each opponent with three or more poison counters, you create another one of those tokens.
 > Flashback {8}{G}{G} (You may cast this card from your graveyard for its flashback cost. Then exile it.)
-= BROKE at "poison" after: corrupted — create an <pt> green phyrexian wurm creature token with trample and toxic 1 , where x is the amount of mana spent to cast this spell . then for each opponent with three or more
+= BROKE at "create" after: corrupted — create an <pt> green phyrexian wurm creature token with trample and toxic 1 , where x is the amount of mana spent to cast this spell . then for each opponent with three or more poison counters , you
 = Keywords([Keyword { name: "flashback", param: Some(Cost([Mana(Mana(["8", "G", "G"]))])) }])
 
 ## Zaffai, Thunder Conductor

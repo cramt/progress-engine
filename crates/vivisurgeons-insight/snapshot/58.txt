@@ -111,7 +111,7 @@ cost: {3}{U}{U}{U}
 > Whenever Atemsis deals damage to an opponent, you may reveal your hand. If cards with at least six different mana values are revealed this way, that player loses the game.
 = Keywords([Keyword { name: "flying", param: None }])
 = Activated { cost: [Mana(Mana(["2", "U"])), Tap], effect: [Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }], limits: [] }
-= BROKE at "least" after: whenever ~ deals damage to an opponent , you may reveal your hand . if cards with at
+= BROKE at "mana" after: whenever ~ deals damage to an opponent , you may reveal your hand . if cards with at least six different
 
 ## Avatar of Growth
 face: Avatar of Growth

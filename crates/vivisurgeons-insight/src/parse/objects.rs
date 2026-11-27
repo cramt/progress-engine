@@ -917,6 +917,16 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
             p.one_of(&["on it", "on them"])?;
             Some(Post::WithCounter(None))
         },
+        // "Enchant creature with another Aura attached to it" (Daybreak
+        // Coronet): some object of that kind is attached to it
+        // ([with-attached]).
+        |p| {
+            p.word("with")?;
+            let mut o = objects(p)?;
+            (o.filter.posts.last() == Some(&Post::AttachedToIt)).then_some(())?;
+            o.filter.posts.pop();
+            Some(Post::WithAttached(Box::new(o)))
+        },
         |p| { p.word("with")?; let k = keyword_name(p)?; Some(Post::WithKeyword(k)) },
         |p| { p.word("without")?; let k = keyword_name(p)?; Some(Post::WithoutKeyword(k)) },
         // "Spells your opponents cast from graveyards or from exile" (Aven

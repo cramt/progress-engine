@@ -2339,6 +2339,9 @@ impl Walk for Post {
             Post::ThatIs(f0) => {
                 Walk::walk(f0, v);
             }
+            Post::WithAttached(f0) => {
+                Walk::walk(&mut **f0, v);
+            }
             Post::ControlledThen(f0) => {
                 Walk::walk(f0, v);
             }

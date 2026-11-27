@@ -564,7 +564,7 @@ cost: {1}{U}{U}
 > Whenever you cast a noncreature spell with one or more blue mana symbols in its mana cost, create that many 1/1 blue Merfolk creature tokens.
 = Keywords([Keyword { name: "flying", param: None }])
 = Static([SetPower { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, equal_to: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Subtype("merfolk")]], kind: None, posts: [Controller(You)], or: None } }) }])
-= BROKE at "mana" after: whenever you cast a noncreature spell with one or more blue
+= BROKE at "symbols" after: whenever you cast a noncreature spell with one or more blue mana
 
 ## Nightmare Sower
 face: Nightmare Sower

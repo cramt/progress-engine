@@ -66,7 +66,7 @@ cost: {B}{B}{B}
 > Whenever you cast a black spell from your hand, Baron Helmut Zemo connives.
 > Boast — Exile any number of black cards from your graveyard with fifteen or more black mana symbols among their mana costs: Copy those exiled cards. You may cast up to three of the copies without paying their mana costs. (Activate only if this creature attacked this turn and only once each turn.)
 = Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Color(Black)]], kind: Some(Spell), posts: [CastFrom(Hand(You))], or: None } } }), effect: [Action { by: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), name: "connive", n: None }], limits: [] }
-= BROKE at "black" after: boast — exile any number of black cards from your graveyard with fifteen or more
+= BROKE at "symbols" after: boast — exile any number of black cards from your graveyard with fifteen or more black mana
 
 ## Battlewise Aven
 face: Battlewise Aven
@@ -509,7 +509,7 @@ cost: {3}{B}
 > Whenever a creature you control with an impostor counter on it dies, exile it. Return up to one other target creature card from your graveyard to the battlefield.
 = Keywords([Keyword { name: "flash", param: None }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [PutCounters { n: N(1), kind: "impostor", on: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] }
-= BROKE at "impostor" after: whenever a creature you control with an
+= BROKE at "dies" after: whenever a creature you control with an impostor counter on it
 
 ## Imperial Ceratops
 face: Imperial Ceratops

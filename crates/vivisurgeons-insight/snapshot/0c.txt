@@ -435,7 +435,7 @@ cost: {1}{R}{W}
 > Whenever a creature you control with a legendary Equipment attached to it deals combat damage to a player, draw a card.
 = Keywords([Keyword { name: "haste", param: None }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [With { bind: [/* found */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [NamedCard("the spear of leonidas")], or: None } }], then: [Search { who: You, zones: [Graveyard(You), Hand(You), Library(You)], what: Objects { quant: Introduced(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, and: [] }, Move { what: Objects { quant: Bound(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, Shuffle(You)] }], limits: [] }
-= BROKE at "equipment" after: whenever a creature you control with a legendary
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), WithAttached(Objects { quant: One, filter: Filter { alts: [[Supertype("legendary"), Subtype("equipment")]], kind: None, posts: [], or: None } })], or: None } })), effect: [Draw { who: You, n: N(1) }], limits: [] }
 
 ## Kaya's Ghostform
 face: Kaya's Ghostform

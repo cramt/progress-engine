@@ -1212,6 +1212,9 @@ pub enum Post {
     Attacking,
     Blocking,
     AttachedToIt,
+    /// "creature with another Aura attached to it": some such object is
+    /// attached to it.
+    WithAttached(Box<Objects>),
     /// "that was attached to it", "all Auras and Equipment that were attached
     /// to it": attached to the object named before, until the event or
     /// effect before ended that (a leaves-the-battlefield trigger looks back

@@ -986,7 +986,7 @@ cost: {2}
 > When this artifact enters, draw a card.
 > Each land with an activated ability that isn't a mana ability doesn't untap during its controller's untap step.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }], limits: [] }
-= BROKE at "isn't" after: each land with an activated ability that
+= BROKE at "doesn't" after: each land with an activated ability that isn't a mana ability
 
 ## Tune Up
 face: Tune Up

@@ -999,7 +999,7 @@ cost: {3}{U}{U}
 > Each permanent with an hourglass counter on it doesn't untap during its controller's untap step.
 > At the beginning of each player's upkeep, remove all hourglass counters from permanents that player controls.
 = Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Type("creature")], [Type("land")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(BecomesTapped(Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [PutCounters { n: N(1), kind: "hourglass", on: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] } }
-= BROKE at "it" after: each permanent with an hourglass counter on
+= BROKE at "doesn't" after: each permanent with an hourglass counter on it
 = Triggered { trigger: At(Upkeep(Each)), effect: [RemoveAllCountersOf { kind: "hourglass", from: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(That)], or: None } } }], limits: [] }
 
 ## Temporal Firestorm

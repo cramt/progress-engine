@@ -652,7 +652,7 @@ cost: {1}{W}{B}
 > When Oath of Kaya enters, it deals 3 damage to any target and you gain 3 life.
 > Whenever an opponent attacks a planeswalker you control with one or more creatures, Oath of Kaya deals 2 damage to that player and you gain 2 life.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(3), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, GainLife { who: You, n: N(3) }], limits: [] }
-= BROKE at "," after: whenever an opponent attacks a planeswalker you control with one or more creatures
+= BROKE at "~" after: whenever an opponent attacks a planeswalker you control with one or more creatures ,
 
 ## Ongoing Investigation
 face: Ongoing Investigation

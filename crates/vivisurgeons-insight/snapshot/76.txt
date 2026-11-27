@@ -970,7 +970,7 @@ face: Wolfcaller's Howl
 type: Enchantment
 cost: {3}{G}
 > At the beginning of your upkeep, create X 2/2 green Wolf creature tokens, where X is the number of your opponents with four or more cards in hand.
-= BROKE at "cards" after: at the beginning of your upkeep , create x <pt> green wolf creature tokens , where x is the number of your opponents with four or more
+= BROKE at "." after: at the beginning of your upkeep , create x <pt> green wolf creature tokens , where x is the number of your opponents with four or more cards in hand
 
 ## Xenagos, God of Revels
 face: Xenagos, God of Revels

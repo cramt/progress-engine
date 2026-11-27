@@ -5697,6 +5697,11 @@ fn post(o: &mut Out, q: &Post, n: Num) {
             o.w("blocking");
         }
         Post::AttachedToIt => o.w("attached to it"),
+        Post::WithAttached(x) => {
+            o.w("with");
+            objects(o, x);
+            o.w("attached to it");
+        }
         Post::WasAttachedToIt => {
             o.w("that");
             syn::was_or_were(o);

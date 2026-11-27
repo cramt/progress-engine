@@ -2668,4 +2668,36 @@ mod round_nine_d {
         );
         assert!(s.contains("Enters {") && !s.contains("PutInto"), "{s}");
     }
+
+    #[test]
+    fn a_creature_with_another_aura_attached_to_it() {
+        let s = format!(
+            "{:?}",
+            read(
+                "Enchantment — Aura",
+                "Enchant creature with another Aura attached to it"
+            )
+        );
+        assert!(
+            s.contains("posts: [WithAttached(Objects { quant: Another"),
+            "{s}"
+        );
+    }
+
+    #[test]
+    fn with_an_object_attached_to_something_else_is_not_attached_to_it() {
+        let face = Face {
+            name: "Some Card",
+            type_line: "Instant",
+            text: "Destroy target creature with an Aura attached to target land.",
+        };
+        let s = format!(
+            "{:?}",
+            read_face_unresolved(&face, "Some Card")
+                .iter()
+                .map(|l| l.parsed.as_ref().ok())
+                .collect::<Vec<_>>()
+        );
+        assert!(!s.contains("WithAttached"), "{s}");
+    }
 }

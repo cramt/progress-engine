@@ -173,7 +173,7 @@ face: Culling Scales
 type: Artifact
 cost: {3}
 > At the beginning of your upkeep, destroy target nonland permanent with the lowest mana value. (If two or more permanents are tied for lowest, target any one of them.)
-= BROKE at "lowest" after: at the beginning of your upkeep , destroy target nonland permanent with the
+= BROKE at "mana" after: at the beginning of your upkeep , destroy target nonland permanent with the lowest
 
 ## Damping Matrix
 face: Damping Matrix

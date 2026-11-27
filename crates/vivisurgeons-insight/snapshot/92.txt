@@ -1071,7 +1071,7 @@ face: Undercover Butler
 type: Creature — Human Rogue
 cost: {2}{U/B}
 > Whenever this creature attacks the player with the most life or tied for most life, it can't be blocked this turn.
-= BROKE at "most" after: whenever this creature attacks the player with the
+= BROKE at "life" after: whenever this creature attacks the player with the most
 
 ## Vampire Spawn
 face: Vampire Spawn
