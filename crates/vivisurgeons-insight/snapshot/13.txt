@@ -502,7 +502,7 @@ type: Land
 > {T}: Add {U}, {B}, or {R}.
 > Mayhem (You may play this card from your graveyard if you discarded it this turn. Timing rules still apply.)
 = Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
-= BROKE at "," after: when this land enters from a graveyard
+= Triggered { trigger: When(PutInto { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Battlefield, from: AGraveyard }), effect: [LoseLife { who: You, n: N(2) }], limits: [] }
 = Activated { cost: [Tap], effect: [AddMana(Or([Mana(["U"]), Mana(["B"]), Mana(["R"])]))], limits: [] }
 = Keywords([Keyword { name: "mayhem", param: None }])
 

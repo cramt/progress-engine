@@ -751,7 +751,7 @@ cost: {U}
 > When this creature enters from your hand, if it's attacking, create a token that's a copy of another target attacking creature. The token enters tapped and attacking.
 = Keywords([Keyword { name: "ninjutsu", param: Some(Cost([Mana(Mana(["2", "U", "U"]))])) }])
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "," after: when this creature enters from your hand
+= BROKE at "." after: when this creature enters from your hand , if it's attacking , create a token that's a copy of another target attacking creature . the token enters tapped and attacking
 
 ## Toxic Iguanar
 face: Toxic Iguanar

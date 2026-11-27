@@ -632,7 +632,7 @@ cost: {3}
 > Unearth {3}{R}{R}
 > (Melds with Mishra, Claimed by Gix.)
 = Keywords([Keyword { name: "double strike", param: None }])
-= BROKE at "," after: when this creature enters from your graveyard
+= Triggered { trigger: When(PutInto { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Battlefield, from: Graveyard(You) }), effect: [May { who: You, then: [DiscardHand(You)] }, IfYouDo([Draw { who: You, n: N(3) }])], limits: [] }
 = Keywords([Keyword { name: "unearth", param: Some(Cost([Mana(Mana(["3", "R", "R"]))])) }])
 
 ## Pile On

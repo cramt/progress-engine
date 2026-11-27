@@ -406,7 +406,7 @@ cost: {R}{W}{B}
 > Firebending X, where X is Fire Lord Zuko's power. (Whenever this creature attacks, add X {R}. This mana lasts until end of combat.)
 > Whenever you cast a spell from exile and whenever a permanent you control enters from exile, put a +1/+1 counter on each creature you control.
 = Keywords([Keyword { name: "firebending", param: Some(N(PowerOf(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }))) }])
-= BROKE at "from" after: whenever you cast a spell from exile and whenever a permanent you control enters
+= Triggered { trigger: When(Or([Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [CastFrom(Exile)], or: None } } }, PutInto { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You)], or: None } }, to: Battlefield, from: Exile }])), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] }
 
 ## Flame-Kin War Scout
 face: Flame-Kin War Scout

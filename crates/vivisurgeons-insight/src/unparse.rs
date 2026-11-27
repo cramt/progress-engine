@@ -11953,6 +11953,16 @@ fn event(o: &mut Out, e: &Event) {
                 objects(o, of);
             }
         }
+        // "enters from your graveyard" ([enters-from]).
+        Event::PutInto {
+            what,
+            to: Zone::Battlefield,
+            from,
+        } if *from != Zone::Anywhere => {
+            obj_subj(o, what, "enter");
+            o.w("from");
+            zone(o, from);
+        }
         Event::PutInto { what, to, from } => {
             obj_subj(o, what, "are");
             o.w("put into");

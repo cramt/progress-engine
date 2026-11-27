@@ -1051,7 +1051,7 @@ cost: {1}{B}
 > Dynastic Codes — When this creature enters from a graveyard, you draw two cards and you lose 2 life.
 > Unearth {4}{B} ({4}{B}: Return this card from your graveyard to the battlefield. It gains haste. Exile it at the beginning of the next end step or if it would leave the battlefield. Unearth only as a sorcery.)
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "," after: dynastic codes — when this creature enters from a graveyard
+= Labelled { label: "dynastic codes", ability: Triggered { trigger: When(PutInto { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Battlefield, from: AGraveyard }), effect: [Draw { who: You, n: N(2) }, LoseLife { who: You, n: N(2) }], limits: [] } }
 = Keywords([Keyword { name: "unearth", param: Some(Cost([Mana(Mana(["4", "B"]))])) }])
 
 ## Umara Raptor

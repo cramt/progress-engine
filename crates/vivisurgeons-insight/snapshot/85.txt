@@ -1056,7 +1056,7 @@ face: The Lost and the Damned
 type: Enchantment
 cost: {1}{U}{R}
 > Whenever a land you control enters from anywhere other than your hand or you cast a spell from anywhere other than your hand, create a 3/3 red Spawn creature token.
-= BROKE at "anywhere" after: whenever a land you control enters from
+= Triggered { trigger: When(Or([PutInto { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, to: Battlefield, from: AnywhereOtherThan(Hand(You)) }, Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [CastFrom(AnywhereOtherThan(Hand(You)))], or: None } } }])), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(3), toughness: N(3), signed: false }), colors: [Red], types: ["spawn", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
 
 ## The Ring Goes South
 face: The Ring Goes South

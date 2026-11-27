@@ -352,7 +352,7 @@ cost: {5}{R}
 > Undying (When this creature dies, if it had no +1/+1 counters on it, return it to the battlefield under its owner's control with a +1/+1 counter on it.)
 > Whenever this creature or another creature enters from your graveyard, that creature deals damage equal to its power to any target.
 = Keywords([Keyword { name: "undying", param: None }])
-= BROKE at "from" after: whenever this creature or another creature enters
+= Let { bind: [/* trigger */ Objects { quant: SelfOrAnother(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(PutInto { what: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Battlefield, from: Graveyard(You) }), effect: [Damage { source: Some(Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), n: PowerOf(Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] } }
 
 ## Flywheel Racer
 face: Flywheel Racer

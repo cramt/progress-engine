@@ -1093,7 +1093,7 @@ type: Creature — Demon
 cost: {B}{B}
 > When this creature enters from a graveyard, target opponent gains control of it.
 > Undying (When this creature dies, if it had no +1/+1 counters on it, return it to the battlefield under its owner's control with a +1/+1 counter on it.)
-= BROKE at "," after: when this creature enters from a graveyard
+= Triggered { trigger: When(PutInto { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Battlefield, from: AGraveyard }), effect: [Performed { by: TargetOpponent, effect: GainControl { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, dur: Permanent } }], limits: [] }
 = Keywords([Keyword { name: "undying", param: None }])
 
 ## Twinstrike

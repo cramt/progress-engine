@@ -849,7 +849,7 @@ cost: {3}{U}{U}
 > Whenever this creature or another permanent enters from a graveyard, draw a card.
 > Whenever a player casts a spell from a graveyard, draw a card.
 > Persist (When this creature dies, if it had no -1/-1 counters on it, return it to the battlefield under its owner's control with a -1/-1 counter on it.)
-= BROKE at "from" after: whenever this creature or another permanent enters
+= Triggered { trigger: When(PutInto { what: Objects { quant: SelfOrAnother(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, to: Battlefield, from: AGraveyard }), effect: [Draw { who: You, n: N(1) }], limits: [] }
 = Triggered { trigger: When(Casts { who: APlayer, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [CastFrom(AGraveyard)], or: None } } }), effect: [Draw { who: You, n: N(1) }], limits: [] }
 = Keywords([Keyword { name: "persist", param: None }])
 

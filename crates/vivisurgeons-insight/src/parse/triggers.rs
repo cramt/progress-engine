@@ -342,6 +342,15 @@ pub(super) fn predicate(p: &mut P, what: &Objects) -> Option<Event> {
             p.words("for the first time each turn")?;
             Some(Event::FirstTimeEachTurn(Box::new(e)))
         },
+        // "When this creature enters from your graveyard": the move from
+        // that zone onto the battlefield ([enters-from]).
+        |p| {
+            p.verb("enter")?;
+            p.attempt(|p| p.words("the battlefield"));
+            p.word("from")?;
+            let from = zone(p)?;
+            Some(Event::PutInto { what: what.clone(), to: Zone::Battlefield, from })
+        },
         |p| {
             p.verb("enter")?;
             p.attempt(|p| p.words("the battlefield"));

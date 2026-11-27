@@ -2641,4 +2641,31 @@ mod round_nine_d {
             assert!(!s.contains("Least {") && !s.contains("Greatest {"), "{s}");
         }
     }
+
+    #[test]
+    fn entering_from_a_zone_is_the_move_from_it() {
+        let s = format!(
+            "{:?}",
+            read(
+                "Creature — Phyrexian Dragon",
+                "When this creature enters from your graveyard, you may discard your hand. If you do, draw three cards."
+            )
+        );
+        assert!(
+            s.contains("PutInto {") && s.contains("to: Battlefield, from: Graveyard(You) }"),
+            "{s}"
+        );
+    }
+
+    #[test]
+    fn entering_with_no_zone_said_is_any_entering() {
+        let s = format!(
+            "{:?}",
+            read(
+                "Creature — Elf",
+                "When this creature enters the battlefield under your control, draw a card."
+            )
+        );
+        assert!(s.contains("Enters {") && !s.contains("PutInto"), "{s}");
+    }
 }
