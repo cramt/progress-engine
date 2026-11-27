@@ -716,7 +716,7 @@ cost: {2}{B}{B}
 > I, II — Create two 0/1 black Cleric creature tokens.
 > III — Create a 6/6 black Demon creature token with flying, trample, and "At the beginning of your upkeep, sacrifice another creature. If you can't, this token deals 6 damage to you."
 = Chapter { chapters: [1, 2], effect: [Create { who: You, n: N(2), token: Token { tapped: false, pt: Some(Pt { power: N(0), toughness: N(1), signed: false }), colors: [Black], types: ["cleric", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }
-= BROKE at "can't" after: iii — create a <pt> black demon creature token with flying , trample , and " at the beginning of your upkeep , sacrifice another creature . if you
+= Chapter { chapters: [3], effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(6), toughness: N(6), signed: false }), colors: [Black], types: ["demon", "creature"], keywords: [Keyword { name: "flying", param: None }, Keyword { name: "trample", param: None }], abilities: [Triggered { trigger: At(Upkeep(Yours)), effect: [Sacrifice { who: You, what: Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }, If { order: Leading, cond: Cant(You), then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(6), to: [Player(You)] }] }], limits: [] }], named: None, attacking: None } }] }
 
 ## Rite of Replication
 face: Rite of Replication

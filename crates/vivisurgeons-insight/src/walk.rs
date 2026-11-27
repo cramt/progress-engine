@@ -471,6 +471,9 @@ impl Walk for Condition {
             Condition::ThisWay(f0) => {
                 Walk::walk(&mut **f0, v);
             }
+            Condition::Cant(f0) => {
+                Walk::walk(f0, v);
+            }
             Condition::AmountIs { n, value, .. } => {
                 Walk::walk(n, v);
                 Walk::walk(value, v);

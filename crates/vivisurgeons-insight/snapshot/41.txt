@@ -231,7 +231,7 @@ cost: {5}
 > Creatures you control get +1/+1 and have flying and indestructible.
 > At the beginning of your upkeep, sacrifice a creature. If you can't, sacrifice this artifact.
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "flying", param: None }, Keyword { name: "indestructible", param: None }], per: None }])
-= BROKE at "can't" after: at the beginning of your upkeep , sacrifice a creature . if you
+= Triggered { trigger: At(Upkeep(Yours)), effect: [Sacrifice { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }, If { order: Leading, cond: Cant(You), then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 
 ## Elite Inquisitor
 face: Elite Inquisitor

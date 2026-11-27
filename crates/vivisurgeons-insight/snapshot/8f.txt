@@ -216,7 +216,7 @@ face: Doom Foretold
 type: Enchantment
 cost: {2}{W}{B}
 > At the beginning of each player's upkeep, that player sacrifices a nonland, nontoken permanent of their choice. If that player can't, they discard a card, they lose 2 life, you draw a card, you gain 2 life, you create a 2/2 white Knight creature token with vigilance, then you sacrifice this enchantment.
-= BROKE at "can't" after: at the beginning of each player 's upkeep , that player sacrifices a nonland , nontoken permanent of their choice . if that player
+= Triggered { trigger: At(Upkeep(Each)), effect: [Sacrifice { who: That, what: Objects { quant: One, filter: Filter { alts: [[Non("land"), State(Nontoken)]], kind: Some(Permanent), posts: [ChosenBy(That)], or: None } } }, If { order: Leading, cond: Cant(That), then: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }, LoseLife { who: That, n: N(2) }, Draw { who: You, n: N(1) }, GainLife { who: You, n: N(2) }, Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [White], types: ["knight", "creature"], keywords: [Keyword { name: "vigilance", param: None }], abilities: [], named: None, attacking: None } }, Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 
 ## Doomskar Warrior
 face: Doomskar Warrior

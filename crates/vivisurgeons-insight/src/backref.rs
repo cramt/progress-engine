@@ -1913,6 +1913,22 @@ fn resolve_one(
             if self_at.is_some() && self_compat(r, type_line) {
                 cands.push(Target::SelfCard);
             }
+            // "Turn this creature face up. If you can't, exile it, then you
+            // may cast the exiled card" (Etrata, Deadly Fugitive): the card
+            // is what the ability itself exiled, and nothing else was
+            // ([marked-self]).
+            let self_marked = marked_how(&r.filter).is_some_and(|how| {
+                all_mentions.iter().any(|((l, i), m)| {
+                    *m == Target::SelfCard && verb_matches(how, &get((*l, *i)).verb)
+                })
+            });
+            if cands.is_empty()
+                && self_marked
+                && r.filter.alts.is_empty()
+                && matches!(r.filter.kind, None | Some(Noun::Card))
+            {
+                cands.push(Target::SelfCard);
+            }
             // A reference back to a reference: the same object, when it
             // fits.
             for (_, ts, _) in earlier.iter() {
@@ -2652,6 +2668,11 @@ impl LinePlan {
                 if let Some(q) = self.1.quants.get(&self.0) {
                     let pointer = !matches!(q, Quant::Unresolved(_));
                     o.quant = q.clone();
+                    // This card is said by no noun ([marked-self]): "the
+                    // exiled card" keeps only how the ability exiled it.
+                    if *q == Quant::SelfRef {
+                        o.filter.kind = None;
+                    }
                     // A link post said which ability to look in; the
                     // pointer says that now, and the word is "exiled".
                     if pointer {

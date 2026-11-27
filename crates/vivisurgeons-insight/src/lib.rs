@@ -2545,4 +2545,62 @@ mod round_nine_d {
             "{s}"
         );
     }
+
+    #[test]
+    fn if_you_cant_follows_the_instruction_that_could_not_be_done() {
+        let s = format!(
+            "{:?}",
+            read(
+                "Artifact",
+                "At the beginning of your upkeep, sacrifice a creature. If you can't, sacrifice this artifact."
+            )
+        );
+        assert!(s.contains("If { order: Leading, cond: Cant(You)"), "{s}");
+    }
+
+    #[test]
+    fn if_you_cant_with_a_verb_after_it_is_no_failed_instruction() {
+        let face = Face {
+            name: "Some Card",
+            type_line: "Enchantment",
+            text: "At the beginning of your upkeep, if you can't cast spells, draw a card.",
+        };
+        let s = format!(
+            "{:?}",
+            read_face_unresolved(&face, "Some Card")
+                .iter()
+                .map(|l| l.parsed.as_ref().ok())
+                .collect::<Vec<_>>()
+        );
+        assert!(!s.contains("Cant("), "{s}");
+    }
+
+    #[test]
+    fn the_exiled_card_is_this_card_when_the_ability_exiled_it() {
+        let ability = |text: &str| {
+            let face = Face {
+                name: "Some Card",
+                type_line: "Creature — Assassin",
+                text,
+            };
+            format!(
+                "{:?}",
+                read_face(&face, "Some Card")[0].parsed.as_ref().ok()
+            )
+        };
+        let s = ability("{2}{U}{B}: Exile this creature, then you may cast the exiled card without paying its mana cost.");
+        assert!(
+            s.contains(
+                "quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [Marked(Exiled)]"
+            ),
+            "{s}"
+        );
+        // Another card exiled is that card, never this one.
+        let s = ability("{2}{U}{B}: Exile target creature, then you may cast the exiled card without paying its mana cost.");
+        assert!(
+            s.contains("Bound(0)")
+                && !s.contains("SelfRef, filter: Filter { alts: [], kind: None, posts: [Marked"),
+            "{s}"
+        );
+    }
 }

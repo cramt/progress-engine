@@ -495,7 +495,7 @@ face: Invoke Despair
 type: Sorcery
 cost: {1}{B}{B}{B}{B}
 > Target opponent sacrifices a creature of their choice. If they can't, they lose 2 life and you draw a card. Then repeat this process for an enchantment and a planeswalker.
-= BROKE at "can't" after: target opponent sacrifices a creature of their choice . if they
+= BROKE at "an" after: target opponent sacrifices a creature of their choice . if they can't , they lose 2 life and you draw a card . then repeat this process for
 
 ## Iron Maiden
 face: Iron Maiden

@@ -582,7 +582,7 @@ type: Creature — Demon
 cost: {7}{B}
 > At the beginning of your upkeep, sacrifice two Swamps. If you can't, tap this creature, and an opponent may gain control of a creature you control of their choice for as long as this creature remains on the battlefield.
 > {T}: Gain control of target creature for as long as this creature remains on the battlefield.
-= BROKE at "can't" after: at the beginning of your upkeep , sacrifice two swamps . if you
+= Triggered { trigger: At(Upkeep(Yours)), effect: [Sacrifice { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [[Subtype("swamp")]], kind: None, posts: [], or: None } } }, If { order: Leading, cond: Cant(You), then: [Tap(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), May { who: AnOpponent, then: [GainControl { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), ChosenBy(That)], or: None } }, dur: ForAsLongAs(In { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Battlefield }) }] }] }], limits: [] }
 = Activated { cost: [Tap], effect: [GainControl { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, dur: ForAsLongAs(In { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Battlefield }) }], limits: [] }
 
 ## Inscription of Abundance

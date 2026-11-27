@@ -377,6 +377,14 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             p.attempt(|p| p.words("this way"));
             Some(Condition::Not(Box::new(Condition::ThisWay(Box::new(Event::Puts { who: Player::You, what, to })))))
         },
+        // "Sacrifice a creature. If you can't, sacrifice this artifact": the
+        // instruction before could not be done ([if-cant]). The bare verb
+        // only: "if you can't cast spells" is not this.
+        |p| {
+            let who = alt!(p; |p| p.word("you").map(|_| Player::You), player_simple)?;
+            p.word("can't")?;
+            matches!(p.peek(), Some(Tok::Comma)).then_some(Condition::Cant(who))
+        },
         // "You may cast it without paying its mana cost. If you don't cast
         // it, put it into your hand": the cast this ability offered didn't
         // happen ([didnt-put]).

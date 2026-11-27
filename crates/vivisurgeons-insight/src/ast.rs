@@ -4429,6 +4429,11 @@ pub enum Condition {
     /// "that spell is countered this way", "you cast a spell this way": an
     /// event the ability's own earlier words caused.
     ThisWay(Box<Event>),
+    /// "Sacrifice a creature. If you can't, sacrifice this artifact", "If
+    /// they can't, they lose 2 life": the player could not do what the
+    /// instruction before asked of them (CR 101.3: the impossible part is
+    /// ignored, and the card says what happens instead).
+    Cant(Player),
     /// "X is 10 or more", "its power is greater than each other creature's power".
     AmountIs {
         n: Amount,

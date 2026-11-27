@@ -305,7 +305,7 @@ face: Frankenstein's Monster
 type: Creature — Zombie
 cost: {X}{B}{B}
 > As this creature enters, exile X creature cards from your graveyard. If you can't, put this creature into its owner's graveyard instead of onto the battlefield. For each creature card exiled this way, this creature enters with a +2/+0, +1/+1, or +0/+2 counter on it.
-= BROKE at "can't" after: as this creature enters , exile x creature cards from your graveyard . if you
+= BROKE at "onto" after: as this creature enters , exile x creature cards from your graveyard . if you can't , put this creature into its owner 's graveyard instead of
 
 ## Fretwork Colony
 face: Fretwork Colony

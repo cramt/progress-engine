@@ -84,7 +84,7 @@ cost: {G}
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })) }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Tap(Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), PutCounters { n: N(3), kind: "pupa", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 = BROKE at "if" after: enchanted creature doesn't untap during your untap step
-= BROKE at "can't" after: at the beginning of your upkeep , remove a pupa counter from this aura . if you
+= Triggered { trigger: At(Upkeep(Yours)), effect: [RemoveCounters { n: N(1), kind: "pupa", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, If { order: Leading, cond: Cant(You), then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, With { bind: [/* enchanted */ Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Introduced(0) /* enchanted */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Modify { what: Objects { quant: Bound(0) /* enchanted */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "flying", param: None }], dur: Permanent }] }] }], limits: [] }
 
 ## Compleated Huntmaster
 face: Compleated Huntmaster

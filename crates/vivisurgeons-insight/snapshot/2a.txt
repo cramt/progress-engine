@@ -842,7 +842,7 @@ cost: {4}
 > Flying
 > At the beginning of your upkeep, sacrifice another artifact. If you can't, tap this creature and you lose 4 life.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "can't" after: at the beginning of your upkeep , sacrifice another artifact . if you
+= Triggered { trigger: At(Upkeep(Yours)), effect: [Sacrifice { who: You, what: Objects { quant: Another, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } } }, If { order: Leading, cond: Cant(You), then: [Tap(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), LoseLife { who: You, n: N(4) }] }], limits: [] }
 
 ## Sarkhan's Dragonfire
 face: Sarkhan's Dragonfire

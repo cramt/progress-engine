@@ -4738,6 +4738,18 @@ fn objects_plain(o: &mut Out, x: &Objects) {
         }
         // The granting card is said by its name alone (CR 201.5a).
         Quant::Granter => o.tok(Tok::SelfRef),
+        // Etrata's "exile it, then you may cast the exiled card": this card,
+        // as the ability exiled it ([marked-self]).
+        Quant::SelfRef if matches!(f.posts.first(), Some(Post::Marked(_))) => objects_plain(
+            o,
+            &Objects {
+                quant: Quant::Unresolved(Hint::Antecedent),
+                filter: Filter {
+                    kind: Some(Noun::Card),
+                    ..f.clone()
+                },
+            },
+        ),
         Quant::SelfRef => {
             let pronoun = out(syn::it);
             syn::this_card(o, pronoun);
@@ -13094,6 +13106,10 @@ fn condition_said(o: &mut Out, c: &Condition) {
         Condition::AsYouCastIt(c) => {
             condition(o, c);
             o.w("as you cast this spell");
+        }
+        Condition::Cant(who) => {
+            player(o, who);
+            o.w("can't");
         }
         Condition::ThisWay(e) => match &**e {
             Event::Draws(Player::You) => o.w("you draw a card this way"),

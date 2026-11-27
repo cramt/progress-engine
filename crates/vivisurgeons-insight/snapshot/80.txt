@@ -355,7 +355,7 @@ cost: {2}{B}
 > Deathtouch
 > At the beginning of your upkeep, exile two cards from your graveyard. If you can't, sacrifice Egon and draw a card.
 = Keywords([Keyword { name: "deathtouch", param: None }])
-= BROKE at "can't" after: at the beginning of your upkeep , exile two cards from your graveyard . if you
+= Triggered { trigger: At(Upkeep(Yours)), effect: [Exile(Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), If { order: Leading, cond: Cant(You), then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Draw { who: You, n: N(1) }] }], limits: [] }
 
 ## Egon, God of Death // Throne of Death
 face: Throne of Death

@@ -325,7 +325,7 @@ face: Greenbelt Rampager
 type: Creature — Elephant
 cost: {G}
 > When this creature enters, pay {E}{E} (two energy counters). If you can't, return this creature to its owner's hand and you get {E}.
-= BROKE at "can't" after: when this creature enters , pay {E} {E} . if you
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Pay { who: You, cost: [Energy(2)] }, If { order: Leading, cond: Cant(You), then: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }, GetEnergy(1)] }], limits: [] }
 
 ## Grinning Totem
 face: Grinning Totem

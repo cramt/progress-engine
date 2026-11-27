@@ -303,7 +303,7 @@ cost: {1}{U}{B}
 > Face-down creatures you control have "{2}{U}{B}: Turn this creature face up. If you can't, exile it, then you may cast the exiled card without paying its mana cost."
 > Whenever an Assassin you control deals combat damage to an opponent, cloak the top card of that player's library.
 = Keywords([Keyword { name: "deathtouch", param: None }])
-= BROKE at "can't" after: face-down creatures you control have " {2} {U} {B} : turn this creature face up . if you
+= Static([HasAbility { what: Objects { quant: Plural, filter: Filter { alts: [[State(FaceDown), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, ability: Activated { cost: [Mana(Mana(["2", "U", "B"]))], effect: [TurnFaceUp(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), If { order: Leading, cond: Cant(You), then: [Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), May { who: You, then: [Cast { verb: Cast, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [Marked(Exiled)], or: None } }, payment: Free, dur: Permanent }] }] }], limits: [] } }])
 = Triggered { trigger: When(DealsCombatDamageTo { what: Objects { quant: One, filter: Filter { alts: [[Subtype("assassin")]], kind: None, posts: [Controller(You)], or: None } }, to: Player(AnOpponent) }), effect: [ActionOn { who: You, name: "cloak", what: Objects { quant: N(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(That))], or: None } } }], limits: [] }
 
 ## Fallowsage

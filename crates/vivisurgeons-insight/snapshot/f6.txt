@@ -69,7 +69,7 @@ face: Brain Pry
 type: Sorcery
 cost: {1}{B}
 > Choose a nonland card name. Target player reveals their hand. That player discards a card with that name. If they can't, you draw a card.
-= BROKE at "can't" after: choose a nonland card name . target player reveals their hand . that player discards a card with that name . if they
+= Spell([Choose(NonlandCardName), RevealHand(Target), Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [WithThatName], or: None } } }, If { order: Leading, cond: Cant(That), then: [Draw { who: You, n: N(1) }] }])
 
 ## Branch of Vitu-Ghazi
 face: Branch of Vitu-Ghazi

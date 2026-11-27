@@ -377,7 +377,7 @@ type: Enchantment
 cost: {3}{B}{B}
 > If you would draw a card, return a card from your graveyard to your hand instead. If you can't, you lose the game.
 > If a card would be put into your graveyard from anywhere, exile that card instead.
-= BROKE at "can't" after: if you would draw a card , return a card from your graveyard to your hand instead . if you
+= BROKE at "." after: if you would draw a card , return a card from your graveyard to your hand instead . if you can't , you lose the game
 = Let { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }], ability: Static([Replacement { event: PutInto { what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Graveyard(You), from: Anywhere }, instead: [Exile(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })] }]) }
 
 ## Frantic Inventory

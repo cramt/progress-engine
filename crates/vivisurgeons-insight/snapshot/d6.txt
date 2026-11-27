@@ -924,7 +924,7 @@ face: Roots of Wisdom
 type: Sorcery
 cost: {1}{G}
 > Mill three cards, then return a land card or Elf card from your graveyard to your hand. If you can't, draw a card. (To mill a card, put the top card of your library into your graveyard.)
-= BROKE at "can't" after: mill three cards , then return a land card or elf card from your graveyard to your hand . if you
+= Spell([Mill { who: You, n: N(3) }, Move { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [In(Graveyard(You))], or: Some(Filter { alts: [[Subtype("elf")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None }) } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, If { order: Leading, cond: Cant(You), then: [Draw { who: You, n: N(1) }] }])
 
 ## Run Away Together
 face: Run Away Together

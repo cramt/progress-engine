@@ -687,7 +687,7 @@ type: Creature — Demon
 > Flying, trample
 > At the beginning of your upkeep, sacrifice a Human. If you can't, tap this creature and it deals 9 damage to you.
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "trample", param: None }])
-= BROKE at "can't" after: at the beginning of your upkeep , sacrifice a human . if you
+= Triggered { trigger: At(Upkeep(Yours)), effect: [Sacrifice { who: You, what: Objects { quant: One, filter: Filter { alts: [[Subtype("human")]], kind: None, posts: [], or: None } } }, If { order: Leading, cond: Cant(You), then: [Tap(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(9), to: [Player(You)] }] }], limits: [] }
 
 ## Rescue Retriever
 face: Rescue Retriever
