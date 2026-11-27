@@ -62,8 +62,12 @@ breach after the fact:
    and re-read this file if it says main changed the skill.
 2. **Write.** Work the brief: its order of work, its rules, its gates. Stop at
    about 15 commits or 3 hours from the brief's start time, whichever comes
-   first; `gate` prints both. Done when the tree is clean and every commit
-   carries its measured counts.
+   first; `gate` prints both. Every new rewrite, resolver or lexer rule gets
+   a negative test beside its positive one: a phrase just outside its
+   SEMANTICS row that the guard must refuse. Reviewers only see trees that
+   moved, so a guard broader than its row is otherwise caught only when a later
+   card trips it. Done when the tree is clean and every commit carries its
+   measured counts.
 3. **Gate.** Run `gate`. Exit 0: go to step 5. Exit 1: the report lists each
    failure (also in `batches/<n>/gates-<sha>.md`).
 4. **Fix up, once.** One attempt of about 45 minutes, then `gate` again and
