@@ -1097,10 +1097,10 @@ mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
 Worked card by card from there, **on 2026-11-27 175 of the 500 replay to
-the end and 60.52% of their lines are followed** (19,160 of 31,659), 3
+the end and 60.50% of their lines are followed** (19,154 of 31,659), 3
 of them relying on a land the log never names (2 to the end) and 11 on a
 card no one named in a graveyard having no ability there (2 to the end),
-and 178 games have no card the engine refuses before any game (from 21). The
+and 176 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
 Warchief); "for each" sizes counted on resolution (Goblin Piledriver);
@@ -1414,7 +1414,11 @@ giving priority there, a card the engine refuses that has madness
 refused as it is discarded, and one with no legal target not cast (CR
 702.35a, 608.2g, 117.3b, 514.3a, 601.2c: Basking Rootwalla, whose 5 games go on, one to the end, the rest to
 Circular Logic, Genesis (2) and Opposition; and Psychatog's discard of a
-Circular Logic, refused there now, which went to the graveyard before).
+Circular Logic, refused there now, which went to the graveyard before);
+and a card bound for an instruction that no search finds refused by
+name, where it had resolved to nothing (CR 400.11, 400.11a: Living
+Wish's card from outside the game and Commune with Dinosaurs's from
+among those looked at, whose 5 games stop at it a line earlier).
 And
 the replay's inferences: a card played or cast while its player may
 play cards from exile taken from there before the hand, the hand the

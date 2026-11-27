@@ -3138,6 +3138,8 @@ struct Scope<'a> {
     /// What a search looks for, by the slot of the card it finds, and
     /// whether that card is put onto the battlefield.
     described: BTreeMap<Slot, (Objects, bool)>,
+    /// The described slots a search finds a card for.
+    searched: BTreeSet<Slot>,
     /// The slots whose cards an instruction after the search reveals.
     revealing: BTreeSet<Slot>,
     /// The slots of cards looked at, which a reveal shows everyone.
@@ -3182,6 +3184,7 @@ impl<'a> Scope<'a> {
             sizes: BTreeMap::new(),
             in_hand: BTreeSet::new(),
             described: BTreeMap::new(),
+            searched: BTreeSet::new(),
             revealing: BTreeSet::new(),
             looked: BTreeSet::new(),
             revealed: None,
@@ -4206,6 +4209,7 @@ impl<'a> Scope<'a> {
                     _ => return Err(format!("{} of another library", node())),
                 }
                 self.whose.insert(into, who);
+                self.searched.insert(into);
                 Effect::Search {
                     who,
                     filter: card_filter(&described)?,
@@ -4849,6 +4853,13 @@ impl<'a> Scope<'a> {
         out.extend(lowered?);
         if self.made == Some(slot) {
             return Err("With a card no instruction makes".into());
+        }
+        // Living Wish's "a creature or land card you own from outside the
+        // game", Commune with Dinosaurs's "a Dinosaur or land card from
+        // among them": a card no search finds, which would otherwise be
+        // none.
+        if self.described.contains_key(&slot) && !self.searched.contains(&slot) {
+            return Err("With a card no instruction finds".into());
         }
         mark_blind(&mut out, slot);
         Ok(out)
