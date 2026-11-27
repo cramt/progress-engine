@@ -2438,15 +2438,18 @@ impl Triggered {
     /// return this card from your graveyard to your hand"), and never on
     /// the battlefield.
     pub fn from_graveyard(&self) -> bool {
-        fn moves(effects: &[Effect]) -> bool {
-            effects.iter().any(|e| match e {
-                Effect::SelfFromGraveyardToHand => true,
-                Effect::May(_, then) => moves(then),
-                _ => false,
-            })
-        }
-        moves(&self.program.effects)
+        moves_itself_from_graveyard(&self.program.effects)
     }
+}
+
+/// Whether instructions move their own card out of its owner's graveyard,
+/// so the ability functions only there (CR 113.6m).
+fn moves_itself_from_graveyard(effects: &[Effect]) -> bool {
+    effects.iter().any(|e| match e {
+        Effect::SelfFromGraveyardToHand => true,
+        Effect::May(_, then) => moves_itself_from_graveyard(then),
+        _ => false,
+    })
 }
 
 /// An intervening "if" (CR 603.4).
@@ -3782,6 +3785,31 @@ impl<'a> Scope<'a> {
                 slot: self.graveyard_binder(what).expect("a graveyard binder")?,
                 tapped: *tapped,
             },
+            // Recurring Nightmare's "Return target creature card from your
+            // graveyard to the battlefield": the target named in place,
+            // under the control of the player following the instruction
+            // (CR 110.2a, 608.2).
+            i::Effect::Move {
+                what,
+                from: None,
+                to: i::Zone::Battlefield,
+                tapped,
+                transformed: false,
+                under: None | Some(i::Player::You),
+                order: None,
+            } if what.quant
+                == (Quant::Target {
+                    n: i::Amount::N(1),
+                    up_to: false,
+                })
+                && graveyard_card(what).is_some() =>
+            {
+                let spec = graveyard_card(what).expect("a graveyard card")?;
+                Effect::FromGraveyardToBattlefield {
+                    slot: self.slot(spec),
+                    tapped: *tapped,
+                }
+            }
             i::Effect::Move {
                 what,
                 from: None,
@@ -5501,6 +5529,10 @@ pub struct ActivationCost {
     /// taken off its source as it is activated, so one without as many
     /// can't be (CR 602.2b, 118.3).
     pub remove_counters: Option<(Counter, u32)>,
+    /// Recurring Nightmare's "Return this enchantment to its owner's
+    /// hand": the source leaves for its owner's hand as it is activated
+    /// (CR 602.2b, 601.2h).
+    pub return_itself: bool,
     /// How many {X} its mana cost has, each paid with the X announced as
     /// it is activated, the same X for each (CR 107.3a, 107.3i). Pernicious
     /// Deed's "{X}" is 1, Blast Zone's "{X}{X}" 2.
@@ -5579,6 +5611,8 @@ pub fn activated(
     for l in limits {
         match l {
             i::Limit::OncePerTurn => limited.once_per_turn = true,
+            // CR 602.5d.
+            i::Limit::SorcerySpeed => limited.sorcery_speed = true,
             i::Limit::OnlyIf(c) => limited.only_if.push(only_if(c)?),
             other => return Err(format!("an activated ability limited by {}", short(other))),
         }
@@ -5587,6 +5621,26 @@ pub fn activated(
     let mut scope = Scope::new(bind);
     scope.cost_x = cost.x > 0;
     let effects = scope.effects(effect)?;
+    // Summoned Dromedary's "Return this card from your graveyard to your
+    // hand": it functions only there (CR 113.6m), where nothing offers an
+    // activated ability yet.
+    if moves_itself_from_graveyard(&effects) {
+        return Err("an activated ability that functions from its card's graveyard".into());
+    }
+    // The engine pays a cost moving the source before its targets are
+    // chosen, so a source sacrificed would be in the graveyard among the
+    // cards a target there can be (CR 601.2c comes before 601.2h).
+    if cost.sacrifice
+        && scope
+            .program
+            .targets
+            .iter()
+            .any(|t| matches!(t, TargetSpec::GraveyardCard { .. }))
+    {
+        return Err(
+            "an activation cost sacrificing its source beside a target card in a graveyard".into(),
+        );
+    }
     scope.program.effects = effects;
     Ok(Activated {
         cost,
@@ -5668,6 +5722,7 @@ fn activation_cost(cost: &[i::Cost]) -> Result<ActivationCost, String> {
             i::Cost::Tap => paid.tap = true,
             i::Cost::PayLife(i::Amount::N(n)) => paid.life += n,
             i::Cost::Sacrifice(o) if itself(o) => paid.sacrifice = true,
+            i::Cost::ReturnToHand(o) if itself(o) => paid.return_itself = true,
             i::Cost::Sacrifice(o) if paid.sacrifice_others.is_none() => {
                 paid.sacrifice_others = Some(permanents_paid(o)?)
             }
@@ -5703,6 +5758,10 @@ fn activation_cost(cost: &[i::Cost]) -> Result<ActivationCost, String> {
     // among the others.
     if paid.sacrifice && paid.sacrifice_others.is_some() {
         return Err("an activation cost sacrificing itself and another".into());
+    }
+    // A source can leave the battlefield only once.
+    if paid.return_itself && paid.sacrifice {
+        return Err("an activation cost sacrificing and returning itself".into());
     }
     Ok(paid)
 }

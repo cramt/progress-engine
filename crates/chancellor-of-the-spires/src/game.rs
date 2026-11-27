@@ -5076,12 +5076,17 @@ impl Game {
                     .remove_counters
                     .as_ref()
                     .is_some_and(|(kind, n)| self.counters_on(id, kind) < *n);
-                // CR 118.3: the source sacrificed for itself is still here.
-                let sacrifice_short = def
-                    .cost
-                    .sacrifice_others
-                    .as_ref()
-                    .is_some_and(|(n, f)| self.sacrificable(p, f).len() < *n as usize);
+                // CR 118.3: the source sacrificed for itself is still here,
+                // and one returned to its owner's hand as a cost first
+                // (Recurring Nightmare under Opalescence) isn't.
+                let sacrifice_short = def.cost.sacrifice_others.as_ref().is_some_and(|(n, f)| {
+                    let legal = self.sacrificable(p, f);
+                    let legal = legal
+                        .iter()
+                        .filter(|o| !(def.cost.return_itself && **o == id))
+                        .count();
+                    legal < *n as usize
+                });
                 if def.cost.tap && (perm.tapped || sick)
                     || cards_short
                     || counters_short
@@ -5781,6 +5786,9 @@ impl Game {
                 if cost.sacrifice {
                     // CR 701.21a.
                     self.put_in_graveyard(a.source);
+                }
+                if cost.return_itself {
+                    self.leave_battlefield(a.source, Zone::Hand);
                 }
                 if cost.x > 0 {
                     self.waiting = Waiting::AnnounceX {
@@ -6864,6 +6872,26 @@ impl Game {
                 // longer in the graveyard.
                 Effect::FromGraveyardToBattlefield { slot, tapped } => {
                     if let Some(Target::Card(c)) = at.targets[slot] {
+                        // CR 303.4f: an Aura put onto the battlefield is
+                        // attached to what its controller chooses, which
+                        // isn't asked here.
+                        if self
+                            .runs_of(c)
+                            .lowered
+                            .chars
+                            .subtypes
+                            .contains(&Subtype::Other("Aura".into()))
+                        {
+                            self.halted = Some(Rejected::Refused {
+                                card: self.card(c).expect("a target is known").name.clone(),
+                                refusal: Unrunnable::new(
+                                    "FromGraveyardToBattlefield of an Aura",
+                                    "an Aura put onto the battlefield from a graveyard is \
+                                     attached as it enters, which the game can't ask yet",
+                                ),
+                            });
+                            return;
+                        }
                         let owner = self.owner(c);
                         let graveyard = &mut self.players[owner.0 as usize].graveyard;
                         if graveyard.contains(&c) {

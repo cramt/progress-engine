@@ -1103,8 +1103,8 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-27 178 of the 500 replay to
-the end and 61.64% of their lines are followed** (19,514 of 31,659), 3
+Worked card by card from there, **on 2026-11-27 181 of the 500 replay to
+the end and 61.76% of their lines are followed** (19,553 of 31,659), 3
 of them relying on a land the log never names (2 to the end) and 11 on a
 card no one named in a graveyard having no ability there (2 to the end),
 and 181 games have no card the engine refuses before any game (from 21). The
@@ -1448,7 +1448,15 @@ may cast this card from your graveyard as long as you control a
 Zombie", cast for its mana cost as its type allows while its owner
 controls one, by what each permanent is (CR 601.3, 113.6f:
 Gravecrawler, whose 4 games go on to Oath of Nissa, Headless Rider,
-Cascading Cataracts and Underworld Breach).
+Cascading Cataracts and Underworld Breach); "Activate only as a sorcery"
+on any activated ability, a cost returning its source to its owner's
+hand, which can't then be the creature the same cost sacrifices, and
+"return target creature card from your graveyard to the battlefield"
+under the control of the player following it, an Aura returned that way
+refused, as an ability whose source a cost sacrifices beside a target in
+a graveyard and one moving its own card out of a graveyard are (CR
+602.5d, 601.2h, 110.2a, 303.4f, 113.6m: Recurring Nightmare, whose 3
+games replay to the end).
 And
 the replay's inferences: a card played or cast while its player may
 play cards from exile taken from there before the hand, the hand the

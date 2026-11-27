@@ -2729,6 +2729,325 @@ fn siege_gang_commander_sacrifices_a_goblin_for_two_damage() {
     assert_eq!(game.player(THEM).life(), 18, "as it last existed");
 }
 
+/// Whether an ability of `source` is offered now.
+fn offers_activation(game: &Game, source: chancellor_of_the_spires::model::ObjectId) -> bool {
+    matches!(game.decision(), Decision::Priority { actions, .. }
+        if actions.iter().any(|a| matches!(a, Action::Activate(x) if x.source == source)))
+}
+
+/// CR 602.5d, 602.2b, 601.2h, 110.2a: Recurring Nightmare's "Sacrifice a
+/// creature, Return this enchantment to its owner's hand: Return target
+/// creature card from your graveyard to the battlefield. Activate only as
+/// a sorcery": not on their turn, its target only a creature card in my
+/// graveyard, and as it is activated it goes back to my hand and a
+/// creature of mine is sacrificed; the card returns under my control.
+#[test]
+fn recurring_nightmare_trades_a_creature_for_one_in_my_graveyard() {
+    let mut game = deal_both(
+        &[
+            ("Swamp", 30),
+            ("Child of Night", 15),
+            ("Recurring Nightmare", 15),
+        ],
+        &[("Mountain", 30), ("Lightning Bolt", 30)],
+        &[
+            ("Swamp", 4),
+            ("Child of Night", 2),
+            ("Recurring Nightmare", 1),
+        ],
+        &[("Mountain", 1), ("Lightning Bolt", 1)],
+    );
+    play(&mut game, "Swamp");
+    my_next_main(&mut game);
+    play(&mut game, "Swamp");
+    let first = in_hand(&game, ME, "Child of Night").expect("dealt");
+    cast_card(&mut game, first, None);
+    resolve(&mut game);
+    let on = creature(&game, "Child of Night").expect("entered");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Mountain");
+    cast_as(
+        &mut game,
+        THEM,
+        "Lightning Bolt",
+        Some(vec![Target::Object(on)]),
+    );
+    resolve(&mut game);
+    assert!(game.player(ME).graveyard().contains(&first));
+    pass_until(&mut game, ME, Step::PrecombatMain);
+    play(&mut game, "Swamp");
+    let nightmare_card = in_hand(&game, ME, "Recurring Nightmare").expect("dealt");
+    cast(&mut game, "Recurring Nightmare", None);
+    resolve(&mut game);
+    let nightmare = creature(&game, "Recurring Nightmare").expect("entered");
+    assert!(
+        !offers_activation(&game, nightmare),
+        "no creature to sacrifice"
+    );
+    my_next_main(&mut game);
+    play(&mut game, "Swamp");
+    let second = in_hand(&game, ME, "Child of Night").expect("dealt");
+    cast_card(&mut game, second, None);
+    resolve(&mut game);
+    let fodder = creature(&game, "Child of Night").expect("entered");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    step(&mut game, Answer::Act(Action::Pass));
+    assert!(
+        matches!(game.decision(), Decision::Priority { player: ME, .. }),
+        "{:?}",
+        game.decision()
+    );
+    assert!(
+        !offers_activation(&game, nightmare),
+        "only as a sorcery, so not on their turn"
+    );
+    pass_until(&mut game, ME, Step::PrecombatMain);
+    let Decision::Targets { slots, .. } = activate(&mut game, nightmare) else {
+        panic!("a target: {:?}", game.decision())
+    };
+    assert_eq!(
+        slots[0],
+        vec![Target::Card(first)],
+        "a creature card of mine"
+    );
+    let d = step(&mut game, Answer::Targets(vec![Target::Card(first)]));
+    assert!(
+        game.player(ME).hand().contains(&nightmare_card),
+        "returned as a cost"
+    );
+    let Decision::Sacrifice { legal, .. } = d else {
+        panic!("a sacrifice: {d:?}")
+    };
+    assert_eq!(legal, vec![fodder]);
+    step(&mut game, Answer::Sacrifice(vec![fodder]));
+    assert!(game.player(ME).graveyard().contains(&second));
+    resolve(&mut game);
+    assert!(!game.player(ME).graveyard().contains(&first));
+    assert_eq!(
+        game.characteristics()[&creature_of(&game, first)].controller,
+        ME
+    );
+}
+
+/// CR 113.6m: Summoned Dromedary's "{1}{W}: Return this card from your
+/// graveyard to your hand. Activate only as a sorcery" functions only in
+/// its graveyard, where nothing offers it, so it is never offered on the
+/// battlefield either. And CR 601.2c, 601.2h: Priest of Fell Rites's
+/// "Sacrifice this creature: Return target creature card from your
+/// graveyard …" chooses its target before the Priest is in the
+/// graveyard, which the engine, sacrificing first, can't, so it refuses.
+#[test]
+fn activated_abilities_whose_source_moves_out_of_order_are_refused() {
+    let priest = CardText {
+        oracle: Oracle::OneFace(
+            "{T}, Pay 3 life, Sacrifice this creature: Return target creature card from \
+             your graveyard to the battlefield. Activate only as a sorcery."
+                .into(),
+        ),
+        ..card("Priest of Fell Rites")
+    };
+    let game = Game::start(Setup {
+        format: Format::Constructed,
+        decks: vec![
+            DeckCards {
+                hidden: 0,
+                commander: Vec::new(),
+                library: (0..30)
+                    .flat_map(|_| [card("Summoned Dromedary"), priest.clone()])
+                    .collect(),
+            },
+            deck(&[("Island", 60)]),
+        ],
+        mulligans: false,
+        seed: 0,
+    })
+    .unwrap();
+    let node = |name: &str| {
+        let c = game
+            .player(ME)
+            .library()
+            .iter()
+            .chain(game.player(ME).hand().iter())
+            .copied()
+            .find(|c| game.card(*c).is_some_and(|t| t.name == name))
+            .expect("dealt");
+        game.activation_refusal(c).expect("refused").node
+    };
+    assert_eq!(
+        node("Summoned Dromedary"),
+        "an activated ability that functions from its card's graveyard"
+    );
+    assert_eq!(
+        node("Priest of Fell Rites"),
+        "an activation cost sacrificing its source beside a target card in a graveyard"
+    );
+}
+
+/// CR 118.3, 601.2h: under Opalescence Recurring Nightmare is a creature,
+/// but it returns to my hand as part of the cost, so it can't also be the
+/// creature sacrificed: with no other creature it isn't offered.
+#[test]
+fn recurring_nightmare_cant_sacrifice_itself_under_opalescence() {
+    let mut game = deal_both(
+        &[
+            ("Swamp", 20),
+            ("Plains", 20),
+            ("Child of Night", 7),
+            ("Opalescence", 7),
+            ("Recurring Nightmare", 6),
+        ],
+        &[("Mountain", 30), ("Lightning Bolt", 30)],
+        &[
+            ("Swamp", 2),
+            ("Plains", 2),
+            ("Child of Night", 1),
+            ("Opalescence", 1),
+            ("Recurring Nightmare", 1),
+        ],
+        &[("Mountain", 1), ("Lightning Bolt", 1)],
+    );
+    play(&mut game, "Swamp");
+    my_next_main(&mut game);
+    play(&mut game, "Plains");
+    cast(&mut game, "Child of Night", None);
+    resolve(&mut game);
+    let on = creature(&game, "Child of Night").expect("entered");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Mountain");
+    cast_as(
+        &mut game,
+        THEM,
+        "Lightning Bolt",
+        Some(vec![Target::Object(on)]),
+    );
+    resolve(&mut game);
+    pass_until(&mut game, ME, Step::PrecombatMain);
+    play(&mut game, "Swamp");
+    my_next_main(&mut game);
+    play(&mut game, "Plains");
+    cast(&mut game, "Opalescence", None);
+    resolve(&mut game);
+    my_next_main(&mut game);
+    cast(&mut game, "Recurring Nightmare", None);
+    resolve(&mut game);
+    let nightmare = creature(&game, "Recurring Nightmare").expect("entered");
+    assert!(
+        game.characteristics()[&nightmare].is(CardType::Creature),
+        "a creature under Opalescence"
+    );
+    assert!(
+        !offers_activation(&game, nightmare),
+        "nothing else to sacrifice"
+    );
+}
+
+/// CR 303.4f: an Aura put onto the battlefield from a graveyard is
+/// attached as it enters to what its controller chooses, which isn't
+/// asked, so "return target enchantment card from your graveyard to the
+/// battlefield" refuses when its target is Holy Strength.
+#[test]
+fn an_aura_returned_from_a_graveyard_is_refused() {
+    let unearth = CardText {
+        name: "Enchantment Recall".into(),
+        oracle: Oracle::OneFace(
+            "Return target enchantment card from your graveyard to the battlefield.".into(),
+        ),
+        ..card("Zombify")
+    };
+    let mine = |seed| {
+        let mut library = Vec::new();
+        for (c, k) in [
+            (card("Swamp"), 20),
+            (card("Plains"), 20),
+            (card("Child of Night"), 7),
+            (card("Holy Strength"), 7),
+            (unearth.clone(), 6),
+        ] {
+            library.extend((0..k).map(|_| c.clone()));
+        }
+        Game::start(Setup {
+            format: Format::Constructed,
+            decks: vec![
+                DeckCards {
+                    hidden: 0,
+                    commander: Vec::new(),
+                    library,
+                },
+                deck(&[("Mountain", 30), ("Lightning Bolt", 30)]),
+            ],
+            mulligans: false,
+            seed,
+        })
+        .unwrap()
+    };
+    let mut game = (0..500)
+        .map(mine)
+        .find(|g| {
+            [
+                ("Swamp", 2),
+                ("Plains", 2),
+                ("Child of Night", 1),
+                ("Holy Strength", 1),
+                ("Enchantment Recall", 1),
+            ]
+            .iter()
+            .all(|(n, k)| named(g, g.player(ME).hand(), n) >= *k)
+                && named(g, g.player(THEM).hand(), "Mountain") >= 1
+                && named(g, g.player(THEM).hand(), "Lightning Bolt") >= 1
+        })
+        .expect("a seed deals them");
+    pass_until(&mut game, ME, Step::PrecombatMain);
+    play(&mut game, "Swamp");
+    my_next_main(&mut game);
+    play(&mut game, "Plains");
+    cast(&mut game, "Child of Night", None);
+    resolve(&mut game);
+    let child = creature(&game, "Child of Night").expect("entered");
+    my_next_main(&mut game);
+    play(&mut game, "Plains");
+    let aura = in_hand(&game, ME, "Holy Strength").expect("dealt");
+    cast(
+        &mut game,
+        "Holy Strength",
+        Some(vec![Target::Object(child)]),
+    );
+    resolve(&mut game);
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Mountain");
+    cast_as(
+        &mut game,
+        THEM,
+        "Lightning Bolt",
+        Some(vec![Target::Object(child)]),
+    );
+    resolve(&mut game);
+    assert!(game.player(ME).graveyard().contains(&aura), "gone with it");
+    pass_until(&mut game, ME, Step::PrecombatMain);
+    play(&mut game, "Swamp");
+    cast(
+        &mut game,
+        "Enchantment Recall",
+        Some(vec![Target::Card(aura)]),
+    );
+    step(&mut game, Answer::Act(Action::Pass));
+    match game.step(Answer::Act(Action::Pass)) {
+        Err(Rejected::Refused { card, refusal }) => {
+            assert_eq!(card, "Holy Strength");
+            assert_eq!(refusal.node, "FromGraveyardToBattlefield of an Aura");
+        }
+        other => panic!("{other:?}"),
+    }
+}
+
+/// The permanent a card is on the battlefield as.
+fn creature_of(game: &Game, c: CardId) -> chancellor_of_the_spires::model::ObjectId {
+    game.permanents()
+        .iter()
+        .find(|(_, p)| p.card == c)
+        .map(|(id, _)| *id)
+        .expect("on the battlefield")
+}
+
 /// CR 601.2h, 733.1: paying Siege-Gang Commander's {1}{R} with Skirk
 /// Prospector's "Sacrifice a Goblin: Add {R}", the Prospector can't
 /// sacrifice the last Goblin the ability's own cost needs, which would
