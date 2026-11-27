@@ -231,7 +231,7 @@ cost: {5}{B}{B}
 > Enchant player
 > At the beginning of enchanted player's upkeep, that player sacrifices a creature or planeswalker of their choice. If the player can't, they lose 5 life.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Player), posts: [], or: None } })) }])
-= BROKE at "can't" after: at the beginning of enchanted player 's upkeep , that player sacrifices a creature or planeswalker of their choice . if the player
+= Triggered { trigger: At(Upkeep(EnchantedPlayers)), effect: [Sacrifice { who: That, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [ChosenBy(That)], or: None } } }, If { order: Leading, cond: Cant(That), then: [LoseLife { who: That, n: N(5) }] }], limits: [] }
 
 ## Crypt Angel
 face: Crypt Angel

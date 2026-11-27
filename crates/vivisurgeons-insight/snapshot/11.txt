@@ -1096,7 +1096,7 @@ cost: {2}{B}{R}{G}
 > Flying, trample
 > Whenever Wasitora deals combat damage to a player, that player sacrifices a creature of their choice. If the player can't, you create a 3/3 black, red, and green Cat Dragon creature token with flying.
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "trample", param: None }])
-= BROKE at "can't" after: whenever ~ deals combat damage to a player , that player sacrifices a creature of their choice . if the player
+= BROKE at "," after: whenever ~ deals combat damage to a player , that player sacrifices a creature of their choice . if the player can't , you create a <pt> black
 
 ## Watertrap Weaver
 face: Watertrap Weaver

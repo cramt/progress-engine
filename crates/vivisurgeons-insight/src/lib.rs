@@ -2658,15 +2658,20 @@ mod round_nine_d {
     }
 
     #[test]
-    fn entering_with_no_zone_said_is_any_entering() {
+    fn entering_from_something_not_a_zone_is_no_move_from_it() {
+        let face = Face {
+            name: "Some Card",
+            type_line: "Creature — Elf",
+            text: "When this creature enters from a pile, draw a card.",
+        };
         let s = format!(
             "{:?}",
-            read(
-                "Creature — Elf",
-                "When this creature enters the battlefield under your control, draw a card."
-            )
+            read_face_unresolved(&face, "Some Card")
+                .iter()
+                .map(|l| l.parsed.as_ref().ok())
+                .collect::<Vec<_>>()
         );
-        assert!(s.contains("Enters {") && !s.contains("PutInto"), "{s}");
+        assert!(!s.contains("PutInto"), "{s}");
     }
 
     #[test]
@@ -2731,5 +2736,45 @@ mod round_nine_d {
                 .collect::<Vec<_>>()
         );
         assert!(!s.contains("Becomes {"), "{s}");
+    }
+
+    #[test]
+    fn if_the_player_cant_is_the_player_named_before() {
+        let s = format!(
+            "{:?}",
+            read(
+                "Creature — Demon",
+                "At the beginning of each player's upkeep, that player sacrifices a creature of their choice. If the player can't, sacrifice this creature."
+            )
+        );
+        assert!(s.contains("cond: Cant(That)"), "{s}");
+    }
+
+    #[test]
+    fn if_the_player_cant_with_a_verb_after_it_is_no_failed_instruction() {
+        let face = Face {
+            name: "Some Card",
+            type_line: "Creature — Demon",
+            text: "At the beginning of each player's upkeep, that player sacrifices a creature of their choice. If the player can't cast spells, sacrifice this creature.",
+        };
+        let s = format!(
+            "{:?}",
+            read_face_unresolved(&face, "Some Card")
+                .iter()
+                .map(|l| l.parsed.as_ref().ok())
+                .collect::<Vec<_>>()
+        );
+        assert!(!s.contains("Cant("), "{s}");
+    }
+
+    #[test]
+    fn the_top_or_bottom_card_of_each_graveyard_is_one_from_each() {
+        for text in [
+            "At the beginning of your upkeep, exile the top card of each opponent's graveyard.",
+            "At the beginning of your upkeep, exile the bottom card of each player's graveyard.",
+        ] {
+            let s = format!("{:?}", read("Enchantment", text));
+            assert!(s.contains("quant: NFromEach(N(1))"), "{s}");
+        }
     }
 }

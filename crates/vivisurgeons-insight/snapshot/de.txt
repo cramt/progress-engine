@@ -1040,7 +1040,7 @@ cost: {3}{B}{B}
 > Flying
 > At the beginning of each player's upkeep, that player sacrifices a creature of their choice. If the player can't, sacrifice this creature.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "can't" after: at the beginning of each player 's upkeep , that player sacrifices a creature of their choice . if the player
+= Triggered { trigger: At(Upkeep(Each)), effect: [Sacrifice { who: That, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }, If { order: Leading, cond: Cant(That), then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 
 ## Woodlurker Mimic
 face: Woodlurker Mimic

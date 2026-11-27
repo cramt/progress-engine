@@ -1017,7 +1017,7 @@ cost: {4}{B}{B}
 > Flying
 > Whenever Urgoros deals combat damage to a player, that player discards a card at random. If the player can't, you draw a card.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "can't" after: whenever ~ deals combat damage to a player , that player discards a card at random . if the player
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Discard { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom], or: None } } }, If { order: Leading, cond: Cant(That), then: [Draw { who: You, n: N(1) }] }], limits: [] }
 
 ## Volcanic Hammer
 face: Volcanic Hammer

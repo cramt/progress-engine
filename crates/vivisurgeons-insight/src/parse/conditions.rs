@@ -381,7 +381,13 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
         // instruction before could not be done ([if-cant]). The bare verb
         // only: "if you can't cast spells" is not this.
         |p| {
-            let who = alt!(p; |p| p.word("you").map(|_| Player::You), player_simple)?;
+            // "If the player can't" (Woebringer Demon): the player named
+            // before, as "that player" ([that-player]).
+            let who = alt!(p;
+                |p| p.word("you").map(|_| Player::You),
+                |p| p.words("the player").map(|_| Player::That),
+                player_simple,
+            )?;
             p.word("can't")?;
             matches!(p.peek(), Some(Tok::Comma)).then_some(Condition::Cant(who))
         },
