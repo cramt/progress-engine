@@ -1226,6 +1226,50 @@ fn a_cast_trigger_during_an_opponents_turn() {
     assert_eq!(pt_of(&game, cutthroat), pt(3, 2));
 }
 
+/// CR 603.2, 105.2: Quirion Dryad's "Whenever you cast a spell that's
+/// white, blue, black, or red" triggers on a red Lightning Bolt and not on
+/// a green Giant Growth.
+#[test]
+fn a_cast_trigger_on_a_spell_that_is_one_of_its_colours() {
+    let mut game = deal(
+        &[
+            ("Forest", 20),
+            ("Mountain", 20),
+            ("Quirion Dryad", 10),
+            ("Lightning Bolt", 5),
+            ("Giant Growth", 5),
+        ],
+        &[("Island", 60)],
+        &[
+            ("Forest", 2),
+            ("Mountain", 1),
+            ("Quirion Dryad", 1),
+            ("Lightning Bolt", 1),
+            ("Giant Growth", 1),
+        ],
+    );
+    play(&mut game, "Forest");
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    cast(&mut game, "Quirion Dryad", None);
+    resolve(&mut game);
+    let dryad = creature(&game, "Quirion Dryad").unwrap();
+    my_next_main(&mut game);
+    play(&mut game, "Mountain");
+    cast(&mut game, "Giant Growth", Some(vec![Target::Object(dryad)]));
+    assert_eq!(game.stack().len(), 1, "green: no trigger");
+    resolve(&mut game);
+    cast(
+        &mut game,
+        "Lightning Bolt",
+        Some(vec![Target::Player(THEM)]),
+    );
+    assert_eq!(game.stack().len(), 2, "red: it triggers");
+    resolve(&mut game);
+    resolve(&mut game);
+    assert_eq!(pt_of(&game, dryad), pt(5, 5));
+}
+
 /// CR 508.3a, 113.7a: Scorch Spitter's "Whenever this creature attacks,
 /// it deals 1 damage to the player or planeswalker it's attacking".
 #[test]

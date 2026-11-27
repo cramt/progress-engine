@@ -5379,8 +5379,20 @@ fn graveyard_card(o: &Objects) -> Option<Result<TargetSpec, String>> {
 
 fn spell_filter(o: &Objects) -> Result<CardFilter, String> {
     let mut mana_value = None;
+    let mut alts = o.filter.alts.clone();
     for post in &o.filter.posts {
         match post {
+            // Quirion Dryad's "a spell that's white, blue, black, or red":
+            // the same alternatives said after the noun.
+            Post::ThatIs(that)
+                if alts.is_empty()
+                    && !that.alts.is_empty()
+                    && that.kind.is_none()
+                    && that.posts.is_empty()
+                    && that.or.is_none() =>
+            {
+                alts = that.alts.clone();
+            }
             Post::With(i::Compare {
                 stat: i::Stat::ManaValue,
                 op,
@@ -5392,7 +5404,7 @@ fn spell_filter(o: &Objects) -> Result<CardFilter, String> {
             other => return Err(format!("a target spell {}", short(other))),
         }
     }
-    let mut f = if o.filter.alts.is_empty() {
+    let mut f = if alts.is_empty() {
         CardFilter(vec![Filter::default()])
     } else {
         card_filter(&Objects {
@@ -5400,6 +5412,7 @@ fn spell_filter(o: &Objects) -> Result<CardFilter, String> {
             filter: i::Filter {
                 kind: Some(i::Noun::Card),
                 posts: Vec::new(),
+                alts,
                 ..o.filter.clone()
             },
         })?

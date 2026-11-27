@@ -202,6 +202,8 @@ const INDEXED: &[&str] = &[
     "Arrogant Wurm",
     "Careful Study",
     "Commune with Dinosaurs",
+    "Quirion Dryad",
+    "Accumulated Knowledge",
 ];
 
 fn index() -> &'static IndexFile {
@@ -1877,6 +1879,50 @@ fn a_city_of_brass_trigger_line_is_it_tapped_for_mana() {
     assert_eq!(r.end, End::Finished, "{:#?}", r.trace);
     let game = r.game.unwrap();
     assert_eq!(game.player(ALICE).life(), 19);
+}
+
+/// Accumulated Knowledge's {1} paid by City of Brass would trigger it
+/// beside Quirion Dryad, and the log shows Dryad's trigger alone: City's
+/// is one it never shows, so the replay goes back and pays with Mox
+/// Diamond, as it does for a lone City of Brass trigger the log doesn't
+/// show.
+#[test]
+fn a_trigger_ordered_beside_one_the_log_shows_but_never_shown_is_paid_otherwise() {
+    let (_, r) = run("
+        alice chooses to play first.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Forest].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Forest].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Island].
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Forest].
+        Turn 3: alice
+        alice draws a card.
+        alice plays [Island].
+        Turn 3: bob
+        bob draws a card.
+        bob plays [Forest].
+        Turn 4: alice
+        alice draws a card.
+        alice plays [City of Brass].
+        alice casts [Quirion Dryad].
+        alice casts [Mox Diamond].
+        alice discards [Forest].
+        alice casts [Accumulated Knowledge].
+        alice puts triggered ability from [Quirion Dryad] onto the stack (Whenever you cast a spell that's white, blue, black, or red, put a +1/+1 counter on Quirion Dryad.).
+        alice puts a +1/+1 counter on [Quirion Dryad].
+        alice draws a card with [Accumulated Knowledge].
+        bob has conceded from the game.
+    ");
+    assert_eq!(r.end, End::Finished, "{:#?}", r.trace);
+    let game = r.game.unwrap();
+    assert_eq!(game.player(ALICE).life(), 20, "City of Brass never tapped");
 }
 
 /// CR 601.2b, 702.33d: "casts [Burst Lightning] with kicker" pays its
