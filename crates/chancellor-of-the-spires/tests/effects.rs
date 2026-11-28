@@ -8,7 +8,7 @@ use std::sync::OnceLock;
 
 use chancellor_of_the_spires::deck::{self, CardText, DeckCards, Oracle, Side, TwoFaced};
 use chancellor_of_the_spires::game::*;
-use chancellor_of_the_spires::model::{pt, CardType, Color, PlayerId};
+use chancellor_of_the_spires::model::{pt, CardType, Color, Counter, PlayerId};
 use chip_scryfall::index::IndexFile;
 
 const ME: PlayerId = PlayerId(0);
@@ -28,6 +28,9 @@ fn card(name: &str) -> CardText {
     }
     if name == DRUM_ELF {
         return drum_elf();
+    }
+    if let Some(c) = invented(name) {
+        return c;
     }
     two_faced(name).unwrap_or_else(|| deck::card(name, index()).unwrap_or_else(|e| panic!("{e}")))
 }
@@ -64,6 +67,41 @@ fn drum_elf() -> CardText {
         pt: Some(pt(1, 1)),
         identity: vec![Color::Green],
     }
+}
+
+/// Cards no printed card is, for a branch only they reach.
+fn invented(name: &str) -> Option<CardText> {
+    let (type_line, mana_cost, oracle, colors, power) = match name {
+        // A card back from the graveyard at instant speed.
+        "Grave Churn" => (
+            "Instant",
+            "{0}",
+            "Put target creature card from a graveyard onto the battlefield under your control.",
+            vec![Color::Black],
+            None,
+        ),
+        // Undying on a card that chooses as it enters.
+        "Undying Shifter" => (
+            "Creature — Shapeshifter",
+            "{B}",
+            "As this creature enters, choose a creature type.\nUndying",
+            vec![Color::Black],
+            Some(pt(1, 1)),
+        ),
+        // Undying on a noncreature, which no "dies" sees.
+        "Undying Idol" => ("Artifact", "{1}", "Undying", Vec::new(), None),
+        _ => return None,
+    };
+    Some(CardText {
+        name: name.into(),
+        type_line: type_line.into(),
+        mana_cost: mana_cost.into(),
+        oracle: Oracle::OneFace(oracle.into()),
+        mana_value: u32::from(mana_cost != "{0}"),
+        colors: colors.clone(),
+        pt: power,
+        identity: colors,
+    })
 }
 
 /// Cards with two faces, whose faces' own text the committed index,
@@ -9650,4 +9688,381 @@ fn a_cost_tapping_its_source_taps_another_beside_it() {
         .map(|m| m.taps.ids().to_vec())
         .collect();
     assert_eq!(taps, vec![vec![llanowar]]);
+}
+
+/// Answers the target decisions the stack asks along the way with the
+/// chooser's opponent, passing priority until it is empty.
+fn resolve_targeting_them(game: &mut Game) {
+    for _ in 0..20 {
+        match game.decision() {
+            Decision::Targets { player, .. } => {
+                let them = if player == ME { THEM } else { ME };
+                step(game, Answer::Targets(vec![Target::Player(them)]));
+            }
+            Decision::Priority { .. } if !game.stack().is_empty() => {
+                step(game, Answer::Act(Action::Pass));
+            }
+            _ => return,
+        }
+    }
+    panic!("the stack never emptied: {:?}", game.decision());
+}
+
+/// CR 702.93a, 603.10a, 614.1c: Geralf's Messenger's undying. Bolted, it
+/// had no +1/+1 counter, so it returns under its owner's control with
+/// one, tapped, and its enters trigger makes me lose 2 life again. Bolted
+/// again it had one, so it stays in the graveyard.
+#[test]
+fn geralf_s_messenger_returns_once_by_undying() {
+    let mut game = deal_both(
+        &[("Swamp", 40), ("Geralf's Messenger", 20)],
+        &[("Mountain", 40), ("Lightning Bolt", 20)],
+        &[("Swamp", 3), ("Geralf's Messenger", 1)],
+        &[("Mountain", 2), ("Lightning Bolt", 2)],
+    );
+    play(&mut game, "Swamp");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Mountain");
+    my_next_main(&mut game);
+    play(&mut game, "Swamp");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Mountain");
+    my_next_main(&mut game);
+    play(&mut game, "Swamp");
+    cast(&mut game, "Geralf's Messenger", None);
+    resolve_targeting_them(&mut game);
+    assert_eq!(game.player(THEM).life(), 18);
+    let first = creature(&game, "Geralf's Messenger").unwrap();
+    let card = game.permanents()[&first].card;
+    assert!(game.permanents()[&first].tapped);
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    cast_as(
+        &mut game,
+        THEM,
+        "Lightning Bolt",
+        Some(vec![Target::Object(first)]),
+    );
+    step(&mut game, Answer::Act(Action::Pass));
+    step(&mut game, Answer::Act(Action::Pass));
+    resolve_targeting_them(&mut game);
+    let back = creature(&game, "Geralf's Messenger").expect("returned by undying");
+    assert_ne!(back, first, "a new object");
+    assert_eq!(game.permanents()[&back].card, card);
+    assert_eq!(game.characteristics()[&back].controller, ME);
+    assert_eq!(game.counters_on(back, &Counter::PlusOne), 1);
+    assert!(game.permanents()[&back].tapped, "it enters tapped");
+    assert_eq!(game.player(THEM).life(), 16, "its enters trigger again");
+    cast_as(
+        &mut game,
+        THEM,
+        "Lightning Bolt",
+        Some(vec![Target::Object(back)]),
+    );
+    step(&mut game, Answer::Act(Action::Pass));
+    step(&mut game, Answer::Act(Action::Pass));
+    assert!(
+        game.stack().is_empty(),
+        "with its counter, undying doesn't trigger (CR 603.4)"
+    );
+    assert!(creature(&game, "Geralf's Messenger").is_none());
+    assert!(game.player(ME).graveyard().contains(&card));
+    assert!(game.stack().is_empty());
+}
+
+/// CR 702.79a: Kitchen Finks's persist returns it with a -1/-1 counter,
+/// a 2/1 that gains me 2 life again; Bolted with that counter on it, it
+/// stays dead.
+#[test]
+fn kitchen_finks_returns_once_by_persist() {
+    let mut game = deal_both(
+        &[("Forest", 40), ("Kitchen Finks", 20)],
+        &[("Mountain", 40), ("Lightning Bolt", 20)],
+        &[("Forest", 3), ("Kitchen Finks", 1)],
+        &[("Mountain", 2), ("Lightning Bolt", 2)],
+    );
+    play(&mut game, "Forest");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Mountain");
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Mountain");
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    cast(&mut game, "Kitchen Finks", None);
+    resolve_targeting_them(&mut game);
+    assert_eq!(game.player(ME).life(), 22);
+    let first = creature(&game, "Kitchen Finks").unwrap();
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    cast_as(
+        &mut game,
+        THEM,
+        "Lightning Bolt",
+        Some(vec![Target::Object(first)]),
+    );
+    step(&mut game, Answer::Act(Action::Pass));
+    step(&mut game, Answer::Act(Action::Pass));
+    resolve_targeting_them(&mut game);
+    let back = creature(&game, "Kitchen Finks").expect("returned by persist");
+    assert_eq!(game.counters_on(back, &Counter::MinusOne), 1);
+    assert_eq!(game.counters_on(back, &Counter::PlusOne), 0);
+    assert_eq!(game.characteristics()[&back].pt, Some(pt(2, 1)));
+    assert_eq!(game.player(ME).life(), 24);
+    cast_as(
+        &mut game,
+        THEM,
+        "Lightning Bolt",
+        Some(vec![Target::Object(back)]),
+    );
+    step(&mut game, Answer::Act(Action::Pass));
+    step(&mut game, Answer::Act(Action::Pass));
+    resolve_targeting_them(&mut game);
+    assert!(creature(&game, "Kitchen Finks").is_none());
+}
+
+/// CR 400.7e: undying finds the card its creature became in the
+/// graveyard and no later one. In response to its first undying, the
+/// Messenger is reanimated and Bolted, returns by a second undying with a
+/// +1/+1 counter and is Bolted again: the card in the graveyard is a new
+/// object, which the first undying doesn't return.
+#[test]
+fn undying_finds_no_card_that_left_the_graveyard_and_came_back() {
+    let mut game = deal_both(
+        &[
+            ("Swamp", 40),
+            ("Geralf's Messenger", 10),
+            ("Grave Churn", 10),
+        ],
+        &[("Mountain", 40), ("Lightning Bolt", 20)],
+        &[("Swamp", 3), ("Geralf's Messenger", 1), ("Grave Churn", 1)],
+        &[("Mountain", 3), ("Lightning Bolt", 3)],
+    );
+    play(&mut game, "Swamp");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Mountain");
+    my_next_main(&mut game);
+    play(&mut game, "Swamp");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Mountain");
+    my_next_main(&mut game);
+    play(&mut game, "Swamp");
+    cast(&mut game, "Geralf's Messenger", None);
+    resolve_targeting_them(&mut game);
+    let card = game.permanents()[&creature(&game, "Geralf's Messenger").unwrap()].card;
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Mountain");
+    let bolt = |game: &mut Game| {
+        let m = creature(game, "Geralf's Messenger").expect("on the battlefield");
+        cast_as(game, THEM, "Lightning Bolt", Some(vec![Target::Object(m)]));
+        step(game, Answer::Act(Action::Pass));
+        step(game, Answer::Act(Action::Pass));
+    };
+    // The first undying on the stack, which I respond to.
+    bolt(&mut game);
+    assert_eq!(game.stack().len(), 1);
+    step(&mut game, Answer::Act(Action::Pass));
+    cast(&mut game, "Grave Churn", Some(vec![Target::Card(card)]));
+    step(&mut game, Answer::Act(Action::Pass));
+    let d = step(&mut game, Answer::Act(Action::Pass));
+    let Decision::Targets { .. } = d else {
+        panic!("its enters trigger: {d:?}")
+    };
+    step(&mut game, Answer::Targets(vec![Target::Player(THEM)]));
+    // The second undying, above it, returns the Messenger.
+    bolt(&mut game);
+    assert_eq!(game.stack().len(), 3);
+    step(&mut game, Answer::Act(Action::Pass));
+    let d = step(&mut game, Answer::Act(Action::Pass));
+    let Decision::Targets { .. } = d else {
+        panic!("its enters trigger: {d:?}")
+    };
+    step(&mut game, Answer::Targets(vec![Target::Player(THEM)]));
+    let last = creature(&game, "Geralf's Messenger").expect("returned by undying");
+    assert_eq!(game.counters_on(last, &Counter::PlusOne), 1);
+    bolt(&mut game);
+    assert!(creature(&game, "Geralf's Messenger").is_none());
+    resolve_targeting_them(&mut game);
+    assert!(game.stack().is_empty());
+    assert!(game.player(ME).graveyard().contains(&card));
+    assert!(creature(&game, "Geralf's Messenger").is_none());
+}
+
+/// Undying on a card that chooses a creature type as it enters: the
+/// counter isn't carried through that choice yet, so the return is
+/// refused by name.
+#[test]
+fn undying_refuses_a_card_with_a_choice_as_it_enters() {
+    let mut game = deal_both(
+        &[("Swamp", 40), ("Undying Shifter", 20)],
+        &[("Mountain", 40), ("Lightning Bolt", 20)],
+        &[("Swamp", 1), ("Undying Shifter", 1)],
+        &[("Mountain", 1), ("Lightning Bolt", 1)],
+    );
+    play(&mut game, "Swamp");
+    cast(&mut game, "Undying Shifter", None);
+    step(&mut game, Answer::Act(Action::Pass));
+    let d = step(&mut game, Answer::Act(Action::Pass));
+    let Decision::ChooseCreatureType { .. } = d else {
+        panic!("{d:?}")
+    };
+    step(&mut game, Answer::CreatureType("Goblin".into()));
+    let shifter = creature(&game, "Undying Shifter").unwrap();
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Mountain");
+    cast_as(
+        &mut game,
+        THEM,
+        "Lightning Bolt",
+        Some(vec![Target::Object(shifter)]),
+    );
+    let e = loop {
+        match game.step(Answer::Act(Action::Pass)) {
+            Ok(_) => assert!(!game.stack().is_empty(), "never refused"),
+            Err(e) => break e,
+        }
+    };
+    assert!(
+        e.to_string().contains("can't carry the counter through"),
+        "{e}"
+    );
+}
+
+/// CR 702.93a, 108.3: undying returns the card under its owner's control.
+/// My Messenger, dead for good with its counter, is reanimated by them
+/// and Bolted: the trigger is theirs, and the Messenger comes back to me.
+#[test]
+fn undying_returns_the_card_under_its_owner_s_control() {
+    let mut game = deal_both(
+        &[("Swamp", 40), ("Geralf's Messenger", 20)],
+        &[
+            ("Mountain", 40),
+            ("Grave Churn", 10),
+            ("Lightning Bolt", 10),
+        ],
+        &[("Swamp", 3), ("Geralf's Messenger", 1)],
+        &[("Mountain", 3), ("Grave Churn", 1), ("Lightning Bolt", 3)],
+    );
+    play(&mut game, "Swamp");
+    for _ in 0..2 {
+        pass_until(&mut game, THEM, Step::PrecombatMain);
+        play_as(&mut game, THEM, "Mountain");
+        my_next_main(&mut game);
+        play(&mut game, "Swamp");
+    }
+    cast(&mut game, "Geralf's Messenger", None);
+    resolve_targeting_them(&mut game);
+    let card = game.permanents()[&creature(&game, "Geralf's Messenger").unwrap()].card;
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Mountain");
+    let bolt = |game: &mut Game| {
+        let m = creature(game, "Geralf's Messenger").expect("on the battlefield");
+        cast_as(game, THEM, "Lightning Bolt", Some(vec![Target::Object(m)]));
+        step(game, Answer::Act(Action::Pass));
+        step(game, Answer::Act(Action::Pass));
+        resolve_targeting_them(game);
+    };
+    bolt(&mut game);
+    bolt(&mut game);
+    assert!(creature(&game, "Geralf's Messenger").is_none());
+    cast_as(
+        &mut game,
+        THEM,
+        "Grave Churn",
+        Some(vec![Target::Card(card)]),
+    );
+    step(&mut game, Answer::Act(Action::Pass));
+    step(&mut game, Answer::Act(Action::Pass));
+    resolve_targeting_them(&mut game);
+    let theirs = creature(&game, "Geralf's Messenger").expect("reanimated");
+    assert_eq!(game.characteristics()[&theirs].controller, THEM);
+    assert_eq!(game.player(ME).life(), 18, "their enters trigger, at me");
+    bolt(&mut game);
+    let back = creature(&game, "Geralf's Messenger").expect("returned by undying");
+    assert_eq!(game.characteristics()[&back].controller, ME);
+    assert_eq!(game.counters_on(back, &Counter::PlusOne), 1);
+}
+
+/// CR 704.5q: Kitchen Finks back by persist with a -1/-1 counter, given a
+/// +1/+1 counter, has neither; Bolted again, persist returns it again.
+#[test]
+fn plus_and_minus_counters_annihilate_so_persist_returns_again() {
+    let mut game = deal_both(
+        &[("Forest", 40), ("Kitchen Finks", 10), ("Battlegrowth", 10)],
+        &[("Mountain", 40), ("Lightning Bolt", 20)],
+        &[("Forest", 4), ("Kitchen Finks", 1), ("Battlegrowth", 1)],
+        &[("Mountain", 2), ("Lightning Bolt", 2)],
+    );
+    play(&mut game, "Forest");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Mountain");
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Mountain");
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    cast(&mut game, "Kitchen Finks", None);
+    resolve_targeting_them(&mut game);
+    let first = creature(&game, "Kitchen Finks").unwrap();
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    cast_as(
+        &mut game,
+        THEM,
+        "Lightning Bolt",
+        Some(vec![Target::Object(first)]),
+    );
+    step(&mut game, Answer::Act(Action::Pass));
+    step(&mut game, Answer::Act(Action::Pass));
+    resolve_targeting_them(&mut game);
+    let back = creature(&game, "Kitchen Finks").expect("returned by persist");
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    cast(&mut game, "Battlegrowth", Some(vec![Target::Object(back)]));
+    resolve(&mut game);
+    assert_eq!(game.counters_on(back, &Counter::MinusOne), 0);
+    assert_eq!(game.counters_on(back, &Counter::PlusOne), 0);
+    assert_eq!(game.characteristics()[&back].pt, Some(pt(3, 2)));
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    cast_as(
+        &mut game,
+        THEM,
+        "Lightning Bolt",
+        Some(vec![Target::Object(back)]),
+    );
+    step(&mut game, Answer::Act(Action::Pass));
+    step(&mut game, Answer::Act(Action::Pass));
+    resolve_targeting_them(&mut game);
+    let again = creature(&game, "Kitchen Finks").expect("returned by persist again");
+    assert_eq!(game.counters_on(again, &Counter::MinusOne), 1);
+}
+
+/// CR 702.93a: undying on a noncreature permanent triggers as it is put
+/// into a graveyard, which the game sees only as a creature dies: refused
+/// by name rather than missed.
+#[test]
+fn undying_on_a_noncreature_is_refused() {
+    let mut game = deal_both(
+        &[("Swamp", 40), ("Undying Idol", 20)],
+        &[("Mountain", 40), ("Shatter", 20)],
+        &[("Swamp", 1), ("Undying Idol", 1)],
+        &[("Mountain", 2), ("Shatter", 1)],
+    );
+    play(&mut game, "Swamp");
+    cast(&mut game, "Undying Idol", None);
+    resolve(&mut game);
+    let idol = game
+        .permanents()
+        .iter()
+        .find(|(_, p)| game.card(p.card).is_some_and(|t| t.name == "Undying Idol"))
+        .map(|(id, _)| *id)
+        .expect("on the battlefield");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Mountain");
+    my_next_main(&mut game);
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Mountain");
+    cast_as(&mut game, THEM, "Shatter", Some(vec![Target::Object(idol)]));
+    step(&mut game, Answer::Act(Action::Pass));
+    let e = game.step(Answer::Act(Action::Pass)).unwrap_err();
+    assert!(e.to_string().contains("undying or persist"), "{e}");
 }

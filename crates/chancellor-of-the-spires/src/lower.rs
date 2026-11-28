@@ -1770,6 +1770,12 @@ pub enum Effect {
     /// ability's source, if it is still in its owner's graveyard. Such an
     /// ability functions only there (CR 113.6m, `Triggered::from_graveyard`).
     SelfFromGraveyardToHand,
+    /// Undying's and persist's "return it to the battlefield under its
+    /// owner's control with a +1/+1 counter on it" (CR 702.93a, 702.79a):
+    /// the card the ability's source became in its owner's graveyard as it
+    /// died, if it is still that object there (CR 400.7e), entering with
+    /// the counter (CR 122.6) under its owner's control.
+    ReturnDiedWithCounter(Counter),
     /// "Tap target land", "untap it" (CR 701.26a).
     Tap(On),
     Untap(On),
@@ -2561,6 +2567,10 @@ pub enum Intervening {
     /// Evoke's "if its evoke cost was paid": the permanent was the spell
     /// cast for it (CR 702.74a).
     Evoked,
+    /// Undying's "if it had no +1/+1 counters on it": its source, which
+    /// has died, had none of that counter as it last existed on the
+    /// battlefield (CR 702.93a, 603.10a).
+    HadNo(Counter),
 }
 
 /// A spell's instructions, its paragraphs in order (CR 608.2c), with the
@@ -3128,8 +3138,23 @@ pub fn keyword_trigger(k: &i::Keyword) -> Option<Triggered> {
     if k.param.is_some() {
         return None;
     }
+    // CR 702.93a, 702.79a: "When this permanent is put into a graveyard
+    // from the battlefield, if it had no +1/+1 counters on it, return it
+    // to the battlefield under its owner's control with a +1/+1 counter
+    // on it", and persist's alike with -1/-1.
+    let returns = |counter: Counter| Triggered {
+        event: TriggerEvent::Dies(Filter(vec![Pred::Itself])),
+        program: Program {
+            targets: Vec::new(),
+            effects: vec![Effect::ReturnDiedWithCounter(counter.clone())],
+        },
+        condition: Some(Intervening::HadNo(counter)),
+        during: None,
+    };
     let plus_one = vec![Op::ModifyPt(pt(1, 1))];
     match k.name.to_lowercase().as_str() {
+        "undying" => Some(returns(Counter::PlusOne)),
+        "persist" => Some(returns(Counter::MinusOne)),
         "exalted" => Some(Triggered {
             event: TriggerEvent::AttacksAlone(Filter(vec![Pred::YouControl])),
             program: Program {

@@ -1107,8 +1107,8 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-28 195 of the 500 replay to
-the end and 63.74% of their lines are followed** (20,181 of 31,659), 3
+Worked card by card from there, **on 2026-11-28 196 of the 500 replay to
+the end and 63.87% of their lines are followed** (20,220 of 31,659), 3
 of them relying on a land the log never names (2 to the end) and 11 on a
 card no one named in a graveyard having no ability there (2 to the end),
 and 191 games have no card the engine refuses before any game (from 21). The
@@ -1474,7 +1474,14 @@ source, any it controls that the cost's filter matches, its source among
 them unless the cost's {T} taps it already, sick creatures too, and no
 permanent tapped by two activations of one payment (CR 602.2b, 701.26a,
 302.6, 106.12: Birchlore Rangers, whose 3 games now finish, and Heritage
-Druid).
+Druid); and undying and persist, a creature's own trigger as it dies
+read with its intervening "if" from it as it last existed, as every
+"dies" trigger's now is, returning the card it became in the graveyard
+and no later one under its owner's control with the counter on it as it
+enters, a choice as it enters or a noncreature with either refused by
+name, and +1/+1 and -1/-1 counters removed in pairs (CR 702.93a,
+702.79a, 603.4, 603.10a, 400.7e, 122.6, 704.5q: Geralf's Messenger,
+whose 3 games go on, one to the end, and Kitchen Finks).
 And
 the replay's inferences: a card played or cast while its player may
 play cards from exile taken from there before the hand, the hand the

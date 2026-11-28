@@ -2138,6 +2138,10 @@ pub struct Game {
     /// (CR 613.7d), which a static of it that functions there has (CR
     /// 613.7a). Every card in a graveyard has one.
     graveyard_stamps: OrdMap<CardId, model::Timestamp>,
+    /// The graveyard timestamp of the card each permanent that died
+    /// became there, so an ability of the permanent finds that object and
+    /// no later one (CR 400.7e).
+    died_as: OrdMap<ObjectId, model::Timestamp>,
     /// Libraries an instruction shuffled this turn.
     shuffled: u32,
     /// Permanents returned to a hand this turn, by a cost or an
@@ -2387,6 +2391,7 @@ impl Game {
             presume_inert: false,
             presumed: OrdSet::new(),
             graveyard_stamps: OrdMap::new(),
+            died_as: OrdMap::new(),
             returned: 0,
             transformed: 0,
             copies: Vector::new(),
@@ -7423,6 +7428,43 @@ impl Game {
                         player.hand.push_back(card);
                     }
                 }
+                // CR 400.7e: the trigger finds the card its source became
+                // in the graveyard, and none it became later. It enters
+                // under its owner's control (CR 702.93a) with the counter
+                // on it as it enters (CR 122.6).
+                Effect::ReturnDiedWithCounter(counter) => {
+                    let card = at.what.card();
+                    let owner = self.owner(card);
+                    let became = at.object.and_then(|o| self.died_as.get(&o));
+                    let still = self.players[owner.0 as usize].graveyard.contains(&card)
+                        && became.is_some()
+                        && self.graveyard_stamps.get(&card) == became;
+                    if still {
+                        let (tapped, pays, discard) = self.entering(card, owner);
+                        let copies = self
+                            .as_copy(card, owner)
+                            .is_some_and(|(_, of)| !of.is_empty());
+                        if copies
+                            || pays.is_some()
+                            || discard.is_some()
+                            || self.chooses_type(card, owner)
+                        {
+                            self.halted = Some(Rejected::Refused {
+                                card: self.card(card).expect("a card in a graveyard is known").name.clone(),
+                                refusal: Unrunnable::new(
+                                    "ReturnDiedWithCounter of a card with a choice as it enters",
+                                    "returns a card with a counter that has a choice to make \
+                                     as it enters, which the game can't carry the counter through yet",
+                                ),
+                            });
+                            return;
+                        }
+                        self.players[owner.0 as usize]
+                            .graveyard
+                            .retain(|c| *c != card);
+                        self.arrive_with(card, owner, tapped, None, None, Some((counter, 1)));
+                    }
+                }
                 Effect::ToOwnersHand(on) => {
                     for o in self.objects_on(&at, &on) {
                         if self.permanents.contains_key(&o) {
@@ -9555,7 +9597,14 @@ impl Game {
                         attacking: false,
                         source_defending: self.defending(*id),
                     };
-                    if l.chars.abilities.contains(&Ability::Unread(*n)) && f.matches(&seen) {
+                    // CR 603.4: its intervening "if" read as it triggers,
+                    // from the source as it last existed.
+                    if l.chars.abilities.contains(&Ability::Unread(*n))
+                        && f.matches(&seen)
+                        && t.condition
+                            .as_ref()
+                            .is_none_or(|c| self.intervening(c, *id, &l.chars, None, &all))
+                    {
                         triggered.push(Pending {
                             source: l.card,
                             object: Some(*id),
@@ -9708,6 +9757,14 @@ impl Game {
                     .permanents
                     .get(&source)
                     .is_some_and(|p| self.evoked.contains(&p.card))
+            }
+            // Only a "dies" trigger of its own has it (`lower::keyword_trigger`),
+            // so the source has left and has a last known state.
+            lower::Intervening::HadNo(counter) => {
+                let Some(l) = self.last_known.get(&source) else {
+                    unreachable!("HadNo is only a dies trigger's, of a source that left");
+                };
+                return l.counters.get(counter).is_none_or(|n| *n == 0);
             }
             lower::Intervening::ArrivedSinceLastUpkeep => {
                 let last = self.player(source_chars.controller).last_turn;
@@ -10532,7 +10589,7 @@ impl Game {
     /// As `arrive`, with the creature type chosen as it entered, there
     /// before anything sees it enter.
     fn arrive_chosen(&mut self, card: CardId, controller: PlayerId, tapped: bool, chosen: Subtype) {
-        self.arrive_with(card, controller, tapped, None, Some(chosen));
+        self.arrive_with(card, controller, tapped, None, Some(chosen), None);
     }
 
     /// As `arrive`, attached to `to` as it enters, as an Aura spell
@@ -10544,7 +10601,7 @@ impl Game {
         tapped: bool,
         to: Option<ObjectId>,
     ) {
-        self.arrive_with(card, controller, tapped, to, None);
+        self.arrive_with(card, controller, tapped, to, None, None);
     }
 
     fn arrive_with(
@@ -10554,6 +10611,7 @@ impl Game {
         tapped: bool,
         to: Option<ObjectId>,
         chosen: Option<Subtype>,
+        extra: Option<(Counter, u32)>,
     ) {
         let runs = self.runs_of(card);
         let mut chars = runs.lowered.chars.clone();
@@ -10585,6 +10643,7 @@ impl Game {
                 Enters::WithCounters(c, n) => Some((c.clone(), *n)),
                 _ => None,
             })
+            .chain(extra)
             .collect();
         for (c, n) in counters {
             self.battlefield.put_counters(id, c, n);
@@ -11124,6 +11183,25 @@ impl Game {
                 }
                 checked = Checked::Performed;
             }
+            // CR 704.5q: +1/+1 and -1/-1 counters on one permanent are
+            // removed in pairs, which undying and persist read.
+            let paired: Vec<(ObjectId, u32)> = self
+                .battlefield
+                .objects
+                .iter()
+                .filter_map(|(id, o)| {
+                    let plus = o.counters.get(&Counter::PlusOne).copied()?;
+                    let minus = o.counters.get(&Counter::MinusOne).copied()?;
+                    Some((*id, plus.min(minus))).filter(|(_, n)| *n > 0)
+                })
+                .collect();
+            if !paired.is_empty() {
+                for (id, n) in paired {
+                    self.battlefield.remove_counters(id, &Counter::PlusOne, n);
+                    self.battlefield.remove_counters(id, &Counter::MinusOne, n);
+                }
+                checked = Checked::Performed;
+            }
             if losers.is_empty() && dying.is_empty() {
                 if let Some(legends) = self.legends() {
                     return legends;
@@ -11298,6 +11376,37 @@ impl Game {
         }
         if to != Zone::Hand && self.cards[perm.card.0 as usize].commander {
             self.commanders_moved.push_back(perm.card);
+        }
+        if to == Zone::Graveyard {
+            if let Some(stamp) = self.graveyard_stamps.get(&perm.card) {
+                self.died_as.insert(id, *stamp);
+            }
+            // CR 702.93a, 702.79a: undying and persist trigger on any
+            // permanent put into a graveyard from the battlefield, which
+            // the game sees only of a creature, as it dies (CR 700.4).
+            let returns = |t: &lower::Triggered| {
+                t.program
+                    .effects
+                    .iter()
+                    .any(|e| matches!(e, Effect::ReturnDiedWithCounter(_)))
+            };
+            let printed = self.printed(perm.card, self.last_known[&id].printed);
+            if !chars.is(CardType::Creature)
+                && printed.runs.as_ref().is_ok_and(|r| {
+                    r.triggered
+                        .iter()
+                        .any(|(n, t)| chars.abilities.contains(&Ability::Unread(*n)) && returns(t))
+                })
+            {
+                self.halted = Some(Rejected::Refused {
+                    card: printed.text.name.clone(),
+                    refusal: Unrunnable::new(
+                        "undying or persist of a noncreature",
+                        "a noncreature permanent with undying or persist was put into a \
+                         graveyard, which the game sees only of a creature",
+                    ),
+                });
+            }
         }
         if to == Zone::Graveyard && chars.is(CardType::Creature) {
             self.trigger_on(Event::Died(id));
