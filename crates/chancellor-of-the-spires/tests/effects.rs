@@ -9385,3 +9385,75 @@ fn commune_with_dinosaurs_puts_a_land_from_among_five_into_the_hand() {
         .filter(|c| **c != forest)
         .all(|c| bottom.contains(c)));
 }
+
+/// CR 602.2b, 601.2h, 602.5b: Quirion Ranger's "Return a Forest you
+/// control to its owner's hand: Untap target creature. Activate only once
+/// each turn": its target chosen, then a Forest of mine returned, never an
+/// Island or the Ranger itself; once a turn, and not with no Forest.
+#[test]
+fn quirion_ranger_returns_a_forest_to_untap_a_creature() {
+    let mut game = deal(
+        &[("Forest", 30), ("Island", 10), ("Quirion Ranger", 20)],
+        &[("Island", 60)],
+        &[("Forest", 1), ("Island", 1), ("Quirion Ranger", 1)],
+    );
+    play(&mut game, "Forest");
+    cast(&mut game, "Quirion Ranger", None);
+    resolve(&mut game);
+    let ranger = creature(&game, "Quirion Ranger").expect("entered");
+    my_next_main(&mut game);
+    play(&mut game, "Island");
+    let forest = creature(&game, "Forest").expect("on the battlefield");
+    let Decision::Targets { slots, .. } = activate(&mut game, ranger) else {
+        panic!("a target: {:?}", game.decision())
+    };
+    assert!(slots[0].contains(&Target::Object(ranger)));
+    step(&mut game, Answer::Targets(vec![Target::Object(ranger)]));
+    let Decision::ReturnToHand { count, legal, .. } = game.decision() else {
+        panic!("a Forest to return: {:?}", game.decision())
+    };
+    assert_eq!(
+        (count, legal),
+        (1, vec![forest]),
+        "a Forest, no Island or Ranger"
+    );
+    let forests = named(&game, game.player(ME).hand(), "Forest");
+    step(&mut game, Answer::ReturnToHand(vec![forest]));
+    assert!(
+        !game.permanents().contains_key(&forest),
+        "returned as a cost"
+    );
+    assert_eq!(named(&game, game.player(ME).hand(), "Forest"), forests + 1);
+    assert!(!offers_activation(&game, ranger), "once each turn");
+    resolve(&mut game);
+    my_next_main(&mut game);
+    assert!(!offers_activation(&game, ranger), "no Forest to return");
+    play(&mut game, "Forest");
+    assert!(
+        offers_activation(&game, ranger),
+        "a Forest again, a new turn"
+    );
+}
+
+/// One cost returning permanents and sacrificing another, or its source,
+/// could take the same permanent both ways, which the engine doesn't
+/// order: the ability is carried, never offered, its node named, rather
+/// than paid one way.
+#[test]
+fn a_cost_returning_and_sacrificing_is_never_offered() {
+    let both = CardText {
+        oracle: Oracle::OneFace(
+            "Sacrifice a creature, Return a land you control to its owner's hand: Draw a card."
+                .into(),
+        ),
+        ..card("Grizzly Bears")
+    };
+    let (refused, dormant) = Game::reads(&both);
+    assert!(refused.is_none(), "{refused:?}");
+    assert!(
+        dormant
+            .iter()
+            .any(|d| d.contains("returning permanents and leaving another way")),
+        "{dormant:?}"
+    );
+}

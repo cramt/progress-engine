@@ -1107,8 +1107,8 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-27 186 of the 500 replay to
-the end and 62.29% of their lines are followed** (19,720 of 31,659), 3
+Worked card by card from there, **on 2026-11-28 190 of the 500 replay to
+the end and 63.12% of their lines are followed** (19,982 of 31,659), 3
 of them relying on a land the log never names (2 to the end) and 11 on a
 card no one named in a graveyard having no ability there (2 to the end),
 and 188 games have no card the engine refuses before any game (from 21). The
@@ -1465,12 +1465,19 @@ is in its owner's graveyard, "you" being that owner and its timestamp the
 one the card got entering the graveyard, refused where it reads its card
 as a permanent (CR 113.6b, 109.4, 109.5, 613.7a, 613.7d: Wonder, whose 5
 games go on, four to the end and one to Gaea's Blessing, and Anger, whose
-2 go on, one to the end, the other's Fyndhorn Elves tapping for mana the
-turn it was cast).
+2 go on, now both to the end); and an ability's cost returning a permanent to its
+owner's hand, the one the line before names, and a permanent no cost can
+return a divergence (CR 602.2b, 601.2h: Quirion Ranger, Wirewood
+Symbiote, whose 9 games go on, 4 to the end, one with Gaea's Cradle
+below).
 And
 the replay's inferences: a card played or cast while its player may
 play cards from exile taken from there before the hand, the hand the
-way back when what is left in it says so, and triggers a concession
+way back when what is left in it says so; a mana ability adding mana
+for each permanent it counts (Gaea's Cradle) tapped last of a spell's
+payments, and tapped first, its mana floating, before a cost returns a
+permanent it counts, left untapped the way back (CR 605.3a, 608.2h,
+106.4); and triggers a concession
 leaves unshown put on the stack after those it shows; the permanents an
 instruction has a player sacrifice, from the log's "sacrifices" lines,
 one each, every other choice of permanents of those names a way back;

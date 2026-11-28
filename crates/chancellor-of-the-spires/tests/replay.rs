@@ -209,6 +209,13 @@ const INDEXED: &[&str] = &[
     "Plague Belcher",
     "Dread Wanderer",
     "Wonder",
+    "Quirion Ranger",
+    "Wirewood Symbiote",
+    "Gaea's Cradle",
+    "Masticore",
+    "Centaur Courser",
+    "Wall of Blossoms",
+    "Yavimaya, Cradle of Growth",
 ];
 
 fn index() -> &'static IndexFile {
@@ -3679,4 +3686,322 @@ fn wonder_in_a_graveyard_gives_its_owners_creatures_flying() {
     assert_eq!(named_in(&game, game.player(ALICE).graveyard(), "Wonder"), 1);
     assert!(flying("Llanowar Elves"));
     assert!(!flying("Grizzly Bears"));
+}
+
+/// CR 602.2b, 601.2h: the log prints Quirion Ranger's cost, "returns
+/// [Forest] to its owner's hand", on the line before its activation; the
+/// Forest that line names goes back as the ability is activated, and is
+/// played again from the hand to pay for Llanowar Elves.
+#[test]
+fn quirion_ranger_returns_the_forest_its_line_names_as_it_is_activated() {
+    let (_, r) = run("
+        alice chooses to play first.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Forest].
+        alice casts [Quirion Ranger].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Island].
+        Turn 2: alice
+        alice draws a card.
+        alice returns [Forest] to its owner's hand with with [Quirion Ranger]'s ability.
+        alice activates an ability of [Quirion Ranger] targeting [Quirion Ranger] (Return a Forest you control to its owner's hand: Untap target creature.).
+        alice plays [Forest].
+        alice casts [Llanowar Elves].
+        Turn 2: bob
+        bob draws a card.
+        bob has conceded from the game.
+        alice wins the game.
+        Winner: alice
+    ");
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.expect("set up");
+    assert_eq!(on_battlefield(&game, "Forest"), 1);
+    assert_eq!(
+        on_battlefield(&game, "Llanowar Elves"),
+        1,
+        "paid by the Forest played again"
+    );
+}
+
+/// Wirewood Symbiote's line, before its activation, names the Elf it
+/// returns: Quirion Ranger, not the Llanowar Elves that entered first
+/// (CR 602.2b, 601.2h).
+fn symbiote_returns(named: &str) -> Replay {
+    run(&format!(
+        "
+        alice chooses to play first.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Forest].
+        alice casts [Llanowar Elves].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Island].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Forest].
+        alice casts [Wirewood Symbiote].
+        alice casts [Grizzly Bears].
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Island].
+        Turn 3: alice
+        alice draws a card.
+        alice casts [Quirion Ranger].
+        alice returns [{named}] to its owner's hand with with [Wirewood Symbiote]'s ability.
+        alice activates an ability of [Wirewood Symbiote] targeting [Llanowar Elves] (Untap target creature).
+        Turn 3: bob
+        bob draws a card.
+        bob has conceded from the game.
+        alice wins the game.
+        Winner: alice
+    "
+    ))
+    .1
+}
+
+#[test]
+fn wirewood_symbiote_returns_the_elf_its_line_names() {
+    let r = symbiote_returns("Quirion Ranger");
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.expect("set up");
+    assert_eq!(on_battlefield(&game, "Quirion Ranger"), 0);
+    assert_eq!(on_battlefield(&game, "Llanowar Elves"), 1);
+    assert_eq!(
+        named_in(&game, game.player(ALICE).hand(), "Quirion Ranger"),
+        1
+    );
+}
+
+/// A line returning a permanent the cost can't, a Bear for an Elf, is a
+/// divergence, not some Elf returned in its place.
+#[test]
+fn a_return_the_cost_cant_make_diverges() {
+    let r = symbiote_returns("Grizzly Bears");
+    assert!(
+        matches!(
+            &r.end,
+            End::Stopped {
+                stop: Stop::Diverged(Divergence::NeverOffered { what }),
+                ..
+            } if what.contains("Grizzly Bears")
+        ),
+        "{:?} {:#?}",
+        r.end,
+        r.trace
+    );
+}
+
+/// Of two Llanowar Elves, the line names neither apart: the tapped one
+/// goes back, so the replay pays for the second Elves with the first, the
+/// second summoning sick (CR 302.6), and Grizzly Bears is paid for with
+/// the Forests.
+#[test]
+fn a_return_goes_back_to_another_permanent_of_the_name() {
+    let (_, r) = run("
+        alice chooses to play first.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Forest].
+        alice casts [Llanowar Elves].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Island].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Forest].
+        alice casts [Wirewood Symbiote].
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Island].
+        Turn 3: alice
+        alice draws a card.
+        alice casts [Llanowar Elves].
+        alice returns [Llanowar Elves] to its owner's hand with with [Wirewood Symbiote]'s ability.
+        alice activates an ability of [Wirewood Symbiote] targeting [Wirewood Symbiote] (Untap target creature).
+        alice casts [Grizzly Bears].
+        Turn 3: bob
+        bob draws a card.
+        bob has conceded from the game.
+        alice wins the game.
+        Winner: alice
+    ");
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.expect("set up");
+    assert_eq!(on_battlefield(&game, "Llanowar Elves"), 1);
+    assert_eq!(on_battlefield(&game, "Grizzly Bears"), 1);
+}
+
+/// Turn 3's Wirewood Symbiote returns Quirion Ranger, one of Gaea's
+/// Cradle's three creatures; `turn3` is what alice does after.
+fn cradle_and(returned: &str, ability: &str, turn3: &str) -> Replay {
+    run(&format!(
+        "
+        alice chooses to play first.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Forest].
+        alice casts [Llanowar Elves].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Island].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Gaea's Cradle].
+        alice casts [Wirewood Symbiote].
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Island].
+        Turn 3: alice
+        alice draws a card.
+        alice casts [Quirion Ranger].
+        alice returns [{returned}] to its owner's hand with with [{ability}]'s ability.
+        alice activates an ability of [{ability}] targeting [Wirewood Symbiote] (Untap target creature).
+        {turn3}
+        Turn 3: bob
+        bob draws a card.
+        bob has conceded from the game.
+        alice wins the game.
+        Winner: alice
+    "
+    ))
+    .1
+}
+
+fn cradle_tapped(game: &chancellor_of_the_spires::game::Game) -> bool {
+    game.permanents()
+        .values()
+        .any(|p| p.tapped && game.card(p.card).is_some_and(|t| t.name == "Gaea's Cradle"))
+}
+
+/// CR 605.3a, 608.2h, 106.4: Gaea's Cradle counts Quirion Ranger only
+/// while it is on the battlefield, so it is tapped for three before
+/// Wirewood Symbiote's cost returns the Ranger, the mana floating; with
+/// the Forest or the Elves, whichever didn't pay for the Ranger, that is
+/// Masticore's {4}. Tapped after, it makes two, and Masticore is
+/// unpayable.
+#[test]
+fn gaeas_cradle_is_tapped_before_a_return_cost_uncounts_a_creature() {
+    let r = cradle_and(
+        "Quirion Ranger",
+        "Wirewood Symbiote",
+        "alice casts [Masticore].",
+    );
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.expect("set up");
+    assert_eq!(on_battlefield(&game, "Masticore"), 1);
+}
+
+/// Of the Ranger's own ability, which returns a Forest: the Cradle doesn't
+/// count lands, so nothing taps it, and it is still untapped on bob's
+/// turn.
+#[test]
+fn a_return_cost_cradle_doesnt_count_leaves_it_untapped() {
+    let r = cradle_and("Forest", "Quirion Ranger", "");
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.expect("set up");
+    assert!(!cradle_tapped(&game), "{:?}", r.trace);
+}
+
+/// Quirion Ranger's {G}, with Gaea's Cradle (counting only Llanowar
+/// Elves) played before the Forest: the Forest or the Elves pays, and the
+/// Cradle is left to tap later, when it may count more (CR 608.2h). Here
+/// it counts the Ranger too, for Centaur Courser's {2}{G} with the one
+/// left, and the replay never has to go back.
+#[test]
+fn gaeas_cradle_pays_last() {
+    let (_, r) = run("
+        alice chooses to play first.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Gaea's Cradle].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Island].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Forest].
+        alice casts [Llanowar Elves].
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Island].
+        Turn 3: alice
+        alice draws a card.
+        alice casts [Quirion Ranger].
+        alice casts [Centaur Courser].
+        Turn 3: bob
+        bob draws a card.
+        bob has conceded from the game.
+        alice wins the game.
+        Winner: alice
+    ");
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    assert!(
+        !r.trace.iter().any(|t| t.did.contains("again")),
+        "{:#?}",
+        r.trace
+    );
+}
+
+/// The way back from tapping Gaea's Cradle first: the mana it floats in
+/// the first main phase is lost as combat begins (CR 106.4), and only the
+/// Cradle left untapped pays for Wall of Blossoms after the Elves attack.
+#[test]
+fn gaeas_cradle_is_left_untapped_when_its_mana_would_be_lost() {
+    let r = cradle_and(
+        "Quirion Ranger",
+        "Wirewood Symbiote",
+        "bob is being attacked by [Llanowar Elves]
+        alice casts [Wall of Blossoms].
+        alice puts triggered ability from [Wall of Blossoms] onto the stack (When Wall of Blossoms enters, draw a card.).
+        alice draws a card with [Wall of Blossoms]'s ability.",
+    );
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.expect("set up");
+    assert_eq!(on_battlefield(&game, "Wall of Blossoms"), 1);
+}
+
+/// Under Yavimaya, Cradle of Growth, Gaea's Cradle is a Forest too, with
+/// a Forest's "{T}: Add {G}" (CR 305.6). Tapped first, it is tapped
+/// for its count, three, not the Forest's one: with the two of the Forest,
+/// the Elves and Yavimaya left, that is Masticore's {4} and the Ranger's
+/// {G} cast again. One, or left untapped for two, isn't.
+#[test]
+fn gaeas_cradle_under_yavimaya_is_tapped_for_its_count() {
+    let (_, r) = run("
+        alice chooses to play first.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Forest].
+        alice casts [Llanowar Elves].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Island].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Gaea's Cradle].
+        alice casts [Wirewood Symbiote].
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Island].
+        Turn 3: alice
+        alice draws a card.
+        alice plays [Yavimaya, Cradle of Growth].
+        alice casts [Quirion Ranger].
+        alice returns [Quirion Ranger] to its owner's hand with with [Wirewood Symbiote]'s ability.
+        alice activates an ability of [Wirewood Symbiote] targeting [Wirewood Symbiote] (Untap target creature).
+        alice casts [Masticore].
+        alice casts [Quirion Ranger].
+        Turn 3: bob
+        bob draws a card.
+        bob has conceded from the game.
+        alice wins the game.
+        Winner: alice
+    ");
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.expect("set up");
+    assert_eq!(on_battlefield(&game, "Masticore"), 1);
+    assert_eq!(on_battlefield(&game, "Quirion Ranger"), 1);
 }

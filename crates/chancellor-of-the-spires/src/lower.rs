@@ -5618,6 +5618,10 @@ pub struct ActivationCost {
     /// hand": the source leaves for its owner's hand as it is activated
     /// (CR 602.2b, 601.2h).
     pub return_itself: bool,
+    /// Quirion Ranger's "Return a Forest you control to its owner's
+    /// hand": that many permanents the filter matches, of the activator's,
+    /// returned as it is activated (CR 602.2b, 601.2h).
+    pub return_others: Option<(u32, Filter)>,
     /// How many {X} its mana cost has, each paid with the X announced as
     /// it is activated, the same X for each (CR 107.3a, 107.3i). Pernicious
     /// Deed's "{X}" is 1, Blast Zone's "{X}{X}" 2.
@@ -5808,6 +5812,9 @@ fn activation_cost(cost: &[i::Cost]) -> Result<ActivationCost, String> {
             i::Cost::PayLife(i::Amount::N(n)) => paid.life += n,
             i::Cost::Sacrifice(o) if itself(o) => paid.sacrifice = true,
             i::Cost::ReturnToHand(o) if itself(o) => paid.return_itself = true,
+            i::Cost::ReturnToHand(o) if paid.return_others.is_none() => {
+                paid.return_others = Some(permanents_paid(o)?)
+            }
             i::Cost::Sacrifice(o) if paid.sacrifice_others.is_none() => {
                 paid.sacrifice_others = Some(permanents_paid(o)?)
             }
@@ -5847,6 +5854,14 @@ fn activation_cost(cost: &[i::Cost]) -> Result<ActivationCost, String> {
     // A source can leave the battlefield only once.
     if paid.return_itself && paid.sacrifice {
         return Err("an activation cost sacrificing and returning itself".into());
+    }
+    // One permanent could be both what a cost returns and what it
+    // sacrifices, or the source returned twice, and which is paid first
+    // isn't modelled.
+    if paid.return_others.is_some()
+        && (paid.sacrifice || paid.return_itself || paid.sacrifice_others.is_some())
+    {
+        return Err("an activation cost returning permanents and leaving another way".into());
     }
     Ok(paid)
 }

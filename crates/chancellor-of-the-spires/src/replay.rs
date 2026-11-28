@@ -336,6 +336,7 @@ pub fn replay_searching(
         aim_pick: None,
         early: None,
         late: None,
+        untapped: None,
         counted: BTreeMap::new(),
         named: HashMap::new(),
         trace: Vec::new(),
@@ -459,6 +460,7 @@ struct Knew {
     aim_pick: Option<(usize, usize)>,
     early: Option<usize>,
     late: Option<usize>,
+    untapped: Option<usize>,
     counted: BTreeMap<(ObjectId, Counter), u32>,
 }
 
@@ -481,6 +483,10 @@ enum Retry {
     /// Follow the line again, casting its spell in its caster's postcombat
     /// main phase rather than in combat.
     Late,
+    /// Follow the line again, its ability activated without first tapping
+    /// the mana sources its return cost uncounts
+    /// (`tap_what_a_return_uncounts`).
+    Untapped,
     /// Go on from the checkpoint's game as it is, the choice made there
     /// already: what it was.
     Take(String),
@@ -517,6 +523,9 @@ struct Driver<'a> {
     /// rather than in combat, or whose ability is activated after combat
     /// damage (`Retry::Late`).
     late: Option<usize>,
+    /// The line whose ability is activated with the mana sources its
+    /// return cost uncounts left untapped (`Retry::Untapped`).
+    untapped: Option<usize>,
     /// The counters the log has shown put on each permanent, by kind.
     counted: BTreeMap<(ObjectId, Counter), u32>,
     named: HashMap<String, Option<CardText>>,
@@ -596,6 +605,7 @@ impl Driver<'_> {
             aim_pick: self.aim_pick,
             early: self.early,
             late: self.late,
+            untapped: self.untapped,
             counted: self.counted.clone(),
         }
     }
@@ -619,6 +629,7 @@ impl Driver<'_> {
         self.aim_pick = knew.aim_pick;
         self.early = knew.early;
         self.late = knew.late;
+        self.untapped = knew.untapped;
         self.counted = knew.counted;
     }
 
@@ -820,6 +831,12 @@ impl Driver<'_> {
                                 }
                                 Retry::Late => {
                                     self.late = Some(entry);
+                                    self.game = Some(game);
+                                    i = resume;
+                                    continue;
+                                }
+                                Retry::Untapped => {
+                                    self.untapped = Some(entry);
                                     self.game = Some(game);
                                     i = resume;
                                     continue;
@@ -1732,6 +1749,7 @@ impl Driver<'_> {
                 self.resolve_what_its_cost_exiles(i, card.name())?;
                 self.aim_alike(i, &a.targets)?;
                 let activation = self.activation(p, card.name(), &said, paid, on_stack)?;
+                self.tap_what_a_return_uncounts(i, card.name())?;
                 self.act(Answer::Act(Action::Activate(activation)))?;
                 // An {X} in its cost: the X the line prints (CR 107.3a).
                 if let Decision::AnnounceX { .. } = self.game().decision() {
@@ -1747,7 +1765,8 @@ impl Driver<'_> {
                     Decision::Targets { .. }
                     | Decision::Pay { .. }
                     | Decision::PayCards { .. }
-                    | Decision::Sacrifice { .. } => {
+                    | Decision::Sacrifice { .. }
+                    | Decision::ReturnToHand { .. } => {
                         format!(", {}", self.aim_and_pay(i, &a.targets, card.name())?)
                     }
                     _ if !a.targets.is_empty() => {
@@ -2126,6 +2145,15 @@ impl Driver<'_> {
                 // cast (Gush).
                 let _ = cards;
                 self.did(i, "returned to pay for the spell the next line casts");
+            }
+            // The cost of the ability the next line activates, paid as it
+            // is activated (Quirion Ranger's Forest), which names what it
+            // returns (`return_to_hand`).
+            ReturnsToHand {
+                with: log::Source::Card(c),
+                ..
+            } if self.activates_next(i, c.name()) => {
+                self.did(i, "returned to pay for the ability the next line activates");
             }
             // "[Delver of Secrets] transforms into [Insectile
             // Aberration].": what resolves until the engine has transformed
@@ -3675,6 +3703,12 @@ impl Driver<'_> {
         if let Decision::Sacrifice { .. } = self.game().decision() {
             self.sacrifice()?;
         }
+        // And what it returns to hand, named by the line beside this one
+        // (Quirion Ranger's Forest), answered while this is the line
+        // followed.
+        if let Decision::ReturnToHand { .. } = self.game().decision() {
+            self.return_to_hand()?;
+        }
         if !matches!(self.game().decision(), Decision::Pay { .. }) {
             return Ok("no mana to pay".into());
         }
@@ -3773,6 +3807,91 @@ impl Driver<'_> {
             };
             self.act(Answer::Pay(tap))?;
             wanted -= 1;
+        }
+        Ok(())
+    }
+
+    /// An ability whose cost returns a permanent to hand that a mana
+    /// ability counts, the line before naming it (Wirewood Symbiote's
+    /// Elf, and Gaea's Cradle's "{G} for each creature you control"):
+    /// that source is tapped for mana first, at priority (CR 605.3a), the
+    /// mana floating until the step ends (CR 106.4). Its mana is counted
+    /// as it is activated (CR 608.2h, 605.3b), and the log never shows a
+    /// mana ability, so tapping it after would have made less. Left
+    /// untapped instead, to go back to.
+    fn tap_what_a_return_uncounts(&mut self, i: usize, name: &str) -> Followed {
+        let quiet = |e: &Entry| matches!(e.event, Event::Chat { .. } | Event::Watching { .. });
+        let Some(j) = (0..i).rev().find(|j| !quiet(&self.entries[*j])) else {
+            return Ok(());
+        };
+        let Event::ReturnsToHand {
+            cards,
+            with: log::Source::Card(c),
+            ..
+        } = &self.entries[j].event
+        else {
+            return Ok(());
+        };
+        if c.name() != name {
+            return Ok(());
+        }
+        let names: Vec<String> = cards.iter().map(|c| c.name().to_string()).collect();
+        let game = self.game();
+        let Decision::Priority { player, actions } = game.decision() else {
+            return Ok(());
+        };
+        let returned: Vec<ObjectId> = game
+            .permanents()
+            .iter()
+            .filter(|(o, perm)| {
+                game.characteristics()[*o].controller == player
+                    && game
+                        .card(perm.card)
+                        .is_some_and(|t| names.contains(&t.name))
+            })
+            .map(|(o, _)| *o)
+            .collect();
+        let mut taps: Vec<ManaActivation> = actions
+            .iter()
+            .filter_map(|a| match a {
+                // Not one that sacrifices: that costs more than the tap.
+                Action::Mana(m)
+                    if m.sacrifices.is_none()
+                        && returned.iter().any(|o| game.mana_counts(m, *o)) =>
+                {
+                    Some(*m)
+                }
+                _ => None,
+            })
+            .collect();
+        // One tap per source, its first way: a source whose ability
+        // counts adds one pool (`Adds::ForEach`).
+        let mut seen = BTreeSet::new();
+        taps.retain(|m| seen.insert(m.source));
+        if taps.is_empty() || self.untapped == Some(i) {
+            return Ok(());
+        }
+        let game = self.game().clone();
+        self.checkpoints.push(Checkpoint {
+            game,
+            entry: i,
+            trace: self.trace.len(),
+            resume: i,
+            others: vec![Retry::Untapped],
+            knew: self.knew(),
+            // Tapped, a creature that counts (Priest of Titania) can't
+            // attack or block either, not only pay.
+            back: Back::Any,
+        });
+        for m in taps {
+            self.act(Answer::Act(Action::Mana(m)))?;
+            self.did(
+                i,
+                format!(
+                    "tapped #{} for {} first, the mana floating",
+                    m.source.0, m.adds
+                ),
+            );
         }
         Ok(())
     }
@@ -4289,11 +4408,18 @@ impl Driver<'_> {
         legal.sort_by_key(|o| !game.permanents()[o].tapped);
         let mut chosen = Vec::new();
         for n in &named {
-            if let Some(k) = legal
+            match legal
                 .iter()
                 .position(|o| !chosen.contains(o) && name(o) == *n)
             {
-                chosen.push(legal[k]);
+                Some(k) => chosen.push(legal[k]),
+                // The log returns a permanent the engine can't: another
+                // in its place would be a guess.
+                None => {
+                    return Err(Stop::Diverged(Divergence::NeverOffered {
+                        what: format!("returning {n} to its owner's hand"),
+                    }))
+                }
             }
         }
         // One no line names (sneak's unblocked attacker): the first,
@@ -7670,7 +7796,9 @@ impl Driver<'_> {
                 .is_some_and(|t| used.contains(&t.name))
         };
         // And a permanent sacrificed for mana is the last resort, all
-        // after paying no more life than the fewest (`solve`).
+        // after paying no more life than the fewest (`solve`). Last of
+        // all, a source whose mana counts permanents (Gaea's Cradle):
+        // tapped later, it may count more (CR 608.2h).
         found.sort_by_key(|p| {
             (
                 p.life,
@@ -7679,6 +7807,7 @@ impl Driver<'_> {
                     .iter()
                     .filter(|a| named(&a.source) || a.sacrifices.as_ref().is_some_and(named))
                     .count(),
+                p.mana.iter().filter(|a| game.mana_counts_any(a)).count(),
             )
         });
         Ok(found)

@@ -887,6 +887,16 @@ enum AfterSacrifice {
     Resolving(Resuming),
 }
 
+/// What paying a return to hand is part of.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum AfterReturn {
+    /// A spell's cost, the last of it, so the spell becomes cast (CR
+    /// 601.2h–i).
+    Spell,
+    /// An activated ability's cost, the last of it (CR 602.2b).
+    Ability,
+}
+
 /// What comes after the cards a cost names are paid.
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum AfterCards {
@@ -1365,6 +1375,7 @@ enum Waiting {
         player: PlayerId,
         spell: CardId,
         returned: lower::Returned,
+        then: AfterReturn,
     },
     /// CR 602.2b, 601.2h: `player` pays the cards `source` costs: the
     /// activated ability of it on top of the stack, then its mana, or the
@@ -3491,6 +3502,7 @@ impl Game {
                 player,
                 spell,
                 returned,
+                ..
             } => {
                 let (count, legal) = self.returnable(*player, returned);
                 Decision::ReturnToHand {
@@ -4593,7 +4605,7 @@ impl Game {
                 }
                 match then {
                     AfterSacrifice::SpellRest => self.cards_or_return(player, spell),
-                    AfterSacrifice::Ability => self.ability_activated(player),
+                    AfterSacrifice::Ability => self.return_for_ability(player, spell),
                     AfterSacrifice::Resolving(resume) => self.follow(resume),
                 }
             }
@@ -4602,6 +4614,7 @@ impl Game {
                     player,
                     spell,
                     returned,
+                    then,
                 },
                 Answer::ReturnToHand(chosen),
             ) => {
@@ -4616,7 +4629,10 @@ impl Game {
                 for o in chosen {
                     self.leave_battlefield(*o, Zone::Hand);
                 }
-                self.cast_done(player, spell);
+                match then {
+                    AfterReturn::Spell => self.cast_done(player, spell),
+                    AfterReturn::Ability => self.ability_activated(player),
+                }
             }
             (
                 Waiting::PayCards {
@@ -5111,6 +5127,11 @@ impl Game {
                 // CR 118.3: the source sacrificed for itself is still here,
                 // and one returned to its owner's hand as a cost first
                 // (Recurring Nightmare under Opalescence) isn't.
+                let return_short = def
+                    .cost
+                    .return_others
+                    .as_ref()
+                    .is_some_and(|(n, f)| self.sacrificable(p, f).len() < *n as usize);
                 let sacrifice_short = def.cost.sacrifice_others.as_ref().is_some_and(|(n, f)| {
                     let legal = self.sacrificable(p, f);
                     let legal = legal
@@ -5123,6 +5144,7 @@ impl Game {
                     || cards_short
                     || counters_short
                     || sacrifice_short
+                    || return_short
                     || def.cost.life > 0 && player.life < def.cost.life as i32
                     || def.limits.once_per_turn && self.used.contains(&(id, *k))
                     || def.limits.power_up && self.powered_up.contains(&(id, *k))
@@ -5168,6 +5190,56 @@ impl Game {
                     .iter()
                     .any(|e| matches!(e, TriggerEvent::BecomesTapped(_)))
             }),
+            _ => false,
+        }
+    }
+
+    /// Whether this mana activation's ability adds mana for each permanent
+    /// a filter matches and `other` is one of them (Gaea's Cradle and a
+    /// creature): mana counted as it is activated (CR 608.2h, 605.3b), so
+    /// `other` leaving would add less. Only that ability: an intrinsic {G}
+    /// the same land has (CR 305.6) counts nothing.
+    pub fn mana_counts(&self, a: &ManaActivation, other: ObjectId) -> bool {
+        let Ability::Unread(n) = a.ability else {
+            // zero: an intrinsic mana ability adds one mana, whatever leaves.
+            return false;
+        };
+        let Some(perm) = self.permanents.get(&a.source) else {
+            return false;
+        };
+        let Some(Ok(runs)) = self.known(perm.card).map(|k| &k.runs) else {
+            return false;
+        };
+        let all = self.characteristics();
+        let (Some(chars), Some(seen)) = (all.get(&a.source), all.get(&other)) else {
+            return false;
+        };
+        let mut one = BTreeMap::new();
+        one.insert(other, seen.clone());
+        match runs.mana.get(&n).map(|m| &m.adds) {
+            Some(m::Adds::ForEach { filter, .. }) => self.count(filter, a.source, chars, &one) > 0,
+            // zero: any other mana ability adds what it adds, whatever leaves.
+            _ => false,
+        }
+    }
+
+    /// Whether a mana activation's ability adds mana for each permanent a
+    /// filter matches (Gaea's Cradle), so that what it adds changes with
+    /// the battlefield (CR 608.2h, 605.3b).
+    pub fn mana_counts_any(&self, a: &ManaActivation) -> bool {
+        let Ability::Unread(n) = a.ability else {
+            // zero: an intrinsic land's mana ability counts nothing (CR 305.6).
+            return false;
+        };
+        let Some(perm) = self.permanents.get(&a.source) else {
+            return false;
+        };
+        match self.known(perm.card).map(|k| &k.runs) {
+            Some(Ok(r)) => r
+                .mana
+                .get(&n)
+                .is_some_and(|m| matches!(m.adds, m::Adds::ForEach { .. })),
+            // zero: an ability the engine can't run is never offered.
             _ => false,
         }
     }
@@ -5582,6 +5654,27 @@ impl Game {
         }
     }
 
+    /// What the activated ability on top of the stack, being activated,
+    /// returns to its owner's hand (CR 602.2b).
+    fn ability_return(&self) -> Option<(u32, Filter)> {
+        let Some(StackObject::Ability {
+            source,
+            printed,
+            ability,
+            ..
+        }) = self.stack.back()
+        else {
+            unreachable!("an ability being activated is on top of the stack")
+        };
+        let runs = self.face_runs(*source, *printed);
+        match runs.activated.get(ability) {
+            Some(Ok(def)) => def.cost.return_others.clone(),
+            // Cycling's cost discards, and returns nothing (CR 702.29a).
+            None if runs.cycling.as_ref().is_some_and(|(k, _)| k == ability) => None,
+            _ => unreachable!("only an ability that runs is activated"),
+        }
+    }
+
     fn payments(&self, p: PlayerId, owed: &ManaCost) -> Vec<Payment> {
         let mut out: Vec<Payment> = self
             .mana_activations(p)
@@ -5918,6 +6011,23 @@ impl Game {
                     count,
                     filter,
                     then: AfterSacrifice::Ability,
+                }
+            }
+            None => self.return_for_ability(p, card),
+        }
+    }
+
+    /// The permanents an activated ability's cost returns to their
+    /// owner's hand, after its sacrifices: one cost can't do both
+    /// (`lower::activation_cost`).
+    fn return_for_ability(&mut self, p: PlayerId, card: CardId) {
+        match self.ability_return() {
+            Some((count, filter)) => {
+                self.waiting = Waiting::ReturnToHand {
+                    player: p,
+                    spell: card,
+                    returned: lower::Returned::Permanents(count, filter),
+                    then: AfterReturn::Ability,
                 }
             }
             None => self.ability_activated(p),
@@ -6320,6 +6430,7 @@ impl Game {
                     player,
                     spell,
                     returned,
+                    then: AfterReturn::Spell,
                 }
             }
             None => self.cast_done(player, spell),
