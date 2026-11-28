@@ -150,6 +150,9 @@ Forty-five threads in a row then found the tree dirty and stopped.
 4. **Commit and push.** One commit per rule, its subject a lowercase claim
    about the game, ending with the milestone, as the history does:
    `chancellor: <what the game now does>, so <card> <does what>; milestone 85 of 500, 46.10% of its lines`.
+   Every card text quoted in a subject, body or README is that card's
+   Oracle text, copied from Scryfall: a game is named for its commander, not
+   for the card that stopped it, so don't put a test's text in its mouth.
    Update the README's milestone paragraph ("Worked card by card from there…")
    with the new numbers and the rules you added, in the same commit. No AI
    attribution. Push only with `.claude/skills/chancellor-batch/push.sh`,
