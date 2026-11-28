@@ -530,7 +530,7 @@ face: Infinite Obliteration
 type: Sorcery
 cost: {1}{B}{B}
 > Choose a creature card name. Search target opponent's graveyard, hand, and library for any number of cards with that name and exile them. Then that player shuffles.
-= BROKE at "." after: choose a creature card name
+= Spell([Choose(CardName(Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None })), With { bind: [/* found */ Objects { quant: AnyNumber, filter: Filter { alts: [], kind: Some(Card), posts: [WithThatName], or: None } }], then: [Search { who: You, zones: [Graveyard(TargetOpponent), Hand(TargetOpponent), Library(TargetOpponent)], what: Objects { quant: Introduced(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, and: [] }, Exile(Objects { quant: Bound(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Shuffle(That)] }])
 
 ## Inner-Flame Igniter
 face: Inner-Flame Igniter
@@ -1034,7 +1034,7 @@ type: Legendary Creature — Goblin Berserker
 cost: {1}{B}{R}
 > Whenever you cast your first spell each turn, choose an opponent at random. Vial Smasher deals damage equal to that spell's mana value to that player or a planeswalker that player controls.
 > Partner (You can have two commanders if both have partner.)
-= BROKE at "random" after: whenever you cast your first spell each turn , choose an opponent at
+= BROKE at "." after: whenever you cast your first spell each turn , choose an opponent at random
 = Keywords([Keyword { name: "partner", param: None }])
 
 ## Vintara Elephant

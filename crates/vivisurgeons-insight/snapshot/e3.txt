@@ -739,7 +739,7 @@ face: Scrambleverse
 type: Sorcery
 cost: {6}{R}{R}
 > For each nonland permanent, choose a player at random. Then each player gains control of each permanent for which they were chosen. Untap those permanents.
-= BROKE at "random" after: for each nonland permanent , choose a player at
+= BROKE at "." after: for each nonland permanent , choose a player at random
 
 ## Secret of Bloodbending
 face: Secret of Bloodbending

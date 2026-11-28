@@ -563,7 +563,7 @@ cost: {4}{R}
 > Frenzied Rampage — At the beginning of combat on your turn, choose an opponent at random. This creature attacks that player this combat if able.
 > When this creature dies, it deals 4 damage to target opponent chosen at random.
 = Keywords([Keyword { name: "trample", param: None }])
-= BROKE at "random" after: frenzied rampage — at the beginning of combat on your turn , choose an opponent at
+= BROKE at "." after: frenzied rampage — at the beginning of combat on your turn , choose an opponent at random
 = BROKE at "chosen" after: when this creature dies , it deals 4 damage to target opponent
 
 ## Lantern Kami

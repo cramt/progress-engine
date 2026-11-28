@@ -1011,7 +1011,7 @@ cost: {2}{G}
 > Trample
 > At the beginning of combat on your turn, mill a card and choose an opponent at random. This creature attacks that player this combat if able. Until end of turn, this creature gains indestructible and gets +1/+1 for each card type among cards in your graveyard.
 = Keywords([Keyword { name: "trample", param: None }])
-= BROKE at "random" after: at the beginning of combat on your turn , mill a card and choose an opponent at
+= BROKE at "." after: at the beginning of combat on your turn , mill a card and choose an opponent at random
 
 ## Venser, Corpse Puppet
 face: Venser, Corpse Puppet

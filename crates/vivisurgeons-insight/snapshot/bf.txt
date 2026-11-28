@@ -168,7 +168,7 @@ cost: {2}{W}{U}
 > As this creature enters, choose a noncreature, nonland card name.
 > Your opponents can't cast spells with the chosen name.
 > Spells with the chosen name you cast cost {2} less to cast.
-= BROKE at "name" after: as this creature enters , choose a noncreature , nonland card
+= Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(CardName(Filter { alts: [[Non("creature"), Non("land")]], kind: Some(Card), posts: [], or: None }))] }])
 = Static([PlayerRestrict { who: EachOpponent, rules: [CantCast(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [WithChosenName], or: None } })] }])
 = Static([CostChange { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [WithChosenName, Cast(You)], or: None } }, by: Mana(["2"]), less: true, per: None }])
 

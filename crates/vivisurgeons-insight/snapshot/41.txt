@@ -70,7 +70,7 @@ cost: {2}{W}
 > Flying
 > When this creature leaves the battlefield, choose an opponent who controls more lands than you. Search your library for a number of Plains cards equal to the difference, reveal those cards, put one of them onto the battlefield tapped and the rest into your hand, then shuffle.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "who" after: when this creature leaves the battlefield , choose an opponent
+= BROKE at "lands" after: when this creature leaves the battlefield , choose an opponent who controls more
 
 ## Bring Down
 face: Bring Down

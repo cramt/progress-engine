@@ -205,7 +205,7 @@ face: Dispossess
 type: Sorcery
 cost: {2}{B}
 > Choose an artifact card name. Search target opponent's graveyard, hand, and library for any number of cards with the chosen name and exile them. Then that player shuffles.
-= BROKE at "." after: choose an artifact card name
+= Spell([Choose(CardName(Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [], or: None })), With { bind: [/* found */ Objects { quant: AnyNumber, filter: Filter { alts: [], kind: Some(Card), posts: [WithChosenName], or: None } }], then: [Search { who: You, zones: [Graveyard(TargetOpponent), Hand(TargetOpponent), Library(TargetOpponent)], what: Objects { quant: Introduced(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, and: [] }, Exile(Objects { quant: Bound(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Shuffle(That)] }])
 
 ## Doomwake Giant
 face: Doomwake Giant

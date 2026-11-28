@@ -807,7 +807,7 @@ face: Ruhan of the Fomori
 type: Legendary Creature — Giant Warrior
 cost: {1}{U}{R}{W}
 > At the beginning of combat on your turn, choose an opponent at random. Ruhan attacks that player this combat if able.
-= BROKE at "random" after: at the beginning of combat on your turn , choose an opponent at
+= BROKE at "." after: at the beginning of combat on your turn , choose an opponent at random
 
 ## Rust Goliath
 face: Rust Goliath

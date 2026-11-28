@@ -582,7 +582,7 @@ cost: {4}{B}
 > At the beginning of combat on your turn, choose an opponent at random. This creature attacks that player this combat if able.
 > Whenever this creature deals combat damage to a player, that player loses half their life, rounded down.
 = Keywords([Keyword { name: "deathtouch", param: None }])
-= BROKE at "random" after: at the beginning of combat on your turn , choose an opponent at
+= BROKE at "." after: at the beginning of combat on your turn , choose an opponent at random
 = Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [LoseLife { who: That, n: Half { of: LifeTotal(That), round_up: false } }], limits: [] }
 
 ## Rivaz of the Claw

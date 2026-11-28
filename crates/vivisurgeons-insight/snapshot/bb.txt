@@ -505,7 +505,7 @@ cost: {1}{B/G}{R}
 > Enrage — Whenever Indoraptor is dealt damage, choose an opponent at random. Indoraptor deals damage equal to its power to that player unless they sacrifice a nontoken creature of their choice.
 = Keywords([Keyword { name: "bloodthirst", param: Some(N(X)) }])
 = Keywords([Keyword { name: "menace", param: None }])
-= BROKE at "random" after: enrage — whenever ~ is dealt damage , choose an opponent at
+= BROKE at "." after: enrage — whenever ~ is dealt damage , choose an opponent at random
 
 ## Iron League Steed
 face: Iron League Steed

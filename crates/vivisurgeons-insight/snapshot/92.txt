@@ -981,7 +981,7 @@ type: Legendary Land — Gate
 > {1}{B}, {T}: Choose a player with the most life or tied for most life. Target creature can't be blocked by creatures that player controls this turn.
 = Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [May { who: You, then: [Pay { who: You, cost: [PayLife(N(3))] }] }, IfYouDont([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])] }])
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["B"])))], limits: [] }
-= BROKE at "with" after: {1} {B} , {T} : choose a player
+= BROKE at "life" after: {1} {B} , {T} : choose a player with the most
 
 ## The Mechanist, Aerial Artisan
 face: The Mechanist, Aerial Artisan

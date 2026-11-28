@@ -625,19 +625,31 @@ pub(super) fn effect(p: &mut P) -> Option<Effect> {
     p.attempt(effect_more)
 }
 
-/// "a card name", "a nonland card name": the filter of the card the
-/// chosen name is a name of.
+/// "a card name", "a nonartifact, nonland card name": the filter of the
+/// card the chosen name is a name of (CR 201.4a). Only types and their
+/// negations describe it; a name is not an object, so it has no posts.
 fn chosen_card_name(p: &mut P) -> Option<Filter> {
-    let card = |alts: Vec<Vec<Adj>>| Filter {
-        alts,
-        kind: Some(Noun::Card),
-        ..Filter::default()
+    p.one_of(&["a", "an"])?;
+    if p.words("card name").is_some() {
+        return Some(Filter {
+            kind: Some(Noun::Card),
+            ..Filter::default()
+        });
+    }
+    let f = super::objects::filter(p)?;
+    p.word("name")?;
+    let typed = |a: &Adj| {
+        matches!(
+            a,
+            Adj::Type(_) | Adj::Subtype(_) | Adj::Supertype(_) | Adj::Non(_)
+        )
     };
-    alt!(p;
-        |p| p.words("a card name").map(|_| card(vec![])),
-        |p| p.words("a nonland card name").map(|_| card(vec![vec![Adj::Non("land".into())]])),
-        |p| p.words("a land card name").map(|_| card(vec![vec![Adj::Type("land".into())]])),
-    )
+    (f.kind == Some(Noun::Card)
+        && f.posts.is_empty()
+        && f.or.is_none()
+        && f.alts.len() == 1
+        && f.alts[0].iter().all(typed))
+    .then_some(f)
 }
 
 /// Templates an older rule would read a shorter part of and commit to:

@@ -2963,4 +2963,39 @@ mod round_nine_d {
             "{s}"
         );
     }
+
+    #[test]
+    fn a_card_name_of_types_is_one_choice_with_their_filter() {
+        let face = Face {
+            name: "Some Card",
+            type_line: "Sorcery",
+            text: "Choose a nonartifact, nonland card name. Target player discards a card.",
+        };
+        let s = format!(
+            "{:?}",
+            read_face_unresolved(&face, "Some Card")
+                .iter()
+                .map(|l| l.parsed.as_ref().ok())
+                .collect::<Vec<_>>()
+        );
+        assert!(s.contains("Choose(CardName(Filter { alts: [[Non(\"artifact\"), Non(\"land\")]], kind: Some(Card), posts: [], or: None }))"), "{s}");
+    }
+
+    #[test]
+    fn a_card_name_takes_no_state_of_an_object() {
+        // A name is not an object: "tapped" describes a permanent, never a name.
+        let face = Face {
+            name: "Some Card",
+            type_line: "Sorcery",
+            text: "Choose a tapped creature card name. Target player discards a card.",
+        };
+        let s = format!(
+            "{:?}",
+            read_face_unresolved(&face, "Some Card")
+                .iter()
+                .map(|l| l.parsed.as_ref().ok())
+                .collect::<Vec<_>>()
+        );
+        assert!(!s.contains("CardName"), "{s}");
+    }
 }

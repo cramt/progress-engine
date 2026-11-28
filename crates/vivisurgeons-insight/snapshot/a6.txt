@@ -196,7 +196,7 @@ type: Enchantment — Saga
 cost: {2}{R}
 > (As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)
 > I, II, III — Choose a creature card name, then goad all creatures with a name chosen for this enchantment. (Until your next turn, they attack each combat if able and attack a player other than you if able.)
-= BROKE at "," after: i , ii , iii — choose a creature card name
+= BROKE at "chosen" after: i , ii , iii — choose a creature card name , then goad all creatures with a name
 
 ## Dihada, Binder of Wills
 face: Dihada, Binder of Wills
