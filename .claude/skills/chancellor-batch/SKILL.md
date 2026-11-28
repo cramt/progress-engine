@@ -152,8 +152,11 @@ Forty-five threads in a row then found the tree dirty and stopped.
    `chancellor: <what the game now does>, so <card> <does what>; milestone 85 of 500, 46.10% of its lines`.
    Update the README's milestone paragraph ("Worked card by card from there…")
    with the new numbers and the rules you added, in the same commit. No AI
-   attribution. Push to main with `git pull --rebase` first; if that brought
-   in anything, rerun the gate before pushing.
+   attribution. Push only with `.claude/skills/chancellor-batch/push.sh`,
+   never a bare `git push`. It rebases onto `origin/main` and pushes, or exits
+   2 when what came in touches more than `.claude/` and Markdown (an Insight
+   commit counts: Chancellor reads its trees). On 2, rerun the gate on the
+   rebased tree, then run it again.
 5. **Handoff.** Rewrite `<state>/handoff.md`: what you did, the measured
    numbers, what the top of the worklist now needs and anything you half
    understood. The next writer reads all of it.
