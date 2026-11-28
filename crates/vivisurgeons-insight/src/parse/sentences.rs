@@ -1118,6 +1118,28 @@ pub(super) fn continue_target(es: &mut [Effect]) {
     let Some(o) = object_subject_mut(first).cloned() else {
         return;
     };
+    // "each creature target player controls loses all abilities and
+    // becomes a blue Frog" (Polymorphist's Jest): the group is said once,
+    // so the target player its posts name is chosen once too.
+    if o.filter.posts.iter().any(|p| {
+        matches!(
+            p,
+            Post::Controller(Player::Target) | Post::Owner(Player::Target)
+        )
+    }) {
+        for e in rest.iter_mut() {
+            if let Some(w) = object_subject_mut(e).filter(|w| **w == o) {
+                for p in &mut w.filter.posts {
+                    if let Post::Controller(who) | Post::Owner(who) = p {
+                        if *who == Player::Target {
+                            *who = Player::That;
+                        }
+                    }
+                }
+            }
+        }
+        return;
+    }
     if !matches!(
         o.quant,
         Quant::Target { .. }

@@ -7480,7 +7480,7 @@ cost: {1}{B}{B}
 > Split second (As long as this spell is on the stack, players can't cast spells or activate abilities that aren't mana abilities.)
 > Until end of turn, creatures target player controls lose all abilities and have base power and toughness 0/2.
 = Keywords([Keyword { name: "split second", param: None }])
-= Spell([During { dur: UntilEndOfTurn, then: [Loses { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(Target)], or: None } }, lost: [All { other: false, of: Abilities }], dur: Permanent }, Becomes { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(Target)], or: None } }, pt: Some(Pt { power: N(0), toughness: N(2), signed: false }), types: [], gains: [], keeps: OtherTypes, dur: Permanent }] }])
+= Spell([During { dur: UntilEndOfTurn, then: [Loses { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(Target)], or: None } }, lost: [All { other: false, of: Abilities }], dur: Permanent }, Becomes { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(That)], or: None } }, pt: Some(Pt { power: N(0), toughness: N(2), signed: false }), types: [], gains: [], keeps: OtherTypes, dur: Permanent }] }])
 
 ## Sulfur Falls
 face: Sulfur Falls

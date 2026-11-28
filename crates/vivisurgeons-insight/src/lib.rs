@@ -2875,4 +2875,23 @@ mod round_nine_d {
         );
         assert!(!s.contains("CantHaveCountersPut"), "{s}");
     }
+
+    #[test]
+    fn a_group_said_once_names_its_target_player_once() {
+        let s = format!(
+            "{:?}",
+            read(
+                "Instant",
+                "Until end of turn, each creature target player controls loses all abilities and becomes a blue Frog with base power and toughness 1/1."
+            )
+        );
+        assert_eq!(
+            (
+                s.matches("Controller(Target)").count(),
+                s.matches("Controller(That)").count()
+            ),
+            (1, 1),
+            "{s}"
+        );
+    }
 }

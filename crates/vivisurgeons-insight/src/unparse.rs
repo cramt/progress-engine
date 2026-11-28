@@ -7589,6 +7589,27 @@ fn same_subject(a: &Objects, b: &Objects) -> bool {
                     | Quant::AnyNumberOfOtherTarget
             )
             && a.filter == b.filter
+        || a.quant == b.quant && player_continued_in(&a.filter, &b.filter)
+}
+
+/// "each creature target player controls loses all abilities and becomes
+/// …": the group said again with its target player as `That`.
+fn player_continued_in(a: &Filter, b: &Filter) -> bool {
+    let continued = |p: &Post| match p {
+        Post::Controller(Player::Target) => Post::Controller(Player::That),
+        Post::Owner(Player::Target) => Post::Owner(Player::That),
+        p => p.clone(),
+    };
+    a.posts.iter().any(|p| {
+        matches!(
+            p,
+            Post::Controller(Player::Target) | Post::Owner(Player::Target)
+        )
+    }) && a.alts == b.alts
+        && a.kind == b.kind
+        && a.or == b.or
+        && a.posts.len() == b.posts.len()
+        && a.posts.iter().map(continued).eq(b.posts.iter().cloned())
 }
 
 /// `same_subject` for players: "target player draws two cards and loses 2
