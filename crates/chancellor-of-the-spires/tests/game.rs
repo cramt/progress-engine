@@ -1404,3 +1404,19 @@ fn a_land_enters_tapped_if_a_condition_holds() {
     let third = play_named(&mut game, "Cave of the Frost Dragon");
     assert!(tapped(&game, third), "two other lands");
 }
+
+/// CR 702.37c, 708.2a: a hidden card cast face down is a 2/2 with no
+/// text, so its total cost is {3} and nothing read from the card it is.
+#[test]
+fn a_hidden_card_cast_face_down_costs_three() {
+    let mut game = constructed(vec![hidden(20), hidden(20)], false);
+    pass_until(&mut game, ME, Step::PrecombatMain);
+    let c = game.player(ME).hand()[0];
+    let d = game.step(Answer::Act(Action::CastFaceDown(c))).unwrap();
+    let Decision::Pay { owed, .. } = d else {
+        panic!("{d:?}")
+    };
+    assert_eq!(owed.to_string(), "{3}");
+    game.step(Answer::Pay(Payment::Cancel)).unwrap();
+    assert!(game.player(ME).hand().contains(&c));
+}

@@ -6457,6 +6457,42 @@ pub fn alternative_cost(parts: &[i::Static]) -> Option<Result<Alternative, Strin
     }))
 }
 
+/// "As an additional cost to cast this spell, sacrifice a creature": what
+/// casting it costs beyond its mana cost or alternative cost (CR 118.8,
+/// 601.2f). `None` if the static isn't one. Mana in one is refused, as is
+/// a cost of a kind a spell's other costs don't pay here.
+pub fn additional_cost(parts: &[i::Static]) -> Option<Result<OtherCosts, String>> {
+    let [i::Static::AdditionalCost(cost)] = parts else {
+        return None;
+    };
+    Some(spell_cost(cost).and_then(|(mana, other)| {
+        if mana != crate::mana::ManaCost::default() {
+            return Err("an additional cost of mana".into());
+        }
+        Ok(other)
+    }))
+}
+
+impl OtherCosts {
+    /// These costs and `more` as one total cost (CR 601.2f), or `None`
+    /// where both move permanents or cards of one kind, which a total cost
+    /// here holds only one of.
+    pub fn and(&self, more: &OtherCosts) -> Option<OtherCosts> {
+        fn one<T: Clone>(a: &Option<T>, b: &Option<T>) -> Option<Option<T>> {
+            match (a, b) {
+                (Some(_), Some(_)) => None,
+                (a, b) => Some(a.clone().or_else(|| b.clone())),
+            }
+        }
+        Some(OtherCosts {
+            life: self.life + more.life,
+            sacrifice: one(&self.sacrifice, &more.sacrifice)?,
+            returned: one(&self.returned, &more.returned)?,
+            cards: one(&self.cards, &more.cards)?,
+        })
+    }
+}
+
 /// Marks the reveal that binds `slot` blind when every other instruction
 /// with it only moves the cards or groups them, never reading what they
 /// are: Fact or Fiction's "An opponent separates those cards into two

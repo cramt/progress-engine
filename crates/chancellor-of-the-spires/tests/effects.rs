@@ -88,6 +88,46 @@ fn invented(name: &str) -> Option<CardText> {
             vec![Color::Black],
             Some(pt(1, 1)),
         ),
+        // An additional cost beside an alternative cost: one paying life,
+        // which adds to it, and one sacrificing, which can't.
+        "Bloodfire Volley" => (
+            "Instant",
+            "{2}{R}",
+            "As an additional cost to cast this spell, sacrifice a creature.\nYou may pay 3 life rather than pay this spell's mana cost.\nThis spell deals 3 damage to any target.",
+            vec![Color::Red],
+            None,
+        ),
+        "Mountain Volley" => (
+            "Instant",
+            "{2}{R}",
+            "As an additional cost to cast this spell, sacrifice a creature.\nYou may sacrifice a Mountain rather than pay this spell's mana cost.\nThis spell deals 3 damage to any target.",
+            vec![Color::Red],
+            None,
+        ),
+        // An additional cost paying life beside an alternative that does.
+        "Bloodprice Bolt" => (
+            "Instant",
+            "{2}{R}",
+            "As an additional cost to cast this spell, pay 2 life.\nYou may pay 3 life rather than pay this spell's mana cost.\nThis spell deals 3 damage to any target.",
+            vec![Color::Red],
+            None,
+        ),
+        // Madness on a card whose additional cost may not be payable.
+        "Rootwalla Glutton" => (
+            "Creature — Lizard",
+            "{2}{G}",
+            "As an additional cost to cast this spell, sacrifice a creature.\nMadness {0}",
+            vec![Color::Green],
+            Some(pt(4, 4)),
+        ),
+        // An additional cost on a card that may be cast face down.
+        "Hulking Shifter" => (
+            "Creature — Shapeshifter",
+            "{3}{R}",
+            "As an additional cost to cast this spell, sacrifice a creature.\nMorph {2}{R}",
+            vec![Color::Red],
+            Some(pt(5, 5)),
+        ),
         // Undying on a noncreature, which no "dies" sees.
         "Undying Idol" => ("Artifact", "{1}", "Undying", Vec::new(), None),
         _ => return None,
@@ -10065,4 +10105,280 @@ fn undying_on_a_noncreature_is_refused() {
     step(&mut game, Answer::Act(Action::Pass));
     let e = game.step(Answer::Act(Action::Pass)).unwrap_err();
     assert!(e.to_string().contains("undying or persist"), "{e}");
+}
+
+/// My first offered action matching `f`.
+fn offered_where(game: &Game, f: impl Fn(&Action) -> bool) -> Option<Action> {
+    let Decision::Priority { actions, .. } = game.decision() else {
+        return None;
+    };
+    actions.into_iter().find(|a| f(a))
+}
+
+/// CR 118.8, 601.2f, 601.2h: Reckless Abandon's additional cost. With no
+/// creature it isn't offered; with Raging Goblin, casting it sacrifices
+/// the Goblin and it deals 4 damage to them.
+#[test]
+fn reckless_abandon_sacrifices_a_creature_as_it_is_cast() {
+    let mut game = deal(
+        &[
+            ("Mountain", 40),
+            ("Raging Goblin", 10),
+            ("Reckless Abandon", 10),
+        ],
+        &[("Forest", 60)],
+        &[
+            ("Mountain", 2),
+            ("Raging Goblin", 1),
+            ("Reckless Abandon", 1),
+        ],
+    );
+    play(&mut game, "Mountain");
+    let reckless = in_hand(&game, ME, "Reckless Abandon").unwrap();
+    assert!(!offered_cast(&game, reckless), "no creature to sacrifice");
+    cast(&mut game, "Raging Goblin", None);
+    resolve(&mut game);
+    let goblin = creature(&game, "Raging Goblin").unwrap();
+    my_next_main(&mut game);
+    play(&mut game, "Mountain");
+    assert!(offered_cast(&game, reckless));
+    let mut d = step(&mut game, Answer::Act(Action::Cast(reckless)));
+    if let Decision::Targets { .. } = d {
+        d = step(&mut game, Answer::Targets(vec![Target::Player(THEM)]));
+    }
+    while let Decision::Pay { actions, .. } = d {
+        let pay = actions
+            .iter()
+            .find(|a| matches!(a, Payment::Spend(_)))
+            .or_else(|| actions.iter().find(|a| matches!(a, Payment::Mana(_))))
+            .copied()
+            .expect("a way to pay");
+        d = step(&mut game, Answer::Pay(pay));
+    }
+    let Decision::Sacrifice { legal, count, .. } = d else {
+        panic!("its additional cost: {d:?}")
+    };
+    assert_eq!((count, legal.clone()), (1, vec![goblin]));
+    step(&mut game, Answer::Sacrifice(legal));
+    assert!(creature(&game, "Raging Goblin").is_none());
+    resolve(&mut game);
+    assert_eq!(game.player(THEM).life(), 16);
+}
+
+/// CR 118.9d: an alternative cost has the additional cost added to it.
+/// Bloodfire Volley for 3 life isn't offered with no creature to
+/// sacrifice; with one it costs the life and the creature.
+#[test]
+fn an_alternative_cost_has_the_additional_cost_added() {
+    let mut game = deal(
+        &[
+            ("Mountain", 40),
+            ("Raging Goblin", 10),
+            ("Bloodfire Volley", 10),
+        ],
+        &[("Forest", 60)],
+        &[
+            ("Mountain", 1),
+            ("Raging Goblin", 1),
+            ("Bloodfire Volley", 1),
+        ],
+    );
+    let volley = in_hand(&game, ME, "Bloodfire Volley").unwrap();
+    let alt = |a: &Action| matches!(a, Action::CastAlternative(c, _) if *c == volley);
+    assert!(
+        offered_where(&game, alt).is_none(),
+        "no creature to sacrifice"
+    );
+    play(&mut game, "Mountain");
+    cast(&mut game, "Raging Goblin", None);
+    resolve(&mut game);
+    let goblin = creature(&game, "Raging Goblin").unwrap();
+    let a = offered_where(&game, alt).expect("the life cost, with the sacrifice");
+    let mut d = step(&mut game, Answer::Act(a));
+    if let Decision::Targets { .. } = d {
+        d = step(&mut game, Answer::Targets(vec![Target::Player(THEM)]));
+    }
+    if let Decision::Pay { .. } = d {
+        d = step(&mut game, Answer::Pay(Payment::Spend(ManaPool::default())));
+    }
+    let Decision::Sacrifice { legal, .. } = d else {
+        panic!("its additional cost: {d:?}")
+    };
+    assert_eq!(legal, vec![goblin]);
+    step(&mut game, Answer::Sacrifice(legal));
+    assert_eq!(game.player(ME).life(), 17);
+    resolve(&mut game);
+    assert_eq!(game.player(THEM).life(), 17);
+}
+
+/// An alternative cost that sacrifices beside an additional cost that
+/// sacrifices too is one total cost the game can't hold: that
+/// alternative isn't offered, the mana cost still is.
+#[test]
+fn an_alternative_cost_clashing_with_the_additional_cost_is_dormant() {
+    let mut game = deal(
+        &[
+            ("Mountain", 40),
+            ("Raging Goblin", 10),
+            ("Mountain Volley", 10),
+        ],
+        &[("Forest", 60)],
+        &[
+            ("Mountain", 3),
+            ("Raging Goblin", 1),
+            ("Mountain Volley", 1),
+        ],
+    );
+    play(&mut game, "Mountain");
+    cast(&mut game, "Raging Goblin", None);
+    resolve(&mut game);
+    my_next_main(&mut game);
+    play(&mut game, "Mountain");
+    my_next_main(&mut game);
+    play(&mut game, "Mountain");
+    let volley = in_hand(&game, ME, "Mountain Volley").unwrap();
+    assert!(offered_cast(&game, volley));
+    assert!(offered_where(
+        &game,
+        |a| matches!(a, Action::CastAlternative(c, _) if *c == volley)
+    )
+    .is_none());
+}
+
+/// CR 702.37c: cast face down, a card has no text, so no additional cost:
+/// Hulking Shifter for {3} sacrifices nothing though a creature could be.
+#[test]
+fn a_face_down_spell_pays_no_additional_cost() {
+    let mut game = deal(
+        &[
+            ("Mountain", 40),
+            ("Raging Goblin", 10),
+            ("Hulking Shifter", 10),
+        ],
+        &[("Forest", 60)],
+        &[
+            ("Mountain", 4),
+            ("Raging Goblin", 1),
+            ("Hulking Shifter", 1),
+        ],
+    );
+    play(&mut game, "Mountain");
+    cast(&mut game, "Raging Goblin", None);
+    resolve(&mut game);
+    for _ in 0..2 {
+        my_next_main(&mut game);
+        play(&mut game, "Mountain");
+    }
+    cast_face_down(&mut game, "Hulking Shifter");
+    assert!(
+        matches!(game.decision(), Decision::Priority { .. }),
+        "{:?}",
+        game.decision()
+    );
+    resolve(&mut game);
+    assert!(creature(&game, "Raging Goblin").is_some());
+}
+
+/// Suspend's and plot's casts pay nothing but their mana here, so an
+/// additional cost on a card with either is refused by name.
+#[test]
+fn an_additional_cost_on_a_card_cast_for_free_is_refused() {
+    let rift = CardText {
+        oracle: Oracle::OneFace(
+            "As an additional cost to cast this spell, sacrifice a creature.\nSuspend 1—{R}\nThis spell deals 3 damage to any target."
+                .into(),
+        ),
+        ..card("Rift Bolt")
+    };
+    let (refused, _) = Game::reads(&rift);
+    assert_eq!(
+        refused.expect("refused").node,
+        "an additional cost of a card cast for free"
+    );
+    let (fine, _) = Game::reads(&card("Reckless Abandon"));
+    assert!(fine.is_none(), "{fine:?}");
+}
+
+/// CR 601.2f: an alternative cost's life and the additional cost's add:
+/// Bloodprice Bolt for 3 life costs 5 in all.
+#[test]
+fn life_paid_by_an_alternative_and_an_additional_cost_adds_up() {
+    let mut game = deal(
+        &[("Mountain", 40), ("Bloodprice Bolt", 20)],
+        &[("Forest", 60)],
+        &[("Mountain", 1), ("Bloodprice Bolt", 1)],
+    );
+    let bolt = in_hand(&game, ME, "Bloodprice Bolt").unwrap();
+    let a = offered_where(
+        &game,
+        |a| matches!(a, Action::CastAlternative(c, _) if *c == bolt),
+    )
+    .expect("the life cost");
+    let mut d = step(&mut game, Answer::Act(a));
+    if let Decision::Targets { .. } = d {
+        d = step(&mut game, Answer::Targets(vec![Target::Player(THEM)]));
+    }
+    if let Decision::Pay { .. } = d {
+        step(&mut game, Answer::Pay(Payment::Spend(ManaPool::default())));
+    }
+    assert_eq!(game.player(ME).life(), 15);
+    resolve(&mut game);
+    assert_eq!(game.player(THEM).life(), 17);
+}
+
+/// CR 702.35a, 601.2h: a madness card whose additional cost can't be paid
+/// isn't cast, though its owner would: it goes to the graveyard.
+#[test]
+fn a_madness_card_whose_additional_cost_can_t_be_paid_goes_to_the_graveyard() {
+    let mut game = deal(
+        &[
+            ("Island", 30),
+            ("Careful Study", 10),
+            ("Rootwalla Glutton", 20),
+        ],
+        &[("Island", 60)],
+        &[
+            ("Island", 2),
+            ("Careful Study", 1),
+            ("Rootwalla Glutton", 1),
+        ],
+    );
+    play(&mut game, "Island");
+    cast(&mut game, "Careful Study", None);
+    let Decision::Discard { .. } = resolve(&mut game) else {
+        panic!("the discard")
+    };
+    let glutton = in_hand(&game, ME, "Rootwalla Glutton").unwrap();
+    let island = in_hand(&game, ME, "Island").unwrap();
+    step(&mut game, Answer::Discard(vec![glutton, island]));
+    assert!(game.exile().contains(&glutton));
+    let d = resolve(&mut game);
+    assert!(matches!(d, Decision::May { .. }), "{d:?}");
+    let d = step(&mut game, Answer::May(true));
+    assert!(!matches!(d, Decision::Sacrifice { .. }), "{d:?}");
+    assert!(game.player(ME).graveyard().contains(&glutton));
+    assert!(game.stack().is_empty());
+}
+
+/// A plot card, a second additional cost and one of mana are refused by
+/// name, never cast paying less than they cost.
+#[test]
+fn additional_costs_the_game_can_t_pay_are_refused() {
+    let with = |text: &str| CardText {
+        oracle: Oracle::OneFace(text.into()),
+        ..card("Lightning Bolt")
+    };
+    let node = |text: &str| Game::reads(&with(text)).0.expect("refused").node;
+    assert_eq!(
+        node("As an additional cost to cast this spell, sacrifice a creature.\nPlot {R}\nThis spell deals 3 damage to any target."),
+        "an additional cost of a card cast for free"
+    );
+    assert_eq!(
+        node("As an additional cost to cast this spell, sacrifice a creature.\nAs an additional cost to cast this spell, pay 2 life.\nThis spell deals 3 damage to any target."),
+        "a second additional cost"
+    );
+    assert_eq!(
+        node("As an additional cost to cast this spell, pay {1}.\nThis spell deals 3 damage to any target."),
+        "an additional cost of mana"
+    );
 }

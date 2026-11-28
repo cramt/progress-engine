@@ -1107,11 +1107,11 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-28 196 of the 500 replay to
-the end and 63.87% of their lines are followed** (20,220 of 31,659), 3
+Worked card by card from there, **on 2026-11-28 199 of the 500 replay to
+the end and 64.12% of their lines are followed** (20,301 of 31,659), 3
 of them relying on a land the log never names (2 to the end) and 11 on a
 card no one named in a graveyard having no ability there (2 to the end),
-and 191 games have no card the engine refuses before any game (from 21). The
+and 193 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
 Warchief); "for each" sizes counted on resolution (Goblin Piledriver);
@@ -1481,7 +1481,14 @@ and no later one under its owner's control with the counter on it as it
 enters, a choice as it enters or a noncreature with either refused by
 name, and +1/+1 and -1/-1 counters removed in pairs (CR 702.93a,
 702.79a, 603.4, 603.10a, 400.7e, 122.6, 704.5q: Geralf's Messenger,
-whose 3 games go on, one to the end, and Kitchen Finks).
+whose 3 games go on, one to the end, and Kitchen Finks); and a spell's
+additional cost, added to its mana cost or to the alternative cost it is
+cast for, and to madness's, a cast offered only when it can be paid and
+one face down paying none, an alternative moving what the additional
+cost moves too left dormant and an additional cost of mana, a second one
+or one on a card cast for free refused by name (CR 118.8, 601.2f,
+601.2h, 118.9d, 702.37c: Reckless Abandon and Shard Volley, whose 6 games
+go on, 3 to the end).
 And
 the replay's inferences: a card played or cast while its player may
 play cards from exile taken from there before the hand, the hand the

@@ -430,6 +430,10 @@ struct Runnable {
     from_graveyard: BTreeMap<u16, lower::FromGraveyard>,
     /// Kicker's cost, the additional cost it may be cast with (CR 702.33a).
     kicker: Option<ManaCost>,
+    /// "As an additional cost to cast this spell, sacrifice a land": paid
+    /// whichever way it is cast (CR 601.2f, 118.9d), but face down, when
+    /// it has no text (CR 702.37c).
+    additional: Option<lower::OtherCosts>,
     /// An Aura's enchant ability: what it targets as a spell and may
     /// enchant (CR 303.4a, 702.5a), read from its controller.
     enchant: Option<Filter>,
@@ -4893,26 +4897,32 @@ impl Game {
             .command
             .iter()
             .filter(|c| self.owner(**c) == p && self.cards[c.0 as usize].commander);
-        let castable = |known: &Known| {
+        let castable = |c: CardId, known: &Known| {
             // CR 305.9; a card with no mana cost can't be paid for, and
             // alternative costs aren't modelled (CR 118.6).
             if is_land(&known.text.type_line) || matches!(known.cost, Ok(None)) {
                 return false;
             }
             // CR 601.2c: a spell with a target slot nothing can fill can't
-            // be cast.
-            let targetable = match &known.runs {
-                Ok(runs) => self.spell_targetable(runs, p, known.printed.as_ref()),
-                _ => true,
+            // be cast; CR 601.2h: nor one whose additional cost can't be
+            // paid.
+            let (targetable, payable) = match &known.runs {
+                Ok(runs) => (
+                    self.spell_targetable(runs, p, known.printed.as_ref()),
+                    runs.additional
+                        .as_ref()
+                        .is_none_or(|more| self.other_payable(p, c, more)),
+                ),
+                _ => (true, true),
             };
-            (sorcery_speed || self.instant_speed(known)) && targetable
+            (sorcery_speed || self.instant_speed(known)) && targetable && payable
         };
         for c in player.hand.iter().chain(from_command) {
             // A hidden card can't be cast: nothing says what it is.
             let Some(known) = self.known(*c) else {
                 continue;
             };
-            if castable(known) {
+            if castable(*c, known) {
                 actions.push(Action::Cast(*c));
             }
             // CR 712.11b: a modal double-faced card cast by its back face,
@@ -4921,7 +4931,7 @@ impl Game {
             // characteristics (CR 715.3a).
             if self
                 .two_faces(*c)
-                .is_some_and(|two| two.layout != TwoFaced::Transforming && castable(&two.back))
+                .is_some_and(|two| two.layout != TwoFaced::Transforming && castable(*c, &two.back))
             {
                 actions.push(Action::CastBack(*c));
             }
@@ -4982,7 +4992,7 @@ impl Game {
                 .from_graveyard
                 .values()
                 .any(|g| self.permits_from_graveyard(p, g))
-                && castable(known)
+                && castable(*c, known)
             {
                 actions.push(Action::Cast(*c));
             }
@@ -4990,14 +5000,14 @@ impl Game {
         // CR 601.3: a card exiled with an effect allowing it to be
         // played, cast as its type allows (CR 117.1a).
         for c in self.may_play(p) {
-            if self.known(c).is_some_and(castable) {
+            if self.known(c).is_some_and(|k| castable(c, k)) {
                 actions.push(Action::Cast(c));
             }
         }
         // CR 715.3d: an adventurer card cast from exile, though not as an
         // Adventure.
         for c in self.adventuring(p) {
-            if self.known(c).is_some_and(castable) {
+            if self.known(c).is_some_and(|k| castable(c, k)) {
                 actions.push(Action::Cast(c));
             }
         }
@@ -5031,23 +5041,14 @@ impl Game {
                             p == self.active && self.step == Step::DeclareBlockers
                         }
                     };
-                    let payable = player.life >= alt.other.life as i32
-                        && alt
+                    let total = match &runs.additional {
+                        Some(more) => alt
                             .other
-                            .sacrifice
-                            .as_ref()
-                            .is_none_or(|(k, f)| self.sacrificable(p, f).len() >= *k as usize)
-                        && alt.other.returned.as_ref().is_none_or(|r| {
-                            let (k, legal) = self.returnable(p, r);
-                            legal.len() >= k as usize
-                        })
-                        // A hidden card in the hand may be one; the card
-                        // cast is on the stack as it is paid (CR 601.2a).
-                        && alt.other.cards.as_ref().is_none_or(|k| {
-                            let (legal, unsure) = self.payable_cards(p, k);
-                            let legal = legal.iter().filter(|x| **x != *c).count();
-                            legal + unsure >= k.count as usize
-                        });
+                            .and(more)
+                            .expect("an alternative its additional cost clashes with is dormant"),
+                        None => alt.other.clone(),
+                    };
+                    let payable = self.other_payable(p, *c, &total);
                     if alt.from == from
                         && timing
                         && (instant_or_sorcery || !alt.instant_or_sorcery)
@@ -6219,8 +6220,9 @@ impl Game {
 
     /// CR 601.2a–f: move the card to the stack, then determine its total
     /// cost and wait for it to be paid. The card has no modes, targets, X
-    /// or additional costs to announce, since one that has any is refused
-    /// when read.
+    /// or optional additional costs to announce, since one that has any is
+    /// refused when read; a mandatory additional cost is paid with the
+    /// rest (`other_costs`).
     /// A two-faced card is cast by `side`, only that face evaluated and
     /// put on the stack (CR 712.11b–c).
     fn cast(&mut self, p: PlayerId, card: CardId, via: Via, side: Side) -> Result<(), Rejected> {
@@ -6577,16 +6579,49 @@ impl Game {
     }
 
     /// What the spell on the stack costs beyond mana: its alternative
-    /// cost's, if it was cast for one (CR 601.2f).
+    /// cost's, if it was cast for one, and its additional cost, unless it
+    /// was cast face down (CR 601.2f, 118.9d, 702.37c).
     fn other_costs(&self, spell: CardId) -> lower::OtherCosts {
         let via = self.stack.iter().find_map(|o| match o {
             StackObject::Spell { card, via, .. } if *card == spell => Some(*via),
             _ => None,
         });
-        match via {
-            Some(Via::Alternative(n)) => self.runs_of(spell).alternatives[&n].other.clone(),
+        // A face-down spell may be a hidden card, with no runs to read.
+        let via = match via {
+            None | Some(Via::FaceDown) => return lower::OtherCosts::default(),
+            Some(v) => v,
+        };
+        let runs = self.runs_of(spell);
+        let base = match via {
+            Via::Alternative(n) => runs.alternatives[&n].other.clone(),
             _ => lower::OtherCosts::default(),
+        };
+        match &runs.additional {
+            Some(more) => base
+                .and(more)
+                .expect("an alternative its additional cost clashes with is dormant"),
+            None => base,
         }
+    }
+
+    /// Whether `p` can pay a spell's costs beyond mana (CR 601.2h): its
+    /// life, and as many permanents and cards as they move, a hidden card
+    /// in the hand maybe one, the card cast `c` not (CR 601.2a).
+    fn other_payable(&self, p: PlayerId, c: CardId, other: &lower::OtherCosts) -> bool {
+        self.player(p).life >= other.life as i32
+            && other
+                .sacrifice
+                .as_ref()
+                .is_none_or(|(k, f)| self.sacrificable(p, f).len() >= *k as usize)
+            && other.returned.as_ref().is_none_or(|r| {
+                let (k, legal) = self.returnable(p, r);
+                legal.len() >= k as usize
+            })
+            && other.cards.as_ref().is_none_or(|k| {
+                let (legal, unsure) = self.payable_cards(p, k);
+                let legal = legal.iter().filter(|x| **x != c).count();
+                legal + unsure >= k.count as usize
+            })
     }
 
     /// The permanents `player` could sacrifice for the spell on the stack
@@ -7057,7 +7092,31 @@ impl Game {
                             .as_ref()
                             .is_ok_and(|r| self.spell_targetable(r, p, k.printed.as_ref()))
                     });
-                    if self.madness.contains(&card) && self.exile.contains(&card) && targetable {
+                    // CR 601.2h, 118.9d: nor one whose total cost beyond
+                    // mana, its additional cost added, can't be paid.
+                    let payable = self
+                        .known(card)
+                        .and_then(|k| k.runs.as_ref().ok())
+                        .is_some_and(|r| {
+                            r.alternatives
+                                .values()
+                                .filter(|a| a.from == lower::CastFrom::Madness)
+                                .all(|a| {
+                                    let total = match &r.additional {
+                                        Some(more) => a.other.and(more).expect(
+                                            "an alternative its additional cost clashes with \
+                                             is dormant",
+                                        ),
+                                        None => a.other.clone(),
+                                    };
+                                    self.other_payable(p, card, &total)
+                                })
+                        });
+                    if self.madness.contains(&card)
+                        && self.exile.contains(&card)
+                        && targetable
+                        && payable
+                    {
                         let Some((n, _)) = self
                             .runs_of(card)
                             .alternatives
@@ -11628,6 +11687,7 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
         alternatives: BTreeMap::new(),
         from_graveyard: BTreeMap::new(),
         kicker: None,
+        additional: None,
         enchant: None,
         mana_triggers: BTreeMap::new(),
         extra_lands: BTreeMap::new(),
@@ -11903,6 +11963,25 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
                     Err(node) => runs.dormant.push(format!("an alternative cost: {node}")),
                 }
             }
+            // Never left dormant: cast without it, the spell would cost
+            // less than it does.
+            i::Ability::Static(parts) if lower::additional_cost(parts).is_some() => {
+                let other = lower::additional_cost(parts)
+                    .expect("an additional cost")
+                    .map_err(|node| {
+                        Unrunnable::new(
+                            node.clone(),
+                            format!("the game can't run its additional cost: {node}"),
+                        )
+                    })?;
+                if runs.additional.is_some() {
+                    return Err(Unrunnable::new(
+                        "a second additional cost",
+                        "the game can't run two additional costs on one spell yet",
+                    ));
+                }
+                runs.additional = Some(other);
+            }
             i::Ability::Static(parts) if lower::combat_rule(parts).is_some() => {
                 let rule = lower::combat_rule(parts)
                     .expect("a combat rule")
@@ -12064,6 +12143,29 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
                     format!("the game can't run its {node} ability yet"),
                 ));
             }
+        }
+    }
+    if let Some(more) = &runs.additional {
+        // Cast without paying its mana cost, suspend's and plot's casts
+        // pay nothing else here, an additional cost among it (CR 601.2f).
+        if runs.suspend.is_some() || runs.plot.is_some() {
+            return Err(Unrunnable::new(
+                "an additional cost of a card cast for free",
+                "the game can't pay an additional cost of a spell cast without paying its \
+                 mana cost yet",
+            ));
+        }
+        // CR 118.9d: added to each alternative cost too.
+        let clash: Vec<u16> = runs
+            .alternatives
+            .iter()
+            .filter(|(_, a)| a.other.and(more).is_none())
+            .map(|(n, _)| *n)
+            .collect();
+        for n in clash {
+            runs.alternatives.remove(&n);
+            runs.dormant
+                .push("an alternative cost moving what its additional cost moves too".into());
         }
     }
     Ok(runs)
