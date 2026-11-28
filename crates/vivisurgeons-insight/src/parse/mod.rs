@@ -420,6 +420,11 @@ fn limits(p: &mut P) -> Vec<Limit> {
                 p.words("to activate this ability")?;
                 Some(vec![Limit::SpendOnlyManaOf(pal)])
             },
+            // [spend-not]: "This mana can't be spent to cast nonartifact spells".
+            |p| {
+                p.words("this mana can't be spent")?;
+                spend_uses(p).map(|uses| vec![Limit::SpendNot(uses)])
+            },
             |p| {
                 p.words("spend this mana only")?;
                 let uses = spend_uses(p)?;
@@ -536,6 +541,7 @@ pub(super) fn spend_uses(p: &mut P) -> Option<Vec<SpendUse>> {
                 p.one_of(&["activate abilities", "activate an ability"])?;
                 Some(SpendUse::ActivateAny)
             },
+            |p| p.words("to pay generic mana costs").map(|_| SpendUse::GenericCosts),
             // "Spend this mana only on costs that contain {X}".
             |p| {
                 p.words("on costs that contain")?;

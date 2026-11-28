@@ -1020,7 +1020,7 @@ face: Thran Turbine
 type: Artifact
 cost: {1}
 > At the beginning of your upkeep, you may add {C}{C}. This mana can't be spent to cast spells.
-= BROKE at "can't" after: at the beginning of your upkeep , you may add {C} {C} . this mana
+= Triggered { trigger: At(Upkeep(Yours)), effect: [May { who: You, then: [AddMana(Symbols(Mana(["C", "C"])))] }], limits: [SpendNot([Cast(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } })])] }
 
 ## Tooth of Chiss-Goria
 face: Tooth of Chiss-Goria

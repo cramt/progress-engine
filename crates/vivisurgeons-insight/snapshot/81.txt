@@ -445,7 +445,7 @@ cost: {4}{R/G}
 > Companion — No card in your starting deck has more than one of the same mana symbol in its mana cost. (If this card is your chosen companion, you may put it into your hand from outside the game for {3} as a sorcery.)
 > {T}: Add {W}{U}{B}{R}{G}. This mana can't be spent to pay generic mana costs.
 = BROKE at "more" after: companion — no card in your starting deck has
-= BROKE at "can't" after: {T} : add {W} {U} {B} {R} {G} . this mana
+= Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["W", "U", "B", "R", "G"])))], limits: [SpendNot([GenericCosts])] }
 
 ## Judge of Currents
 face: Judge of Currents

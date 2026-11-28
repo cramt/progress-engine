@@ -3138,4 +3138,31 @@ mod round_nine_d {
         );
         assert!(s.contains("Or([Discard"), "{s}");
     }
+
+    #[test]
+    fn mana_that_cant_be_spent_on_a_use_pays_for_the_rest() {
+        let read = |text: &str| {
+            let face = Face {
+                name: "Some Card",
+                type_line: "Artifact",
+                text,
+            };
+            format!(
+                "{:?}",
+                read_face_unresolved(&face, "Some Card")
+                    .iter()
+                    .map(|l| l.parsed.as_ref().ok())
+                    .collect::<Vec<_>>()
+            )
+        };
+        let cast = read("{T}: Add {C}{C}. This mana can't be spent to cast nonartifact spells.");
+        assert!(cast.contains("SpendNot([Cast("), "{cast}");
+        let generic =
+            read("{T}: Add {W}{U}{B}{R}{G}. This mana can't be spent to pay generic mana costs.");
+        assert!(generic.contains("SpendNot([GenericCosts])"), "{generic}");
+        // [spend-not] reads generic costs alone.
+        let colored =
+            read("{T}: Add {W}{U}{B}{R}{G}. This mana can't be spent to pay colored mana costs.");
+        assert!(!colored.contains("SpendNot"), "{colored}");
+    }
 }

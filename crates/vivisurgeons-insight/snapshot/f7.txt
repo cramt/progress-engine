@@ -111,7 +111,7 @@ type: Creature — Human Artificer
 cost: {2}{G}{U}
 > Creatures you control have "{T}: Add {C}. This mana can't be spent to cast a nonartifact spell."
 > Whenever you cast an artifact spell with mana value 6 or greater, draw a card.
-= BROKE at "can't" after: creatures you control have " {T} : add {C} . this mana
+= Static([HasAbility { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, ability: Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["C"])))], limits: [SpendNot([Cast(Objects { quant: One, filter: Filter { alts: [[Non("artifact")]], kind: Some(Spell), posts: [], or: None } })])] } }])
 = Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: Some(Spell), posts: [With(Compare { stat: ManaValue, op: Ge, value: N(6) })], or: None } } }), effect: [Draw { who: You, n: N(1) }], limits: [] }
 
 ## Battle Frenzy

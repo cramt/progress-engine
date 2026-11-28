@@ -919,7 +919,7 @@ cost: {5}
 > {T}: Add {C}{C}. This mana can't be spent to cast nonartifact spells.
 > (Melds with Urza, Lord Protector.)
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Modal { choose: One, modes: [[Draw { who: You, n: N(2) }], [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-5), toughness: N(-5), signed: true }), gains: [], dur: UntilEndOfTurn }]] }], limits: [] }
-= BROKE at "can't" after: {T} : add {C} {C} . this mana
+= Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["C", "C"])))], limits: [SpendNot([Cast(Objects { quant: Plural, filter: Filter { alts: [[Non("artifact")]], kind: Some(Spell), posts: [], or: None } })])] }
 
 ## Thornscape Battlemage
 face: Thornscape Battlemage

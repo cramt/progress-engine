@@ -2120,6 +2120,11 @@ impl Walk for Limit {
                     }
                 }
             }
+            Limit::SpendNot(f0) => {
+                for x0 in (f0).iter_mut() {
+                    Walk::walk(x0, v);
+                }
+            }
             Limit::CostChange { per, cond, .. } => {
                 if let Some(x0) = (per).as_mut() {
                     Walk::walk(x0, v);

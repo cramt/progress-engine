@@ -508,7 +508,7 @@ cost: {1}{U}
 > Defender
 > {T}: Add {U}. This mana can't be spent to cast a nonartifact spell.
 = Keywords([Keyword { name: "defender", param: None }])
-= BROKE at "can't" after: {T} : add {U} . this mana
+= Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["U"])))], limits: [SpendNot([Cast(Objects { quant: One, filter: Filter { alts: [[Non("artifact")]], kind: Some(Spell), posts: [], or: None } })])] }
 
 ## Idris, Soul of the TARDIS
 face: Idris, Soul of the TARDIS

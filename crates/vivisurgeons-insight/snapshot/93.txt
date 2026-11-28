@@ -3,7 +3,7 @@ face: Adarkar Unicorn
 type: Creature — Unicorn
 cost: {1}{W}{W}
 > {T}: Add {U} or {C}{U}. Spend this mana only to pay cumulative upkeep costs.
-= BROKE at "pay" after: {T} : add {U} or {C} {U} . spend this mana only to
+= BROKE at "cumulative" after: {T} : add {U} or {C} {U} . spend this mana only to pay
 
 ## Agents of S.H.I.E.L.D.
 face: Agents of S.H.I.E.L.D.

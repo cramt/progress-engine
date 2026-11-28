@@ -512,7 +512,7 @@ cost: {G}
 > This creature enters prepared. (While it's prepared, you may cast a copy of its spell. Doing so unprepares it.)
 > {T}: Add {C}. This mana can't be spent to cast spells from your hand.
 = Static([EntersPrepared(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
-= BROKE at "can't" after: {T} : add {C} . this mana
+= Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["C"])))], limits: [SpendNot([Cast(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [CastFrom(Hand(You))], or: None } })])] }
 
 ## Heartwood Crafter // Soul Tether
 face: Soul Tether

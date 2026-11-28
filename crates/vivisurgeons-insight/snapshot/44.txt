@@ -1013,7 +1013,7 @@ cost: {3}{U}
 > {T}: Add an amount of {C} equal to Vhal's toughness. This mana can't be spent to cast spells from your hand.
 > Choose a Background (You can have a Background as a second commander.)
 = Keywords([Keyword { name: "vigilance", param: None }])
-= BROKE at "can't" after: {T} : add an amount of {C} equal to ~ 's toughness . this mana
+= Activated { cost: [Tap], effect: [AddMana(AmountOf { mana: Mana(["C"]), n: ToughnessOf(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }) })], limits: [SpendNot([Cast(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [CastFrom(Hand(You))], or: None } })])] }
 = Keywords([Keyword { name: "choose a background", param: None }])
 
 ## Village Cannibals

@@ -2887,6 +2887,10 @@ fn limits(o: &mut Out, ls: &[Limit], triggered: bool) {
                     condition(o, c);
                 }
             }
+            Limit::SpendNot(uses) => {
+                o.w("this mana can't be spent");
+                spend_uses(o, uses);
+            }
             Limit::SpendOnlyManaOf(pal) => {
                 o.w("spend only mana of");
                 palette_named(o, pal);
@@ -2947,6 +2951,10 @@ fn spend_uses(o: &mut Out, uses: &[SpendUse]) {
             o.w("to cast a spell or activate an ability");
             continue;
         }
+        if *u == SpendUse::GenericCosts {
+            o.w("to pay generic mana costs");
+            continue;
+        }
         if *u == SpendUse::CostsWithX {
             o.w("on costs that contain");
             o.tok(Tok::Sym("X".into()));
@@ -2959,6 +2967,7 @@ fn spend_uses(o: &mut Out, uses: &[SpendUse]) {
             SpendUse::ActivateAbilityOf(_)
             | SpendUse::ActivateAny
             | SpendUse::CostsWithX
+            | SpendUse::GenericCosts
             | SpendUse::CastOrActivate(_) => "activate",
         };
         let with_to = out(|o| o.w(&format!("to {verb}")));
@@ -2974,7 +2983,7 @@ fn spend_uses(o: &mut Out, uses: &[SpendUse]) {
                 objects(o, x);
             }
             SpendUse::ActivateAny => syn::an_ability(o),
-            SpendUse::CostsWithX | SpendUse::CastOrActivate(_) => {}
+            SpendUse::CostsWithX | SpendUse::GenericCosts | SpendUse::CastOrActivate(_) => {}
         }
     }
 }

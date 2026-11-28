@@ -1079,7 +1079,7 @@ face: Unblinking Observer
 type: Creature — Homunculus
 cost: {1}{U}
 > {T}: Add {U}. Spend this mana only to pay a disturb cost or cast an instant or sorcery spell.
-= BROKE at "pay" after: {T} : add {U} . spend this mana only to
+= BROKE at "a" after: {T} : add {U} . spend this mana only to pay
 
 ## Valor Made Real
 face: Valor Made Real

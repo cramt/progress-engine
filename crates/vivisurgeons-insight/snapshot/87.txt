@@ -998,7 +998,7 @@ cost: {2}{U}
 > Cumulative upkeep {U} (At the beginning of your upkeep, put an age counter on this permanent, then sacrifice it unless you pay its upkeep cost for each age counter on it.)
 > Whenever an Island is tapped for mana, its controller may add an additional {U}. If that Island is snow, its controller may add an additional {U}{U} instead. Spend this mana only to pay cumulative upkeep costs.
 = Keywords([Keyword { name: "cumulative upkeep", param: Some(Cost([Mana(Mana(["U"]))])) }])
-= BROKE at "pay" after: whenever an island is tapped for mana , its controller may add an additional {U} . if that island is snow , its controller may add an additional {U} {U} instead . spend this mana only to
+= BROKE at "cumulative" after: whenever an island is tapped for mana , its controller may add an additional {U} . if that island is snow , its controller may add an additional {U} {U} instead . spend this mana only to pay
 
 ## Soulgorger Orgg
 face: Soulgorger Orgg

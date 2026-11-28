@@ -392,6 +392,10 @@ pub enum Limit {
         uses: Vec<SpendUse>,
         then: Option<(Objects, Restriction)>,
     },
+    /// "This mana can't be spent to cast nonartifact spells" (The Mightstone
+    /// and Weakstone): what the mana the ability made may not pay for, and
+    /// it pays for anything else ([spend-not]).
+    SpendNot(Vec<SpendUse>),
     /// "This ability costs {1} less to activate for each …", "… if you
     /// control a creature with a +1/+1 counter on it", "This ability costs
     /// {X} less to activate, where X is …".
@@ -462,6 +466,9 @@ pub enum SpendUse {
     /// "on costs that contain {X}": any cost with an {X} in it, a spell's
     /// or an ability's (CR 107.3).
     CostsWithX,
+    /// "This mana can't be spent to pay generic mana costs" (Jegantha, the
+    /// Wellspring): the generic part of any cost (CR 107.4b).
+    GenericCosts,
 }
 
 /// A die result's parity: "each odd result", "each even result".
