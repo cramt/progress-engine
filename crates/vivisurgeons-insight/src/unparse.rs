@@ -620,6 +620,19 @@ mod syn {
     /// "this enchantment has no charge counters on it" and "there are no
     /// charge counters on this enchantment": one object's counters, said
     /// with it as subject or with "there are".
+    /// Named rewrite [damage-would-be-dealt]: "damage would be dealt to
+    /// this creature" is "a source would deal damage to this creature"
+    /// (CR 120.1: damage is dealt by a source).
+    pub fn damage_would_be_dealt(o: &mut Out, active: Out, passive: Out) {
+        alt(o, vec![active, passive]);
+    }
+
+    /// Named rewrite [prevented-each-point]: "for each 1 damage prevented
+    /// this way" leads its clause or trails it, once per point either way.
+    pub fn each_point_prevented(o: &mut Out, lead: Out, trail: Out) {
+        alt(o, vec![lead, trail]);
+    }
+
     pub fn there_are_on(o: &mut Out, has: Out, there: Out) {
         alt(o, vec![has, there]);
     }
@@ -3656,6 +3669,7 @@ fn measure_said(o: &mut Out, a: &Amount) {
         | Amount::Thrice(_)
         | Amount::Between(..)
         | Amount::Additional(_) => amount(o, a),
+        Amount::DamagePrevented => o.w("the damage prevented this way"),
         // Said as `CountOf` by `ability`'s `Said`; here only when rendered
         // without it.
         Amount::EntriesThisTurn { what, under } => {
@@ -3817,7 +3831,6 @@ fn measure_said(o: &mut Out, a: &Amount) {
             player(o, p);
             o.w("was dealt this turn");
         }
-        Amount::DamagePrevented => o.w("1 damage prevented this way"),
         Amount::RolledResults(Parity::Odd) => o.w("odd result"),
         Amount::RolledResults(Parity::Even) => o.w("even result"),
         Amount::Votes(w) => {
@@ -9991,8 +10004,15 @@ fn effect_said(o: &mut Out, e: &Effect, cx: &Cx) {
                 clauses(o, then, cx);
             }
             Amount::DamagePrevented => {
-                o.w("for each 1 damage prevented this way,");
-                clauses(o, then, cx);
+                let lead = out(|o| {
+                    o.w("for each 1 damage prevented this way,");
+                    clauses(o, then, cx);
+                });
+                let trail = out(|o| {
+                    clauses(o, then, cx);
+                    o.w("for each 1 damage prevented this way");
+                });
+                syn::each_point_prevented(o, lead, trail);
             }
             // "copy it for each time you've cast your commander from the
             // command zone this game".
@@ -12605,6 +12625,17 @@ fn counters_phrase(o: &mut Out, n: &Quant, kind: &Option<CounterKind>) {
 }
 
 /// What a replacement effect watches for, said with "would".
+/// "a source": what "damage would be dealt to" leaves unsaid.
+fn a_source() -> Objects {
+    Objects {
+        quant: Quant::One,
+        filter: Filter {
+            kind: Some(Noun::Source),
+            ..Filter::default()
+        },
+    }
+}
+
 fn would(o: &mut Out, e: &Event) {
     match e {
         Event::Creates { by, what, under } => {
@@ -12705,15 +12736,29 @@ fn would(o: &mut Out, e: &Event) {
             objects(o, what);
             o.w("would leave the battlefield");
         }
-        Event::DealsDamageTo { what, to } => {
-            objects(o, what);
-            o.w("would deal damage to");
-            recipients(o, to);
-        }
-        Event::DealsNoncombatDamageTo { what, to } => {
-            objects(o, what);
-            o.w("would deal noncombat damage to");
-            recipients(o, to);
+        Event::DealsDamageTo { what, to } | Event::DealsNoncombatDamageTo { what, to } => {
+            let noncombat = matches!(e, Event::DealsNoncombatDamageTo { .. });
+            let active = out(|o| {
+                objects(o, what);
+                o.w("would deal");
+                if noncombat {
+                    o.w("noncombat");
+                }
+                o.w("damage to");
+                recipients(o, to);
+            });
+            if *what == a_source() {
+                let passive = out(|o| {
+                    if noncombat {
+                        o.w("noncombat");
+                    }
+                    o.w("damage would be dealt to");
+                    recipients(o, to);
+                });
+                syn::damage_would_be_dealt(o, active, passive);
+            } else {
+                o.add(active);
+            }
         }
         Event::DealsDamage(x) => {
             objects(o, x);

@@ -331,6 +331,16 @@ pub(super) fn counters_phrase(p: &mut P) -> Option<(Quant, Option<CounterKind>)>
 pub(super) fn replacement(p: &mut P) -> Option<Vec<Static>> {
     p.word("if")?;
     let event = alt!(p;
+        // "If damage would be dealt to this creature" (Phantom Centaur):
+        // all damage is dealt by a source (CR 120.1), so it is "a source
+        // would deal damage to" ([damage-would-be-dealt]).
+        |p| {
+            let noncombat = p.attempt(|p| p.word("noncombat")).is_some();
+            p.words("damage would be dealt to")?;
+            let to = recipients(p)?;
+            let what = Objects { quant: Quant::One, filter: Filter { kind: Some(Noun::Source), ..Filter::default() } };
+            Some(if noncombat { Event::DealsNoncombatDamageTo { what, to } } else { Event::DealsDamageTo { what, to } })
+        },
         // Unpredictable Cyclone: "a cycling ability of another nonland card
         // would cause you to draw a card".
         |p| {
@@ -461,6 +471,22 @@ pub(super) fn replacement(p: &mut P) -> Option<Vec<Static>> {
         while let Some(more) = p.attempt(|p| {
             p.tok(&Tok::Period)?;
             p.attempt(|p| p.word("then"));
+            clauses(p)
+        }) {
+            instead.extend(more);
+        }
+    }
+    // "prevent that damage. Remove a +1/+1 counter from this creature"
+    // (Phantom Centaur): the rest of a prevention effect, done right after
+    // the damage is prevented (CR 615.5) ([prevention-rest]).
+    if instead == [Effect::PreventThatDamage] {
+        while let Some(more) = p.attempt(|p| {
+            p.tok(&Tok::Period)?;
+            // "When damage is prevented this way, …" is a reflexive
+            // trigger, not the effect's rest.
+            if matches!(p.peek_word(), Some("when" | "whenever" | "if")) {
+                return None;
+            }
             clauses(p)
         }) {
             instead.extend(more);

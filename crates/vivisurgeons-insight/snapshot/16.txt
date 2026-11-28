@@ -219,7 +219,7 @@ face: Crumbling Sanctuary
 type: Artifact
 cost: {5}
 > If damage would be dealt to a player, that player exiles that many cards from the top of their library instead.
-= BROKE at "player" after: if damage would be dealt to a
+= Static([Replacement { event: DealsDamageTo { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Source), posts: [], or: None } }, to: [Player(APlayer)] }, instead: [Performed { by: That, effect: Exile(Objects { quant: N(ThatMany), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(That))], or: None } }) }] }])
 
 ## Daru Lancer
 face: Daru Lancer

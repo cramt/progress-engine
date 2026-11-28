@@ -617,7 +617,7 @@ face: Phytohydra
 type: Creature — Plant Hydra
 cost: {2}{G}{W}{W}
 > If damage would be dealt to this creature, put that many +1/+1 counters on it instead.
-= BROKE at "creature" after: if damage would be dealt to this
+= Static([Replacement { event: DealsDamageTo { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Source), posts: [], or: None } }, to: [Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, instead: [PutCounters { n: ThatMany, kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }])
 
 ## Pitiless Fists
 face: Pitiless Fists

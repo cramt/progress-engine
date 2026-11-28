@@ -83,6 +83,21 @@ pub(super) fn suffixed(p: &mut P, mut e: Effect) -> Effect {
                 times,
                 then: vec![e],
             };
+        } else if p
+            .attempt(|p| {
+                // "Put a -1/-1 counter on this creature for each 1 damage
+                // prevented this way" (Phyrexian Hydra): once per point, as
+                // when it leads ([prevented-each-point]).
+                p.words("for each")?;
+                (number(p)? == 1).then_some(())?;
+                p.words("damage prevented this way")
+            })
+            .is_some()
+        {
+            e = Effect::Repeat {
+                times: Amount::DamagePrevented,
+                then: vec![e],
+            };
         } else if let Some(each) = p.attempt(|p| {
             p.words("for each")?;
             objects(p)

@@ -689,7 +689,7 @@ cost: {1}{W}
 > This creature enters with two +1/+1 counters on it.
 > If damage would be dealt to this creature, prevent that damage. Remove a +1/+1 counter from this creature.
 = Static([EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(2), kind: "+1/+1" }])
-= BROKE at "creature" after: if damage would be dealt to this
+= Static([Replacement { event: DealsDamageTo { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Source), posts: [], or: None } }, to: [Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, instead: [PreventThatDamage, RemoveCounters { n: N(1), kind: "+1/+1", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }])
 
 ## Phyrexian Grimoire
 face: Phyrexian Grimoire

@@ -614,7 +614,7 @@ cost: {W}{W}{W}{W}
 > Flying
 > If damage would be dealt to this creature, prevent that damage. When damage is prevented this way, this creature deals that much damage to any other target.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "creature" after: if damage would be dealt to this
+= BROKE at "damage" after: if damage would be dealt to this creature , prevent that damage . when
 
 ## Poison Arrow
 face: Poison Arrow

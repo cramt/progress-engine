@@ -871,7 +871,7 @@ cost: {2}{W}
 > Flying
 > If noncombat damage would be dealt to this creature, prevent that damage. Put a +1/+1 counter on this creature for each 1 damage prevented this way.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "this" after: if noncombat damage would be dealt to
+= Static([Replacement { event: DealsNoncombatDamageTo { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Source), posts: [], or: None } }, to: [Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, instead: [PreventThatDamage, Repeat { times: DamagePrevented, then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }] }])
 
 ## Storyweave
 face: Storyweave

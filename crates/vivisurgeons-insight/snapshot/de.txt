@@ -757,7 +757,7 @@ cost: {4}{W}
 > You may exile a white card from your hand rather than pay this spell's mana cost.
 > Prevent the next 7 damage that would be dealt to any target this turn. If it's a creature, put a +0/+1 counter on it for each 1 damage prevented this way at the beginning of the next end step.
 = Static([AlternativeCost([Exile(Objects { quant: One, filter: Filter { alts: [[Color(White)]], kind: Some(Card), posts: [In(Hand(You))], or: None } })])])
-= BROKE at "prevented" after: prevent the next 7 damage that would be dealt to any target this turn . if it's a creature , put a <pt> counter on it for each 1 damage
+= Let { bind: [/* target */ Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } }], ability: Spell([Prevent { combat_only: false, n: Some(N(7)), to: Some([Objects(Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }, If { order: Leading, cond: Is { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, then: [Delayed { step: EndStep(Next), then: [Repeat { times: DamagePrevented, then: [PutCounters { n: N(1), kind: "+0/+1", on: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }] }] }]) }
 
 ## Sea's Claim
 face: Sea's Claim

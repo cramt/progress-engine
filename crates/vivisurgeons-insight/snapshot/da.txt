@@ -379,7 +379,7 @@ cost: {3}{R}{R}{R}
 > If a spell you control would deal damage to an opponent, prevent that damage. Create a 3/1 red Elemental Shaman creature token with haste for each 1 damage prevented this way.
 > When Hostility is put into a graveyard from anywhere, shuffle it into its owner's library.
 = Keywords([Keyword { name: "haste", param: None }])
-= BROKE at "a" after: if a spell you control would deal damage to an opponent , prevent that damage . create
+= Static([Replacement { event: DealsDamageTo { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [Controller(You)], or: None } }, to: [Player(AnOpponent)] }, instead: [PreventThatDamage, Repeat { times: DamagePrevented, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(3), toughness: N(1), signed: false }), colors: [Red], types: ["elemental", "shaman", "creature"], keywords: [Keyword { name: "haste", param: None }], abilities: [], named: None, attacking: None } }] }] }])
 = Triggered { trigger: When(PutInto { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: AGraveyard, from: Anywhere }), effect: [ShuffleInto { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Hua Tuo, Honored Physician

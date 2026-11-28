@@ -771,7 +771,7 @@ cost: {3}{W}{W}{W}
 > If noncombat damage would be dealt to you, prevent that damage. You gain life equal to the damage prevented this way.
 > When Purity is put into a graveyard from anywhere, shuffle it into its owner's library.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "you" after: if noncombat damage would be dealt to
+= Static([Replacement { event: DealsNoncombatDamageTo { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Source), posts: [], or: None } }, to: [Player(You)] }, instead: [PreventThatDamage, GainLife { who: You, n: DamagePrevented }] }])
 = Triggered { trigger: When(PutInto { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: AGraveyard, from: Anywhere }), effect: [ShuffleInto { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Purphoros, God of the Forge

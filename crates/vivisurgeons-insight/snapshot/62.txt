@@ -378,7 +378,7 @@ cost: {2}{W}{W}
 > If damage would be dealt to you, put that many depletion counters on this enchantment instead.
 > When there are four or more depletion counters on this enchantment, sacrifice it.
 > At the beginning of each end step, remove all depletion counters from this enchantment.
-= BROKE at "," after: if damage would be dealt to you
+= Static([Replacement { event: DealsDamageTo { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Source), posts: [], or: None } }, to: [Player(You)] }, instead: [PutCounters { n: ThatMany, kind: "depletion", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }])
 = Triggered { trigger: State(AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("depletion"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(4) }), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 = Triggered { trigger: At(EndStep(Each)), effect: [RemoveAllCountersOf { kind: "depletion", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 

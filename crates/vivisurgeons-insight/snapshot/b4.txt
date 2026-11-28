@@ -174,7 +174,7 @@ cost: {6}{W}{W}
 > Convoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)
 > Prevent all damage that would be dealt by creatures this turn. You gain life equal to the damage prevented this way.
 = Keywords([Keyword { name: "convoke", param: None }])
-= BROKE at "prevented" after: prevent all damage that would be dealt by creatures this turn . you gain life equal to the damage
+= Spell([Prevent { combat_only: false, n: None, to: None, by: Some(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), dur: ThisTurn }, GainLife { who: You, n: DamagePrevented }])
 
 ## Consulate Surveillance
 face: Consulate Surveillance

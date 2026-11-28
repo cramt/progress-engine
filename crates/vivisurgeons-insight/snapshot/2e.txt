@@ -851,7 +851,7 @@ face: Reverse Damage
 type: Instant
 cost: {1}{W}{W}
 > The next time a source of your choice would deal damage to you this turn, prevent that damage. You gain life equal to the damage prevented this way.
-= BROKE at "prevented" after: the next time a source of your choice would deal damage to you this turn , prevent that damage . you gain life equal to the damage
+= Spell([NextTime { event: DealsDamageTo { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Source), posts: [ChosenBy(You)], or: None } }, to: [Player(You)] }, dur: ThisTurn, then: [PreventThatDamage] }, GainLife { who: You, n: DamagePrevented }])
 
 ## Reverse the Polarity
 face: Reverse the Polarity

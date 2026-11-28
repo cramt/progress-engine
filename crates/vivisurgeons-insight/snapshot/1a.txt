@@ -492,7 +492,7 @@ cost: {3}{R}
 > The Betrayer — If damage would be dealt to Khârn the Betrayer, prevent that damage and an opponent of your choice gains control of it.
 = BROKE at "able" after: berzerker — ~ attacks or blocks each combat if
 = BROKE at "," after: sigil of corruption — when you lose control of ~
-= BROKE at "," after: the betrayer — if damage would be dealt to ~
+= BROKE at "control" after: the betrayer — if damage would be dealt to ~ , prevent that damage and an opponent of your choice gains
 
 ## Kytheon, Hero of Akros // Gideon, Battle-Forged
 face: Kytheon, Hero of Akros
@@ -542,7 +542,7 @@ type: Creature — Plant Fungus
 cost: {3}{G}{G}
 > If damage would be dealt to this creature, put that many -1/-1 counters on it instead.
 > At the beginning of your upkeep, remove a -1/-1 counter from this creature.
-= BROKE at "creature" after: if damage would be dealt to this
+= Static([Replacement { event: DealsDamageTo { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Source), posts: [], or: None } }, to: [Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, instead: [PutCounters { n: ThatMany, kind: "-1/-1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }])
 = Triggered { trigger: At(Upkeep(Yours)), effect: [RemoveCounters { n: N(1), kind: "-1/-1", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Marauder's Axe

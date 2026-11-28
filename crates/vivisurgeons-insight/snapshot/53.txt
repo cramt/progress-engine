@@ -562,7 +562,7 @@ cost: {2}{B}{B}
 > If damage would be dealt to you, prevent that damage. Exile a card from your graveyard for each 1 damage prevented this way.
 > When there are no cards in your graveyard, you lose the game.
 = Activated { cost: [Tap, Exile(Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })], effect: [Draw { who: You, n: N(1) }], limits: [] }
-= BROKE at "," after: if damage would be dealt to you
+= Static([Replacement { event: DealsDamageTo { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Source), posts: [], or: None } }, to: [Player(You)] }, instead: [PreventThatDamage, Repeat { times: DamagePrevented, then: [Exile(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })] }] }])
 = BROKE at "lose" after: when there are no cards in your graveyard , you
 
 ## Impale

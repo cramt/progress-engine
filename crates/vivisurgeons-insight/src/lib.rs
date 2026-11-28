@@ -3247,4 +3247,37 @@ mod round_nine_d {
         let opponent = read("At the beginning of the chosen opponent's upkeep, you gain 1 life.");
         assert!(!opponent.contains("ChosenPlayers"), "{opponent}");
     }
+
+    #[test]
+    fn damage_that_would_be_dealt_is_prevented_and_the_rest_follows() {
+        let read = |text: &str| {
+            let face = Face {
+                name: "Some Card",
+                type_line: "Creature — Hydra",
+                text,
+            };
+            format!(
+                "{:?}",
+                read_face_unresolved(&face, "Some Card")
+                    .iter()
+                    .map(|l| l.parsed.as_ref().ok())
+                    .collect::<Vec<_>>()
+            )
+        };
+        let hydra = read("If damage would be dealt to this creature, prevent that damage. Put a -1/-1 counter on this creature for each 1 damage prevented this way.");
+        assert!(hydra.contains("event: DealsDamageTo { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Source)"), "{hydra}");
+        assert!(
+            hydra.contains("instead: [PreventThatDamage, Repeat { times: DamagePrevented"),
+            "{hydra}"
+        );
+        // [damage-would-be-dealt]: "noncombat" is read, no other word is.
+        let combat = read("If combat damage would be dealt to this creature, prevent that damage.");
+        assert!(!combat.contains("Replacement"), "{combat}");
+        // [prevented-each-point]: once per 1 damage, not per 2.
+        let two = read("If damage would be dealt to this creature, prevent that damage. Put a -1/-1 counter on this creature for each 2 damage prevented this way.");
+        assert!(!two.contains("Repeat"), "{two}");
+        // [prevention-rest]: a sentence led by "if" is not the effect's rest.
+        let cond = read("If damage would be dealt to this creature, prevent that damage. If it's your turn, draw a card.");
+        assert!(!cond.contains("PreventThatDamage, "), "{cond}");
+    }
 }

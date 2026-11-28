@@ -624,7 +624,7 @@ cost: {2}{B}{G}
 > {1}{B}{G}: Polukranos fights another target creature.
 > Escape—{4}{B}{G}, Exile six other cards from your graveyard.
 = BROKE at "instead" after: ~ enters with six <pt> counters on it . it escapes with twelve <pt> counters on it
-= BROKE at "while" after: if damage would be dealt to ~
+= Static([Replacement { event: While { event: DealsDamageTo { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Source), posts: [], or: None } }, to: [Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, cond: HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("+1/+1") } }, instead: [PreventThatDamage, RemoveCounters { n: ThatMany, kind: "+1/+1", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }])
 = Activated { cost: [Mana(Mana(["1", "B", "G"]))], effect: [Fight { a: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, b: Objects { quant: AnotherTarget, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], limits: [] }
 = Keywords([Keyword { name: "escape", param: Some(Cost([Mana(Mana(["4", "B", "G"])), Exile(Objects { quant: N(N(6)), filter: Filter { alts: [[State(Other)]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })])) }])
 

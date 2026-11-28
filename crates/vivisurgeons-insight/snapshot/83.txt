@@ -154,7 +154,7 @@ face: Cho-Arrim Alchemist
 type: Creature — Human Spellshaper
 cost: {W}
 > {1}{W}{W}, {T}, Discard a card: The next time a source of your choice would deal damage to you this turn, prevent that damage. You gain life equal to the damage prevented this way.
-= BROKE at "prevented" after: {1} {W} {W} , {T} , discard a card : the next time a source of your choice would deal damage to you this turn , prevent that damage . you gain life equal to the damage
+= Activated { cost: [Mana(Mana(["1", "W", "W"])), Tap, Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], effect: [NextTime { event: DealsDamageTo { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Source), posts: [ChosenBy(You)], or: None } }, to: [Player(You)] }, dur: ThisTurn, then: [PreventThatDamage] }, GainLife { who: You, n: DamagePrevented }], limits: [] }
 
 ## Chub Toad
 face: Chub Toad

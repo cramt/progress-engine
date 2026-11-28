@@ -276,7 +276,7 @@ type: Legendary Creature — Zombie Wizard
 cost: {3}{U}{B}
 > If damage would be dealt to Dralnu, sacrifice that many permanents instead.
 > {T}: Target instant or sorcery card in your graveyard gains flashback until end of turn. The flashback cost is equal to its mana cost. (You may cast that card from your graveyard for its flashback cost. Then exile it.)
-= BROKE at "," after: if damage would be dealt to ~
+= Static([Replacement { event: DealsDamageTo { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Source), posts: [], or: None } }, to: [Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, instead: [Sacrifice { who: You, what: Objects { quant: N(ThatMany), filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } } }] }])
 = Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }], ability: Activated { cost: [Tap], effect: [Modify { what: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "flashback", param: None }], dur: UntilEndOfTurn }, KeywordCostIs { keyword: "flashback", cost: [ManaCostOf(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] } }
 
 ## Duskshell Crawler

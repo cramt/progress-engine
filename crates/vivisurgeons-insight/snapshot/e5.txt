@@ -622,7 +622,7 @@ cost: {X}{R}{R}
 > This creature enters with X +1/+1 counters on it.
 > If damage would be dealt to this creature while it has a +1/+1 counter on it, prevent that damage and remove that many +1/+1 counters from it. When one or more counters are removed from this creature this way, it deals that much damage to any target.
 = Static([EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: X, kind: "+1/+1" }])
-= BROKE at "creature" after: if damage would be dealt to this
+= BROKE at "one" after: if damage would be dealt to this creature while it has a <pt> counter on it , prevent that damage and remove that many <pt> counters from it . when
 
 ## Master's Guidance
 face: Master's Guidance

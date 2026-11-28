@@ -192,7 +192,7 @@ type: Enchantment
 cost: {3}{W}
 > If damage would be dealt to you, put that many delay counters on this enchantment instead.
 > At the beginning of your upkeep, remove all delay counters from this enchantment. For each delay counter removed this way, you lose 1 life unless you pay {1}{W}.
-= BROKE at "," after: if damage would be dealt to you
+= Static([Replacement { event: DealsDamageTo { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Source), posts: [], or: None } }, to: [Player(You)] }, instead: [PutCounters { n: ThatMany, kind: "delay", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }])
 = Triggered { trigger: At(Upkeep(Yours)), effect: [RemoveAllCountersOf { kind: "delay", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("delay"))), posts: [Marked(Removed)], or: None } }, then: [Unless { effect: LoseLife { who: You, n: N(1) }, who: You, cost: [Mana(Mana(["1", "W"]))] }] }], limits: [] }
 
 ## Descent of the Dragons
@@ -633,7 +633,7 @@ cost: {2}{G}
 > This creature enters with two +1/+1 counters on it.
 > If damage would be dealt to this creature, prevent that damage. Remove a +1/+1 counter from this creature.
 = Static([EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(2), kind: "+1/+1" }])
-= BROKE at "creature" after: if damage would be dealt to this
+= Static([Replacement { event: DealsDamageTo { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Source), posts: [], or: None } }, to: [Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, instead: [PreventThatDamage, RemoveCounters { n: N(1), kind: "+1/+1", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }])
 
 ## Phyrexian Processor
 face: Phyrexian Processor

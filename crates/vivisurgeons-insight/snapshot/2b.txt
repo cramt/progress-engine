@@ -1019,7 +1019,7 @@ cost: {2}{R}{G}
 > If damage would be dealt to Wolverine, instead that damage is dealt, but all other damage already dealt to him is healed.
 = Keywords([Keyword { name: "haste", param: None }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Fight { a: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, b: Objects { quant: OtherTarget { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], limits: [] }
-= BROKE at "," after: if damage would be dealt to ~
+= BROKE at "is" after: if damage would be dealt to ~ , instead that damage
 
 ## Wort, the Raidmother
 face: Wort, the Raidmother

@@ -169,6 +169,8 @@ pub(super) fn rounded(p: &mut P) -> Option<bool> {
 
 fn measure_bare(p: &mut P) -> Option<Amount> {
     alt!(p;
+        // "You gain life equal to the damage prevented this way" (Purity).
+        |p| p.words("the damage prevented this way").map(|_| Amount::DamagePrevented),
         |p| p.words("the number of cards you've drawn this turn").map(|_| Amount::CardsDrawnThisTurn(Player::You)),
         |p| { p.words("the number of differently named")?; objects(p).map(|o| Amount::DifferentlyNamed(Box::new(o))) },
         // "half the number of cards in your library, rounded up".

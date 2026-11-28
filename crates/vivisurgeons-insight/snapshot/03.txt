@@ -651,7 +651,7 @@ cost: {B}{B}{B}{B}
 > If damage would be dealt to you, exile that many cards from your graveyard instead. If you can't, you lose the game.
 > If you would gain life, draw that many cards instead.
 > When this enchantment leaves the battlefield, you lose the game.
-= BROKE at "," after: if damage would be dealt to you
+= BROKE at "." after: if damage would be dealt to you , exile that many cards from your graveyard instead . if you can't , you lose the game
 = Static([Replacement { event: GainsLife(You), instead: [Draw { who: You, n: ThatMany }] }])
 = Triggered { trigger: When(Leaves { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: Battlefield }), effect: [LoseGame(You)], limits: [] }
 

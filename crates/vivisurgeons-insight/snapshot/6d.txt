@@ -471,7 +471,7 @@ cost: {3}{G}{G}
 > Infect (This creature deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)
 > If damage would be dealt to this creature, prevent that damage. Put a -1/-1 counter on this creature for each 1 damage prevented this way.
 = Keywords([Keyword { name: "infect", param: None }])
-= BROKE at "creature" after: if damage would be dealt to this
+= Static([Replacement { event: DealsDamageTo { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Source), posts: [], or: None } }, to: [Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, instead: [PreventThatDamage, Repeat { times: DamagePrevented, then: [PutCounters { n: N(1), kind: "-1/-1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }] }])
 
 ## Pillage
 face: Pillage
