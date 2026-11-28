@@ -3378,4 +3378,32 @@ mod round_nine_d {
         );
         assert!(!bare.contains("Reveals"), "{bare}");
     }
+
+    #[test]
+    fn revealed_a_dragon_as_you_cast_this_spell() {
+        let read = |text: &str| {
+            let face = Face {
+                name: "Some Card",
+                type_line: "Instant",
+                text,
+            };
+            format!(
+                "{:?}",
+                read_face(&face, "Some Card")
+                    .iter()
+                    .map(|l| l.parsed.as_ref().ok())
+                    .collect::<Vec<_>>()
+            )
+        };
+        let scorn = read("Counter target spell unless its controller pays {1}. If you revealed a Dragon card or controlled a Dragon as you cast this spell, counter that spell instead.");
+        assert!(
+            scorn.contains("cond: AsYouCastIt(Or([ThisWay(Reveals { who: You"),
+            "{scorn}"
+        );
+        // "that spell" is the target, never the revealed card.
+        assert!(!scorn.contains("With {"), "{scorn}");
+        // [revealed-as-you-cast]: only said of the cast.
+        let bare = read("If you revealed a Dragon card or controlled a Dragon, draw a card.");
+        assert!(!bare.contains("Reveals"), "{bare}");
+    }
 }

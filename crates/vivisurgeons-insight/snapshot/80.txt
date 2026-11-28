@@ -862,7 +862,7 @@ cost: {U}{U}
 > As an additional cost to cast this spell, you may reveal a Dragon card from your hand.
 > Counter target spell unless its controller pays {1}. If you revealed a Dragon card or controlled a Dragon as you cast this spell, counter that spell instead.
 = Static([OptionalAdditionalCost([Reveal(Objects { quant: One, filter: Filter { alts: [[Subtype("dragon")]], kind: Some(Card), posts: [In(Hand(You))], or: None } })])])
-= BROKE at "a" after: counter target spell unless its controller pays {1} . if you revealed a dragon card or controlled
+= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }], ability: Spell([Counter { what: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, unless: Some((ControllerOf(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), [Mana(Mana(["1"]))])) }, Instead { cond: AsYouCastIt(Or([ThisWay(Reveals { who: You, what: Objects { quant: One, filter: Filter { alts: [[Subtype("dragon")]], kind: Some(Card), posts: [], or: None } } }), Past(YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("dragon")]], kind: None, posts: [], or: None } }))])), then: [Counter { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }] }]) }
 
 ## Skulking Fugitive
 face: Skulking Fugitive

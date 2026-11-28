@@ -394,7 +394,7 @@ cost: {2}{B}
 > As an additional cost to cast this spell, you may reveal a Dragon card from your hand.
 > Target player sacrifices a creature of their choice. If you revealed a Dragon card or controlled a Dragon as you cast this spell, you gain 4 life.
 = Static([OptionalAdditionalCost([Reveal(Objects { quant: One, filter: Filter { alts: [[Subtype("dragon")]], kind: Some(Card), posts: [In(Hand(You))], or: None } })])])
-= BROKE at "a" after: target player sacrifices a creature of their choice . if you revealed a dragon card or controlled
+= Spell([Sacrifice { who: Target, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }, If { order: Leading, cond: AsYouCastIt(Or([ThisWay(Reveals { who: You, what: Objects { quant: One, filter: Filter { alts: [[Subtype("dragon")]], kind: Some(Card), posts: [], or: None } } }), Past(YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("dragon")]], kind: None, posts: [], or: None } }))])), then: [GainLife { who: You, n: N(4) }] }])
 
 ## Fractalize
 face: Fractalize

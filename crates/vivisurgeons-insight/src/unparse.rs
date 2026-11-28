@@ -13403,6 +13403,27 @@ fn condition_said(o: &mut Out, c: &Condition) {
             player(o, than);
         }
         Condition::AsYouCastIt(c) => {
+            // "you revealed a Dragon card or controlled a Dragon as you
+            // cast this spell": the cast is the way ([revealed-as-you-cast]).
+            if let Condition::Or(v) = &**c {
+                if let [Condition::ThisWay(e), Condition::Past(had)] = &v[..] {
+                    if let (
+                        Event::Reveals {
+                            who: Player::You,
+                            what,
+                        },
+                        Condition::YouControl(y),
+                    ) = (&**e, &**had)
+                    {
+                        o.w("you revealed");
+                        objects(o, what);
+                        o.w("or controlled");
+                        objects(o, y);
+                        o.w("as you cast this spell");
+                        return;
+                    }
+                }
+            }
             condition(o, c);
             o.w("as you cast this spell");
         }

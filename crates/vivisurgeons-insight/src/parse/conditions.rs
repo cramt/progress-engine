@@ -85,6 +85,24 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             Some(Condition::GetsMoreVotes(option))
         },
         |p| p.words("the vote is tied").map(|_| Condition::VoteTied),
+        // "If you revealed a Dragon card or controlled a Dragon as you cast
+        // this spell" (Draconic Roar): the reveal is the spell's own
+        // additional cost, the way "as you cast this spell" names
+        // ([revealed-as-you-cast]); `condition` wraps the pair in
+        // `AsYouCastIt`.
+        |p| {
+            p.words("you revealed")?;
+            let what = objects(p)?;
+            p.words("or controlled")?;
+            let control = objects(p)?;
+            let at = p.i;
+            p.words("as you cast this spell")?;
+            p.i = at;
+            Some(Condition::Or(vec![
+                Condition::ThisWay(Box::new(Event::Reveals { who: Player::You, what })),
+                Condition::Past(Box::new(Condition::YouControl(control))),
+            ]))
+        },
         |p| {
             let who = alt!(p;
                 |p| p.word("they're").map(|_| Player::That),

@@ -345,7 +345,11 @@ struct Collect {
     trigger_ors: usize,
 }
 
-const EXISTENTIAL: [&str; 18] = [
+const EXISTENTIAL: [&str; 19] = [
+    // "If you revealed a Dragon card or controlled a Dragon as you cast
+    // this spell" (Silumgar's Scorn): what was so as it was cast is a
+    // description, never an object a later "that spell" names.
+    "AsYouCastIt",
     "YouControl",
     "YouDontControl",
     "PlayerControls",

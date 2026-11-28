@@ -654,7 +654,7 @@ cost: {1}{W}
 > When this creature enters, if you revealed a Dragon card or controlled a Dragon as you cast this spell, draw a card.
 = Static([OptionalAdditionalCost([Reveal(Objects { quant: One, filter: Filter { alts: [[Subtype("dragon")]], kind: Some(Card), posts: [In(Hand(You))], or: None } })])])
 = Keywords([Keyword { name: "defender", param: None }, Keyword { name: "flying", param: None }])
-= BROKE at "a" after: when this creature enters , if you revealed a dragon card or controlled
+= Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), AsYouCastIt(Or([ThisWay(Reveals { who: You, what: Objects { quant: One, filter: Filter { alts: [[Subtype("dragon")]], kind: Some(Card), posts: [], or: None } } }), Past(YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("dragon")]], kind: None, posts: [], or: None } }))]))), effect: [Draw { who: You, n: N(1) }], limits: [] }
 
 ## Orzhov Cluestone
 face: Orzhov Cluestone
