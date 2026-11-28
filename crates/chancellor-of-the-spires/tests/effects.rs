@@ -130,6 +130,15 @@ fn invented(name: &str) -> Option<CardText> {
         ),
         // Undying on a noncreature, which no "dies" sees.
         "Undying Idol" => ("Artifact", "{1}", "Undying", Vec::new(), None),
+        // Sanctum Weaver's mana in any combination of colors, which the
+        // engine doesn't add: its ability dormant, not the card refused.
+        "Combining Weaver" => (
+            "Enchantment Creature — Dryad",
+            "{1}{G}",
+            "{T}: Add X mana in any combination of colors, where X is the number of enchantments you control.",
+            vec![Color::Green],
+            Some(pt(1, 1)),
+        ),
         _ => return None,
     };
     Some(CardText {
@@ -10381,4 +10390,86 @@ fn additional_costs_the_game_can_t_pay_are_refused() {
         node("As an additional cost to cast this spell, pay {1}.\nThis spell deals 3 damage to any target."),
         "an additional cost of mana"
     );
+}
+
+/// CR 106.1a, 107.3, 605.3b: with two Sanctum Weavers on my
+/// battlefield, an enchantment each, and four Forests, which aren't, a
+/// Weaver taps for X = 2 mana of any one color: one way for each color,
+/// all of it that color.
+#[test]
+fn sanctum_weaver_adds_one_color_for_each_enchantment() {
+    let mut game = deal(
+        &[("Forest", 40), ("Sanctum Weaver", 20)],
+        &[("Plains", 60)],
+        &[("Forest", 4), ("Sanctum Weaver", 2)],
+    );
+    play(&mut game, "Forest");
+    for turn in 1..4 {
+        my_next_main(&mut game);
+        play(&mut game, "Forest");
+        if turn < 3 {
+            cast(&mut game, "Sanctum Weaver", None);
+            resolve(&mut game);
+        }
+    }
+    let weavers: Vec<_> = game
+        .permanents()
+        .iter()
+        .filter(|(_, p)| {
+            game.card(p.card)
+                .is_some_and(|t| t.name == "Sanctum Weaver")
+        })
+        .map(|(id, _)| *id)
+        .collect();
+    assert_eq!(weavers.len(), 2);
+    let Decision::Priority { actions, .. } = game.decision() else {
+        panic!("{:?}", game.decision())
+    };
+    let mut adds: Vec<ManaPool> = actions
+        .iter()
+        .filter_map(|a| match a {
+            Action::Mana(m) if m.source == weavers[0] => Some(m.adds),
+            _ => None,
+        })
+        .collect();
+    adds.sort_by_key(|p| format!("{p}"));
+    let mut want: Vec<ManaPool> = [
+        Color::White,
+        Color::Blue,
+        Color::Black,
+        Color::Red,
+        Color::Green,
+    ]
+    .into_iter()
+    .map(|c| ManaPool::of([Mana::of_color(c), Mana::of_color(c)]))
+    .collect();
+    want.sort_by_key(|p| format!("{p}"));
+    assert_eq!(adds, want);
+}
+
+/// Mana "where X is" a count in another shape than Sanctum Weaver's, in
+/// any combination of colors, is no mana ability the engine adds: the card
+/// still runs, that ability never offered.
+#[test]
+fn another_where_x_mana_ability_is_left_dormant() {
+    let mut game = deal(
+        &[("Forest", 40), ("Combining Weaver", 20)],
+        &[("Plains", 60)],
+        &[("Forest", 2), ("Combining Weaver", 1)],
+    );
+    let c = in_hand(&game, ME, "Combining Weaver").unwrap();
+    assert!(game.refusal(c).is_none(), "{:?}", game.refusal(c));
+    play(&mut game, "Forest");
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    cast(&mut game, "Combining Weaver", None);
+    resolve(&mut game);
+    my_next_main(&mut game);
+    let weaver = creature(&game, "Combining Weaver").unwrap();
+    let Decision::Priority { actions, .. } = game.decision() else {
+        panic!("{:?}", game.decision())
+    };
+    assert!(!actions
+        .iter()
+        .any(|a| matches!(a, Action::Mana(m) if m.source == weaver)));
 }

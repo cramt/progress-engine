@@ -4101,3 +4101,73 @@ fn squee_returned_with_no_trigger_is_unfollowed() {
         r.end
     );
 }
+
+/// An Elf that taps for one color of mana for each enchantment, as no
+/// printed Elf does: Sanctum Weaver's text.
+fn elvish_weaver() -> CardText {
+    CardText {
+        pt: Some(chancellor_of_the_spires::model::pt(1, 1)),
+        ..face(
+            "Elvish Weaver",
+            "Enchantment Creature — Elf",
+            "{1}{G}",
+            "{T}: Add X mana of any one color, where X is the number of enchantments you control.",
+            &[Color::Green],
+        )
+    }
+}
+
+/// Wirewood Symbiote returns a permanent that the Weaver counts, itself.
+/// So the Weaver would be tapped first, with its mana floating, but in
+/// which color no line says: refused by name, not tapped for its first
+/// color.
+#[test]
+fn a_counting_source_of_several_colors_tapped_before_a_return_is_refused() {
+    let (_, r) = run_with(
+        "
+        alice chooses to play first.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Forest].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Island].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Forest].
+        alice casts [Elvish Weaver].
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Island].
+        Turn 3: alice
+        alice draws a card.
+        alice plays [Forest].
+        alice casts [Wirewood Symbiote].
+        Turn 3: bob
+        bob draws a card.
+        bob plays [Island].
+        Turn 4: alice
+        alice draws a card.
+        alice returns [Elvish Weaver] to its owner's hand with with [Wirewood Symbiote]'s ability.
+        alice activates an ability of [Wirewood Symbiote] targeting [Wirewood Symbiote] (Untap target creature).
+        Turn 4: bob
+        bob draws a card.
+        bob has conceded from the game.
+        alice wins the game.
+        Winner: alice
+    ",
+        &mut |n| match n {
+            "Elvish Weaver" => Some(elvish_weaver()),
+            n => cards(n),
+        },
+        &[],
+    );
+    let End::Stopped { stop, .. } = &r.end else {
+        panic!("{:?} {:#?}", r.end, r.trace)
+    };
+    assert!(
+        matches!(stop, Stop::Refused { card, node, .. }
+            if card == "Elvish Weaver" && node.contains("of one of several colors")),
+        "{stop:?}"
+    );
+}

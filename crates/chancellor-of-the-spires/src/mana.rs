@@ -381,11 +381,13 @@ pub enum Adds {
     /// "Add one mana of any color in your commander's color identity" (CR
     /// 903.4): none if you have no commander (CR 903.4f).
     CommanderIdentity,
-    /// "Add {G} for each creature you control": `each` once per permanent
-    /// the filter matches, counted as the ability resolves (CR 608.2h),
-    /// which for a mana ability is as it is activated (CR 605.3b). The
-    /// filter is read from the source, so "you" is its controller.
-    ForEach { each: ManaPool, filter: Filter },
+    /// "Add {G} for each creature you control", "Add X mana of any one
+    /// color, where X is the number of enchantments you control": one of
+    /// `each`, chosen as it is activated, once per permanent the filter
+    /// matches, counted as the ability resolves (CR 608.2h), which for a
+    /// mana ability is as it is activated (CR 605.3b). The filter is read
+    /// from the source, so "you" is its controller.
+    ForEach { each: Vec<ManaPool>, filter: Filter },
 }
 
 /// An activated mana ability the engine can run (CR 605.1a): its cost is
@@ -472,22 +474,17 @@ impl ManaAbility {
             Adds::Options(o) => o.clone(),
             Adds::ForEach { each, filter } => {
                 let n = count(filter);
-                let mut pool = ManaPool::default();
-                for _ in 0..n {
-                    pool.add_all(each);
-                }
-                vec![pool]
+                each.iter()
+                    .map(|one| {
+                        let mut pool = ManaPool::default();
+                        for _ in 0..n {
+                            pool.add_all(one);
+                        }
+                        pool
+                    })
+                    .collect()
             }
-            Adds::AnyColor => [
-                Color::White,
-                Color::Blue,
-                Color::Black,
-                Color::Red,
-                Color::Green,
-            ]
-            .into_iter()
-            .map(|c| ManaPool::of([Mana::of_color(c)]))
-            .collect(),
+            Adds::AnyColor => one_of_each_color(1),
             Adds::CommanderIdentity => identity
                 .unwrap_or(&[])
                 .iter()
@@ -513,6 +510,20 @@ pub fn mana_ability(a: &i::Ability) -> Option<Result<ManaAbility, String>> {
     let adds_mana = |e: &i::Effect| match e {
         i::Effect::AddMana(_) => true,
         i::Effect::ForEach { then, .. } => matches!(then.as_slice(), [i::Effect::AddMana(_)]),
+        // Only the one shape lowered below: any other "where X is" mana
+        // is carried and never offered, as it was, rather than refusing
+        // the whole card.
+        i::Effect::Where {
+            then,
+            x: i::Amount::CountOf(_),
+        } => matches!(
+            then.as_slice(),
+            [i::Effect::AddMana(i::ManaAdd::Of {
+                n: i::Amount::X,
+                pick: i::Pick::AnyOneColor,
+                within: None,
+            })]
+        ),
         _ => false,
     };
     if !effect.iter().any(adds_mana) {
@@ -618,12 +629,30 @@ fn lower_mana_ability(
         i::Effect::ForEach { each, then, .. } => match then.as_slice() {
             [i::Effect::AddMana(add)] => match adds(add)? {
                 Adds::Options(o) if o.len() == 1 => Adds::ForEach {
-                    each: o[0],
+                    each: o,
                     filter: lower::counted(each)?,
                 },
                 _ => return Err("adding a choice of mana for each".into()),
             },
             _ => return Err("a mana ability doing more for each".into()),
+        },
+        // "Add X mana of any one color, where X is the number of
+        // enchantments you control" (Sanctum Weaver): the one color is
+        // one of the five (CR 106.1a), chosen for all of it, and X is what
+        // the text defines (CR 107.3).
+        i::Effect::Where {
+            then,
+            x: i::Amount::CountOf(counted),
+        } => match then.as_slice() {
+            [i::Effect::AddMana(i::ManaAdd::Of {
+                n: i::Amount::X,
+                pick: i::Pick::AnyOneColor,
+                within: None,
+            })] => Adds::ForEach {
+                each: one_of_each_color(1),
+                filter: lower::counted(counted)?,
+            },
+            _ => return Err("a mana ability doing more where X is a count".into()),
         },
         other => return Err(format!("a mana ability that does {} first", short(other))),
     };
@@ -731,20 +760,23 @@ pub(crate) fn adds(add: &i::ManaAdd) -> Result<Adds, String> {
             n: i::Amount::N(n),
             pick: i::Pick::AnyOneColor,
             within: None,
-        } => Adds::Options(
-            [
-                Color::White,
-                Color::Blue,
-                Color::Black,
-                Color::Red,
-                Color::Green,
-            ]
-            .into_iter()
-            .map(|c| ManaPool::of(std::iter::repeat_n(Mana::of_color(c), *n as usize)))
-            .collect(),
-        ),
+        } => Adds::Options(one_of_each_color(*n)),
         other => return Err(format!("adding mana by {}", short(other))),
     })
+}
+
+/// `n` mana of one color, for each of the five (CR 106.1a).
+fn one_of_each_color(n: u32) -> Vec<ManaPool> {
+    [
+        Color::White,
+        Color::Blue,
+        Color::Black,
+        Color::Red,
+        Color::Green,
+    ]
+    .into_iter()
+    .map(|c| ManaPool::of(std::iter::repeat_n(Mana::of_color(c), n as usize)))
+    .collect()
 }
 
 pub(crate) fn short(node: &dyn fmt::Debug) -> String {

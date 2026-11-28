@@ -1488,7 +1488,12 @@ one face down paying none, an alternative moving what the additional
 cost moves too left dormant and an additional cost of mana, a second one
 or one on a card cast for free refused by name (CR 118.8, 601.2f,
 601.2h, 118.9d, 702.37c: Reckless Abandon and Shard Volley, whose 6 games
-go on, 3 to the end).
+go on, 3 to the end); and "add X mana of any one color, where X is" a
+count, one way for each color, all X of it that one, any other "where X
+is" mana left unoffered, and a source like it never tapped first in a
+color no line names before a cost returns what it counts (CR 106.1a,
+107.3, 605.3b: Sanctum Weaver, which lets Phyrexian Obliterator's game
+961760048 past Solitary Confinement).
 And
 the replay's inferences: a card played or cast while its player may
 play cards from exile taken from there before the hand, the hand the

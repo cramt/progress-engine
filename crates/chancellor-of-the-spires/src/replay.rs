@@ -3857,7 +3857,7 @@ impl Driver<'_> {
             })
             .map(|(o, _)| *o)
             .collect();
-        let mut taps: Vec<ManaActivation> = actions
+        let taps: Vec<ManaActivation> = actions
             .iter()
             .filter_map(|a| match a {
                 // Not one that sacrifices or taps others: that costs
@@ -3873,9 +3873,29 @@ impl Driver<'_> {
             })
             .collect();
         // One tap per source, its first way: a source whose ability
-        // counts adds one pool (`Adds::ForEach`).
+        // counts adds one pool (`Adds::ForEach`), however its own cost is
+        // paid; unless it adds one of several, a color the log never
+        // names (Sanctum Weaver), which no line here says.
+        let mut adds: BTreeMap<ObjectId, BTreeSet<String>> = BTreeMap::new();
+        for m in &taps {
+            adds.entry(m.source).or_default().insert(m.adds.to_string());
+        }
+        if let Some(m) = taps.iter().find(|m| adds[&m.source].len() > 1) {
+            let name = game
+                .permanents()
+                .get(&m.source)
+                .and_then(|perm| game.card(perm.card))
+                .map_or_else(|| format!("#{}", m.source.0), |t| t.name.clone());
+            return Err(Stop::Refused {
+                card: name,
+                node: "a mana ability counting a returned permanent, of one of several colors"
+                    .into(),
+                why: "tapped first, its color is one no line names".into(),
+            });
+        }
         let mut seen = BTreeSet::new();
-        taps.retain(|m| seen.insert(m.source));
+        let taps: Vec<ManaActivation> =
+            taps.into_iter().filter(|m| seen.insert(m.source)).collect();
         if taps.is_empty() || self.untapped == Some(i) {
             return Ok(());
         }
