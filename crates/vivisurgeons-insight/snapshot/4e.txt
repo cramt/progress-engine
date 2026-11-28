@@ -3,7 +3,7 @@ face: Awe Strike
 type: Instant
 cost: {W}
 > The next time target creature would deal damage this turn, prevent that damage. You gain life equal to the damage prevented this way.
-= Spell([NextTime { event: DealsDamage(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), dur: ThisTurn, then: [PreventThatDamage] }, GainLife { who: You, n: DamagePrevented }])
+= Spell([NextTime { event: DealsDamage(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), dur: ThisTurn, then: [PreventThatDamage, GainLife { who: You, n: DamagePrevented }] }])
 
 ## Bag End Banquet
 face: Bag End Banquet

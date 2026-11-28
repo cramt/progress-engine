@@ -456,7 +456,7 @@ type: Instant
 cost: {0}
 > The next time a source of your choice would deal damage to you this turn, prevent that damage. You gain life equal to the damage prevented this way.
 > At the beginning of your next upkeep, pay {1}{W}{W}. If you don't, you lose the game.
-= Spell([NextTime { event: DealsDamageTo { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Source), posts: [ChosenBy(You)], or: None } }, to: [Player(You)] }, dur: ThisTurn, then: [PreventThatDamage] }, GainLife { who: You, n: DamagePrevented }])
+= Spell([NextTime { event: DealsDamageTo { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Source), posts: [ChosenBy(You)], or: None } }, to: [Player(You)] }, dur: ThisTurn, then: [PreventThatDamage, GainLife { who: You, n: DamagePrevented }] }])
 = Spell([Delayed { step: Upkeep(YourNext), then: [Pay { who: You, cost: [Mana(Mana(["1", "W", "W"]))] }, IfYouDont([LoseGame(You)])] }])
 
 ## Karona, False God

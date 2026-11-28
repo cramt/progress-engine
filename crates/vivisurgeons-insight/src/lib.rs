@@ -3280,4 +3280,41 @@ mod round_nine_d {
         let cond = read("If damage would be dealt to this creature, prevent that damage. If it's your turn, draw a card.");
         assert!(!cond.contains("PreventThatDamage, "), "{cond}");
     }
+
+    #[test]
+    fn a_spell_shield_does_its_rest_each_time_it_prevents() {
+        let read = |text: &str| {
+            let face = Face {
+                name: "Some Card",
+                type_line: "Instant",
+                text,
+            };
+            format!(
+                "{:?}",
+                read_face_unresolved(&face, "Some Card")
+                    .iter()
+                    .map(|l| l.parsed.as_ref().ok())
+                    .collect::<Vec<_>>()
+            )
+        };
+        let glow = read("Prevent the next 3 damage that would be dealt to any target this turn. You gain life equal to the damage prevented this way.");
+        assert!(
+            glow.contains("dur: ThisTurn, then: [GainLife { who: You, n: DamagePrevented }] }"),
+            "{glow}"
+        );
+        let next = read("The next time a source of your choice would deal damage to you this turn, prevent that damage. You gain life equal to the damage prevented this way.");
+        assert!(
+            next.contains("then: [PreventThatDamage, GainLife { who: You, n: DamagePrevented }] }"),
+            "{next}"
+        );
+        // [prevention-rest]: a delayed trigger that counts the damage
+        // later is set up at resolution, not done by the shield.
+        let later = read("Prevent the next 3 damage that would be dealt to target creature this turn. At the beginning of the next end step, put a +1/+1 counter on that creature for each 1 damage prevented this way.");
+        assert!(later.contains("then: [] }, Delayed"), "{later}");
+        // A sentence that doesn't count the damage prevented is the spell's.
+        let draw = read(
+            "Prevent the next 3 damage that would be dealt to any target this turn. Draw a card.",
+        );
+        assert!(draw.contains("then: [] }, Draw"), "{draw}");
+    }
 }

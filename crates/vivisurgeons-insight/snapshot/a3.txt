@@ -97,7 +97,7 @@ type: Instant — Arcane
 cost: {1}{W}
 > Prevent the next 3 damage that would be dealt to any target this turn. You gain life equal to the damage prevented this way.
 > Splice onto Arcane {1}{W} (As you cast an Arcane spell, you may reveal this card from your hand and pay its splice cost. If you do, add this card's effects to that spell.)
-= Spell([Prevent { combat_only: false, n: Some(N(3)), to: Some([Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn, then: [] }, GainLife { who: You, n: DamagePrevented }])
+= Spell([Prevent { combat_only: false, n: Some(N(3)), to: Some([Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn, then: [GainLife { who: You, n: DamagePrevented }] }])
 = Keywords([Keyword { name: "splice", param: Some(Splice { onto: Filter { alts: [[Subtype("arcane")]], kind: None, posts: [], or: None }, cost: [Mana(Mana(["1", "W"]))] }) }])
 
 ## Choice of Damnations

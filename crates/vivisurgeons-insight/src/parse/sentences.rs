@@ -1807,6 +1807,17 @@ pub fn effects(p: &mut P) -> Option<Vec<Effect>> {
                 continue;
             }
         }
+        // "Prevent the next 3 damage that would be dealt to any target this
+        // turn. You gain life equal to the damage prevented this way"
+        // (Candles' Glow): the gain happens right after each time the
+        // shield prevents damage (CR 615.5), never at resolution, so the
+        // sentence is the shield's own ([prevention-rest]).
+        if reads_prevented(&s) {
+            if let Some(then) = v.last_mut().and_then(shield_rest) {
+                then.extend(s);
+                continue;
+            }
+        }
         let reflexive = matches!(
             v.last(),
             Some(Effect::WhenYouDo(_) | Effect::WhenYouDoIf { .. })
@@ -2162,6 +2173,52 @@ fn says_x(es: &[Effect]) -> bool {
         e.clone().walk(&mut x);
     }
     x.0
+}
+
+/// Whether effects count "the damage prevented this way" outside a delayed
+/// trigger: "At the beginning of the next end step, put a +0/+1 counter on
+/// that permanent for each 1 damage prevented this way" (Sacred Boon) is
+/// set up at resolution and counts later, so it is not the shield's own.
+fn reads_prevented(es: &[Effect]) -> bool {
+    #[derive(Default)]
+    struct D {
+        reads: bool,
+        delayed: bool,
+    }
+    impl Visitor for D {
+        fn enter(&mut self, _: &mut Objects) -> bool {
+            true
+        }
+        fn amount(&mut self, a: &mut Amount) {
+            self.reads |= *a == Amount::DamagePrevented;
+        }
+        // "If it's a creature, put a +0/+1 counter on it for each 1
+        // damage prevented this way at the beginning of the next end
+        // step" (Scars of the Veteran): a delayed trigger anywhere in the
+        // sentence.
+        fn effect(&mut self, e: &mut Effect) {
+            self.delayed |= matches!(e, Effect::Delayed { .. });
+        }
+    }
+    let mut d = D::default();
+    for e in es {
+        e.clone().walk(&mut d);
+    }
+    d.reads && !d.delayed
+}
+
+/// The additional effects of a prevention shield (CR 615.5): a spell's
+/// `Prevent`, or a `NextTime` that prevents the damage, also under the
+/// binder of "a source of your choice".
+fn shield_rest(e: &mut Effect) -> Option<&mut Vec<Effect>> {
+    match e {
+        Effect::Prevent { then, .. } => Some(then),
+        Effect::NextTime { then, .. } if then.first() == Some(&Effect::PreventThatDamage) => {
+            Some(then)
+        }
+        Effect::With { then, .. } => then.last_mut().and_then(shield_rest),
+        _ => None,
+    }
 }
 
 /// Whether an effect says "repeat this process", in any branch.
