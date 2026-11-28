@@ -12,6 +12,35 @@ pub(super) fn static_sentence(p: &mut P) -> Option<Vec<Static>> {
     }) {
         return Some(s);
     }
+    // "Your opponents can't block with creatures with even mana values"
+    // (Void Winnower, [cant-block-with]): a player blocks or attacks only
+    // with creatures they control, so the rule is those creatures'.
+    if let Some(s) = p.attempt(|p| {
+        let who = player(p)?;
+        if !matches!(who, Player::You | Player::Each | Player::EachOpponent) {
+            return None;
+        }
+        p.word("can't")?;
+        let rule = alt!(p;
+            |p| p.words("block with").map(|_| Restriction::CantBlock),
+            |p| p.words("attack with").map(|_| Restriction::CantAttack),
+        )?;
+        let mut what = objects(p)?;
+        if what.quant != Quant::Plural
+            || what
+                .filter
+                .posts
+                .iter()
+                .any(|p| matches!(p, Post::Controller(_)))
+        {
+            return None;
+        }
+        p.end_sentence()?;
+        what.filter.posts.push(Post::Controller(who));
+        Some(vec![Static::Restrict { what, rule }])
+    }) {
+        return Some(s);
+    }
     // "As this land enters, you may pay 2 life. If you don't, it enters
     // tapped." runs over several sentences, so it reads its own periods.
     if let Some(s) = p.attempt(|p| {

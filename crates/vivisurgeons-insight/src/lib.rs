@@ -2894,4 +2894,36 @@ mod round_nine_d {
             "{s}"
         );
     }
+
+    #[test]
+    fn a_player_cant_block_with_a_group_it_controls() {
+        let s = format!(
+            "{:?}",
+            read(
+                "Creature — Eldrazi",
+                "Your opponents can't block with creatures with even mana values."
+            )
+        );
+        assert!(
+            s.contains("Controller(EachOpponent)") && s.contains("rule: CantBlock"),
+            "{s}"
+        );
+    }
+
+    #[test]
+    fn cant_block_with_one_creature_is_not_read() {
+        let face = Face {
+            name: "Some Card",
+            type_line: "Enchantment",
+            text: "Your opponents can't block with this creature.",
+        };
+        let s = format!(
+            "{:?}",
+            read_face_unresolved(&face, "Some Card")
+                .iter()
+                .map(|l| l.parsed.as_ref().ok())
+                .collect::<Vec<_>>()
+        );
+        assert!(!s.contains("CantBlock"), "{s}");
+    }
 }

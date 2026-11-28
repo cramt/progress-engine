@@ -1309,6 +1309,15 @@ mod syn {
         alt(o, vec![named, they]);
     }
 
+    /// Named rewrite [cant-block-with]: "your opponents can't block with
+    /// creatures with even mana values" (Void Winnower) is "creatures with
+    /// even mana values your opponents control can't block": a player
+    /// blocks (CR 509.1a) and attacks (CR 508.1a) only with creatures they
+    /// control.
+    pub fn block_with(o: &mut Out, held: Out, by: Out) {
+        alt(o, vec![held, by]);
+    }
+
     /// Named rewrite [rather-than-paying]: "rather than paying its mana
     /// cost" (Nashi, Moon Sage's Scion) is "rather than pay its mana cost"
     /// (Inside Information): the same alternative cost (CR 118.9).
@@ -14539,6 +14548,39 @@ fn static_full(o: &mut Out, s: &Static) {
             o.w("you may choose not to untap");
             objects(o, what);
             o.w("during your untap step");
+            return;
+        }
+        // "Your opponents can't block with creatures with even mana values"
+        // ([cant-block-with]): the creatures that player controls can't block.
+        Static::Restrict {
+            rule: rule @ (Restriction::CantBlock | Restriction::CantAttack),
+            what,
+        } if what.quant == Quant::Plural
+            && matches!(
+                what.filter.posts.last(),
+                Some(Post::Controller(
+                    Player::You | Player::Each | Player::EachOpponent
+                ))
+            ) =>
+        {
+            let mut with = what.clone();
+            let Some(Post::Controller(who)) = with.filter.posts.pop() else {
+                unreachable!()
+            };
+            let held = out(|o| {
+                objects(o, what);
+                static_predicate(o, s);
+            });
+            let by = out(|o| {
+                player(o, &who);
+                o.w(if *rule == Restriction::CantBlock {
+                    "can't block with"
+                } else {
+                    "can't attack with"
+                });
+                objects(o, &with);
+            });
+            syn::block_with(o, held, by);
             return;
         }
         _ => {}
