@@ -72,6 +72,14 @@ fn drum_elf() -> CardText {
 /// Cards no printed card is, for a branch only they reach.
 fn invented(name: &str) -> Option<CardText> {
     let (type_line, mana_cost, oracle, colors, power) = match name {
+        // Overrun for one mana.
+        "Quick Overrun" => (
+            "Sorcery",
+            "{R}",
+            "Creatures you control get +3/+3 and gain trample until end of turn.",
+            vec![Color::Red],
+            None,
+        ),
         // A card back from the graveyard at instant speed.
         "Grave Churn" => (
             "Instant",
@@ -6931,6 +6939,47 @@ fn red_elemental_blast_offers_only_a_mode_with_a_legal_target() {
     }
     resolve(&mut game);
     assert_eq!(creature(&game, "Flying Men"), None);
+}
+
+/// CR 611.2c: "Creatures you control get +3/+3 and gain trample until
+/// end of turn", a bare plural, is each creature I control as it
+/// resolves, and not theirs.
+#[test]
+fn a_bare_plural_pumps_each_creature_its_filter_matches() {
+    let mut game = deal_both(
+        &[
+            ("Mountain", 30),
+            ("Goblin Guide", 15),
+            ("Quick Overrun", 15),
+        ],
+        &[("Mountain", 40), ("Goblin Guide", 20)],
+        &[("Mountain", 2), ("Goblin Guide", 1), ("Quick Overrun", 1)],
+        &[("Mountain", 1), ("Goblin Guide", 1)],
+    );
+    play(&mut game, "Mountain");
+    cast(&mut game, "Goblin Guide", None);
+    resolve(&mut game);
+    let mine = creature(&game, "Goblin Guide").expect("mine");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Mountain");
+    cast_as(&mut game, THEM, "Goblin Guide", None);
+    resolve(&mut game);
+    let theirs = *game
+        .permanents()
+        .iter()
+        .find(|(o, p)| **o != mine && game.card(p.card).is_some_and(|t| t.name == "Goblin Guide"))
+        .expect("theirs")
+        .0;
+    pass_until(&mut game, ME, Step::PrecombatMain);
+    play(&mut game, "Mountain");
+    cast(&mut game, "Quick Overrun", None);
+    resolve(&mut game);
+    assert_eq!(pt_of(&game, mine), pt(5, 5));
+    use chancellor_of_the_spires::model::{Ability, Keyword};
+    assert!(game.characteristics()[&mine]
+        .abilities
+        .contains(&Ability::Keyword(Keyword::Trample)));
+    assert_eq!(pt_of(&game, theirs), pt(2, 2));
 }
 
 /// CR 608.2c, 700.2a: Pyroblast's "Destroy target permanent if it's

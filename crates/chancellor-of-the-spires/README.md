@@ -1107,11 +1107,11 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-28 199 of the 500 replay to
-the end and 64.28% of their lines are followed** (20,349 of 31,659), 3
+Worked card by card from there, **on 2026-11-28 200 of the 500 replay to
+the end and 64.46% of their lines are followed** (20,406 of 31,659), 3
 of them relying on a land the log never names (2 to the end) and 11 on a
 card no one named in a graveyard having no ability there (2 to the end),
-and 193 games have no card the engine refuses before any game (from 21). The
+and 194 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
 Warchief); "for each" sizes counted on resolution (Goblin Piledriver);
@@ -1498,7 +1498,10 @@ damage to this creature", once for each source that deals it damage at
 once, that source's amount, "that source's controller" read as the
 trigger resolves, a permanent's now or as it last existed and a spell's
 its caster, a narrower source refused by name (CR 120.2, 603.2c, 510.2,
-608.2h: Phyrexian Obliterator, whose 4 games go on).
+608.2h: Phyrexian Obliterator, whose 4 games go on). And a bare plural,
+"creatures you control get +1/+1 until end of turn", each permanent its
+filter matches as the instruction resolves (CR 611.2c: Basri, Tomorrow's
+Champion, Jirina, Dauntless General and Soltari Champion).
 And
 the replay's inferences: a card played or cast while its player may
 play cards from exile taken from there before the hand, the hand the

@@ -3578,8 +3578,10 @@ impl<'a> Scope<'a> {
             matches!(p, Post::With(i::Compare { stat: i::Stat::ManaValue, value, .. })
                 if !matches!(value, i::Amount::N(_)))
         });
+        // "Creatures you control get +1/+1 until end of turn": a bare
+        // plural is each object its filter matches.
         match (&o.quant, counted) {
-            (Quant::Each | Quant::All, Some(k)) => {
+            (Quant::Each | Quant::All | Quant::Plural, Some(k)) => {
                 let Post::With(i::Compare { op, value, .. }) = &o.filter.posts[k] else {
                     unreachable!("found above")
                 };
@@ -3591,7 +3593,7 @@ impl<'a> Scope<'a> {
                     n: Box::new(self.resolved_amount(value)?),
                 })
             }
-            (Quant::Each | Quant::All, None) => Ok(On::Each(objects(o)?)),
+            (Quant::Each | Quant::All | Quant::Plural, None) => Ok(On::Each(objects(o)?)),
             _ => Ok(On::One(self.obj(o)?)),
         }
     }
