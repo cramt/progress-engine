@@ -203,6 +203,8 @@ struct Known {
     morph: Option<Morph>,
     /// An ability of it works from a graveyard (`lower::works_in_graveyard`).
     in_graveyard: bool,
+    /// An ability of it says its card is exiled (`lower::works_in_exile`).
+    in_exile: bool,
 }
 
 impl Known {
@@ -281,6 +283,10 @@ impl Known {
             Ok(c) => lower::works_in_graveyard(&c),
             Err(_) => lower::says_graveyard_zone(&text.rules_text()),
         };
+        let in_exile = match text.as_card() {
+            Ok(c) => lower::works_in_exile(&c),
+            Err(_) => lower::says_exile_zone(&text.rules_text()),
+        };
         Known {
             text,
             printed,
@@ -288,6 +294,7 @@ impl Known {
             cost,
             morph,
             in_graveyard,
+            in_exile,
         }
     }
 
@@ -302,6 +309,7 @@ impl Known {
             cost: read.cost.clone(),
             morph: read.morph.clone(),
             in_graveyard: read.in_graveyard,
+            in_exile: read.in_exile,
         }
     }
 
@@ -785,6 +793,8 @@ pub enum StackObject {
         amount: Option<u32>,
         /// The player its event names: a spell's caster.
         player: Option<EventPlayer>,
+        /// As `Pending::exiled`.
+        exiled: Option<Timestamp>,
         seq: u32,
     },
     /// An activated ability (CR 602.2a): the card whose ability it is, by
@@ -978,6 +988,10 @@ pub struct Pending {
     pub player: Option<EventPlayer>,
     /// Its controller has put it in order among their others (CR 603.3b).
     ordered: bool,
+    /// The card in exile it triggered from, by the timestamp it got
+    /// entering exile: once it has left, the card is a new object there
+    /// (CR 400.7), and "if this card is exiled" no longer holds.
+    exiled: Option<Timestamp>,
 }
 
 /// What a mana cost being paid is for.
@@ -1054,6 +1068,9 @@ enum Event {
         blockers: Vec<ObjectId>,
         blocked: Vec<ObjectId>,
     },
+    /// Every defending player has declared blockers, and these attacking
+    /// creatures had none declared for them (CR 509.1h, 509.3g).
+    Unblocked(Vec<ObjectId>),
 }
 
 /// "Prevent all combat damage that would be dealt to and dealt by this
@@ -2231,6 +2248,9 @@ pub struct Game {
     /// an ability of its that counts them (CR 608.2h, 113.7a).
     last_known: OrdMap<ObjectId, LastKnown>,
     exile: Vector<CardId>,
+    /// The timestamp each card in exile got entering it, a new object
+    /// each time (CR 400.7).
+    exile_stamps: OrdMap<CardId, Timestamp>,
     /// The cards in exile an object's own abilities put there, each with
     /// that object, for the abilities linked to them (CR 607.2a). A card
     /// exiled again loses its link, so one counts only while it is in
@@ -2464,6 +2484,7 @@ impl Game {
             used: OrdSet::new(),
             powered_up: OrdSet::new(),
             exile: Vector::new(),
+            exile_stamps: OrdMap::new(),
             exiled_with: OrdMap::new(),
             exiled_until: OrdMap::new(),
             adventuring: OrdMap::new(),
@@ -3071,6 +3092,8 @@ impl Game {
     /// Put a card into exile, a new object linked to none and plotted by
     /// nothing earlier (CR 400.7).
     fn put_in_exile(&mut self, card: CardId) {
+        let stamp = self.battlefield.stamp();
+        self.exile_stamps.insert(card, stamp);
         self.exiled_with.remove(&card);
         self.plotted.remove(&card);
         self.exiled_until.remove(&card);
@@ -5240,7 +5263,9 @@ impl Game {
                     let legal = self.sacrificable(p, f);
                     let legal = legal
                         .iter()
-                        .filter(|o| !(def.cost.return_itself && **o == id))
+                        .filter(|o| {
+                            !((def.cost.return_itself || def.cost.exile_itself) && **o == id)
+                        })
                         .count();
                     legal < *n as usize
                 });
@@ -6009,6 +6034,7 @@ impl Game {
                         amount: None,
                         player: None,
                         ordered: false,
+                        exiled: None,
                     });
                 }
                 self.pay_ability(p, card, None, def.cost.mana);
@@ -6074,6 +6100,9 @@ impl Game {
                 }
                 if cost.return_itself {
                     self.leave_battlefield(a.source, Zone::Hand);
+                }
+                if cost.exile_itself {
+                    self.leave_battlefield(a.source, Zone::Exile);
                 }
                 if cost.x > 0 {
                     self.waiting = Waiting::AnnounceX {
@@ -6916,8 +6945,15 @@ impl Game {
                 triggering,
                 amount,
                 player,
+                exiled,
                 ..
             }) => {
+                // CR 603.4, 400.7: the card it triggered from left exile
+                // since, so it isn't exiled, however it came back.
+                if exiled.is_some_and(|t| self.exile_stamps.get(&source) != Some(&t)) {
+                    self.last_resolved = Some(source);
+                    return self.give_priority(self.active, 0);
+                }
                 let player = player.and_then(|e| self.event_player(e));
                 self.begin_resolving(
                     Instructions::Triggered(source, ability),
@@ -6991,15 +7027,20 @@ impl Game {
         if let Instructions::Triggered(card, TriggerOf::Printed(side, n)) = what {
             if let Some(c) = self.face_runs(card, side).triggered[&n].condition.clone() {
                 let all = self.characteristics();
-                let holds = source.as_ref().is_some_and(|sc| {
-                    self.intervening(
-                        &c,
-                        object.unwrap_or(ObjectId(u32::MAX)),
-                        sc,
-                        at.triggering,
-                        &all,
-                    )
-                });
+                // CR 113.6b: read of the card in exile, where it functions.
+                let holds = if c == lower::Intervening::Exiled {
+                    self.exile.contains(&card)
+                } else {
+                    source.as_ref().is_some_and(|sc| {
+                        self.intervening(
+                            &c,
+                            object.unwrap_or(ObjectId(u32::MAX)),
+                            sc,
+                            at.triggering,
+                            &all,
+                        )
+                    })
+                };
                 if !holds {
                     return self.done(&at);
                 }
@@ -7126,6 +7167,7 @@ impl Game {
                                 amount: None,
                                 player: None,
                                 ordered: false,
+                                exiled: None,
                             });
                         } else {
                             self.suspended.insert(card, k - 1);
@@ -7552,6 +7594,57 @@ impl Game {
                         player.graveyard.retain(|c| *c != card);
                         player.hand.push_back(card);
                     }
+                }
+                // CR 508.4, 508.4d, 802.2: its owner puts it onto the
+                // battlefield attacking a defending player, each of the
+                // attacking player's opponents still in the game, and it
+                // is unblocked. Which of several it attacks is its
+                // owner's choice, which the game doesn't ask yet.
+                Effect::SelfFromExileAttacking => {
+                    let card = at.what.card();
+                    if !self.exile.contains(&card) {
+                        continue;
+                    }
+                    let owner = self.owner(card);
+                    let defending: BTreeSet<PlayerId> = (0..self.players.len())
+                        .map(|q| PlayerId(q as u8))
+                        .filter(|q| *q != self.active && !self.player(*q).left)
+                        .collect();
+                    let (tapped, pays, discard) = self.entering(card, owner);
+                    let chooses = defending.len() > 1
+                        || pays.is_some()
+                        || discard.is_some()
+                        || self.chooses_type(card, owner)
+                        || self.as_copy(card, owner).is_some();
+                    if chooses {
+                        self.halted = Some(Rejected::Refused {
+                            card: self
+                                .card(card)
+                                .expect("a card in exile is known")
+                                .name
+                                .clone(),
+                            refusal: Unrunnable::new(
+                                "SelfFromExileAttacking with a choice as it enters",
+                                "puts a card from exile onto the battlefield attacking, and \
+                                 which defending player it attacks or how it enters is a \
+                                 choice the game can't stop for there",
+                            ),
+                        });
+                        return;
+                    }
+                    self.exile.retain(|c| *c != card);
+                    self.exiled_with.remove(&card);
+                    self.entering.get_or_insert_with(Vec::new);
+                    self.arrive(card, owner, tapped);
+                    if let Some(q) = defending.first() {
+                        let id = *self
+                            .entering
+                            .as_ref()
+                            .and_then(|b| b.last())
+                            .expect("it just entered");
+                        self.enter_attacking(id, owner, *q);
+                    }
+                    self.entered();
                 }
                 // CR 400.7e: the trigger finds the card its source became
                 // in the graveyard, and none it became later. It enters
@@ -9314,6 +9407,7 @@ impl Game {
             triggering: t.triggering,
             amount: t.amount,
             player: t.player,
+            exiled: t.exiled,
             seq: self.abilities,
         });
         self.became_targets();
@@ -9417,6 +9511,7 @@ impl Game {
                     amount: None,
                     player: Some(EventPlayer::Is(controller)),
                     ordered: false,
+                    exiled: None,
                 });
             }
         }
@@ -9509,7 +9604,10 @@ impl Game {
                 source_defending: self.defending(*src),
             };
             for (n, t) in &runs.triggered {
-                if !chars.abilities.contains(&Ability::Unread(*n)) || t.from_graveyard() {
+                if !chars.abilities.contains(&Ability::Unread(*n))
+                    || t.from_graveyard()
+                    || t.from_exile()
+                {
                     continue;
                 }
                 let fired = |e: &TriggerEvent| -> Vec<(Option<ObjectId>, Option<u32>)> {
@@ -9680,6 +9778,11 @@ impl Game {
                             .filter(|id| all.contains_key(*id) && f.matches(&seen(**id)))
                             .map(|id| (Some(*id), None))
                             .collect(),
+                        (TriggerEvent::AttacksUnblocked(f), Event::Unblocked(ids)) => ids
+                            .iter()
+                            .filter(|id| all.contains_key(*id) && f.matches(&seen(**id)))
+                            .map(|id| (Some(*id), None))
+                            .collect(),
                         (TriggerEvent::BecomesBlocked(f), Event::Blocked { blocked, .. }) => {
                             blocked
                                 .iter()
@@ -9732,6 +9835,7 @@ impl Game {
                         amount,
                         player,
                         ordered: false,
+                        exiled: None,
                     });
                 }
             }
@@ -9776,6 +9880,7 @@ impl Game {
                             amount: None,
                             player: None,
                             ordered: false,
+                            exiled: None,
                         });
                     }
                 }
@@ -9806,6 +9911,7 @@ impl Game {
                             amount: None,
                             player: Some(EventPlayer::Is(*controller)),
                             ordered: false,
+                            exiled: None,
                         });
                     }
                 }
@@ -9826,6 +9932,7 @@ impl Game {
                         amount: None,
                         player: None,
                         ordered: false,
+                        exiled: None,
                     });
                 }
             }
@@ -9865,6 +9972,85 @@ impl Game {
                                 amount: None,
                                 player: None,
                                 ordered: false,
+                                exiled: None,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        // CR 113.6b, 108.4a, 603.4: an ability whose intervening "if"
+        // says its card is exiled triggers there, its controller the
+        // card's owner, once for each attacking creature it names. Its
+        // filter reads nothing of a source on the battlefield
+        // (`lower::triggered`).
+        if let Event::Unblocked(ids) = &event {
+            let nowhere = ObjectId(u32::MAX);
+            // A card in exile the game can't read could be one whose
+            // ability works there. A hidden one is passed over when the
+            // caller presumes hidden cards inert (`presume_graveyard_inert`):
+            // a trigger of its would be a line of its own, which a replay
+            // then can't follow and stops at by name.
+            let unread = self.exile.iter().find_map(|c| match self.known(*c) {
+                None if self.presume_inert => None,
+                None => Some(("a hidden card".to_string(), None)),
+                Some(k) => match &k.runs {
+                    Err(why) if k.in_exile => Some((k.text.name.clone(), Some(why.clone()))),
+                    _ => None,
+                },
+            });
+            if let Some((card, why)) = unread {
+                self.halted = Some(Rejected::Refused {
+                    card,
+                    refusal: why.unwrap_or_else(|| {
+                        Unrunnable::new(
+                            "a hidden card in exile",
+                            "a card no one has named is in exile as a creature attacks \
+                             unblocked, where an ability of it could trigger",
+                        )
+                    }),
+                });
+                return;
+            }
+            for c in self.exile.iter() {
+                let Some(runs) = self.known(*c).and_then(|k| k.runs.as_ref().ok()) else {
+                    continue;
+                };
+                let owner = self.owner(*c);
+                let stamp = self.exile_stamps[c];
+                let mut source_chars = runs.lowered.chars.clone();
+                source_chars.controller = owner;
+                for (n, t) in &runs.triggered {
+                    let TriggerEvent::AttacksUnblocked(f) = &t.event else {
+                        continue;
+                    };
+                    if !t.from_exile() {
+                        continue;
+                    }
+                    for id in ids {
+                        let Some(chars) = all.get(id) else { continue };
+                        let seen = Seen {
+                            id: *id,
+                            chars,
+                            source: nowhere,
+                            source_chars: &source_chars,
+                            source_attached_to: None,
+                            source_chosen: None,
+                            token: self.battlefield.objects[id].token,
+                            attacking: self.battlefield.attacking.contains(id),
+                            source_defending: None,
+                        };
+                        if f.matches(&seen) {
+                            triggered.push(Pending {
+                                source: *c,
+                                object: None,
+                                ability: TriggerOf::Printed(self.printed_up(*c), *n),
+                                controller: owner,
+                                triggering: Some(*id),
+                                amount: None,
+                                player: None,
+                                ordered: false,
+                                exiled: Some(stamp),
                             });
                         }
                     }
@@ -9886,6 +10072,7 @@ impl Game {
                         amount: None,
                         player: None,
                         ordered: false,
+                        exiled: None,
                     });
                 }
             }
@@ -9913,6 +10100,9 @@ impl Game {
             }
             lower::Intervening::Tapped => {
                 return self.permanents.get(&source).is_some_and(|p| p.tapped)
+            }
+            lower::Intervening::Exiled => {
+                unreachable!("an ability that functions in exile is read of its card there")
             }
             lower::Intervening::Evoked => {
                 return self
@@ -10258,6 +10448,21 @@ impl Game {
                 self.waiting = Waiting::Blockers { player: p, rest };
                 return;
             }
+        }
+        // zero: no combat was begun, so no creature attacks.
+        let unblocked: Vec<ObjectId> = self
+            .combat
+            .as_ref()
+            .map(|c| {
+                c.attackers
+                    .keys()
+                    .filter(|a| !c.blocked.contains(*a))
+                    .copied()
+                    .collect()
+            })
+            .unwrap_or_default();
+        if !unblocked.is_empty() {
+            self.trigger_on(Event::Unblocked(unblocked));
         }
         self.give_priority(self.active, 0);
     }
@@ -10971,6 +11176,7 @@ impl Game {
                         amount: None,
                         player: None,
                         ordered: false,
+                        exiled: None,
                     });
                 }
                 None => self.put_into_graveyard(p, *c),

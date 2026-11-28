@@ -227,6 +227,22 @@ fn invented(name: &str) -> Option<CardText> {
             vec![Color::Black],
             Some(pt(5, 5)),
         ),
+        // Senu's exile trigger on another event, and with another effect:
+        // read of a card in exile, neither is run.
+        "Senu, Drawing Protector" => (
+            "Legendary Creature — Bird Scout",
+            "{1}{W}",
+            "When a legendary creature you control attacks and isn't blocked, if this card is exiled, draw a card.",
+            vec![Color::White],
+            Some(pt(2, 1)),
+        ),
+        "Senu, Watchful Protector" => (
+            "Legendary Creature — Bird Scout",
+            "{1}{W}",
+            "Whenever a legendary creature you control attacks, if this card is exiled, put it onto the battlefield attacking.",
+            vec![Color::White],
+            Some(pt(2, 1)),
+        ),
         _ => return None,
     };
     Some(CardText {
@@ -11034,4 +11050,292 @@ fn another_where_x_mana_ability_is_left_dormant() {
     assert!(!actions
         .iter()
         .any(|a| matches!(a, Action::Mana(m) if m.source == weaver)));
+}
+
+const ISAMARU: &str = "Isamaru, Hound of Konda";
+
+/// A one-drop `attacker` and Senu, Keen-Eyed Protector on my battlefield,
+/// Senu having been mine since my last turn: Senu exiled by its own "{T},
+/// Exile Senu: You gain 2 life and scry 2" if `exiled`, then my precombat
+/// main.
+fn senu_and(
+    attacker: &str,
+    exiled: bool,
+    them: &[(&str, usize)],
+    they_want: &[(&str, usize)],
+) -> Game {
+    let mut game = deal_both(
+        &[
+            ("Plains", 40),
+            ("Senu, Keen-Eyed Protector", 10),
+            (attacker, 10),
+        ],
+        them,
+        &[
+            ("Plains", 2),
+            ("Senu, Keen-Eyed Protector", 1),
+            (attacker, 1),
+        ],
+        they_want,
+    );
+    play(&mut game, "Plains");
+    cast(&mut game, attacker, None);
+    resolve(&mut game);
+    my_next_main(&mut game);
+    play(&mut game, "Plains");
+    cast(&mut game, "Senu, Keen-Eyed Protector", None);
+    resolve(&mut game);
+    my_next_main(&mut game);
+    if exiled {
+        let senu = creature(&game, "Senu, Keen-Eyed Protector").unwrap();
+        let Decision::Priority { actions, .. } = game.decision() else {
+            panic!("priority")
+        };
+        let activate = actions
+            .iter()
+            .find_map(|a| match a {
+                Action::Activate(x) if x.source == senu => Some(*x),
+                _ => None,
+            })
+            .expect("Senu's ability is offered");
+        step(&mut game, Answer::Act(Action::Activate(activate)));
+        let Decision::Scry { cards, .. } = resolve(&mut game) else {
+            panic!("{:?}", game.decision())
+        };
+        step(
+            &mut game,
+            Answer::Scry {
+                top: cards,
+                bottom: vec![],
+            },
+        );
+        assert!(creature(&game, "Senu, Keen-Eyed Protector").is_none());
+        assert_eq!(game.player(ME).life(), 22);
+    }
+    game
+}
+
+/// CR 509.3g, 113.6b, 603.4, 508.4, 508.4d: Senu, Keen-Eyed Protector's
+/// "When a legendary creature you control attacks and isn't blocked, if
+/// this card is exiled, put it onto the battlefield attacking" triggers
+/// from exile once no blocker is declared for Isamaru, and Senu enters
+/// attacking the defending player, unblocked, dealing its 2 with
+/// Isamaru's 2.
+#[test]
+fn senu_enters_attacking_from_exile_when_a_legendary_creature_is_unblocked() {
+    let mut game = senu_and(ISAMARU, true, &[("Forest", 60)], &[]);
+    let senu_card = *game
+        .exile()
+        .iter()
+        .find(|c| game.card(**c).unwrap().name == "Senu, Keen-Eyed Protector")
+        .expect("Senu in exile");
+    let isamaru = creature(&game, "Isamaru, Hound of Konda").unwrap();
+    to_attackers(&mut game);
+    step(&mut game, Answer::Attack(vec![(isamaru, THEM)]));
+    while game.step_now() < Step::DeclareBlockers {
+        step(&mut game, Answer::Act(Action::Pass));
+    }
+    assert_eq!(
+        game.pending().len() + game.stack().len(),
+        1,
+        "it triggers once"
+    );
+    resolve(&mut game);
+    assert!(!game.exile().contains(&senu_card));
+    let senu = creature(&game, "Senu, Keen-Eyed Protector").expect("Senu entered");
+    assert!(
+        game.attacks().contains(&(senu, THEM)),
+        "{:?}",
+        game.attacks()
+    );
+    through_combat(&mut game);
+    assert_eq!(game.player(THEM).life(), 16);
+}
+
+/// CR 113.6b: on the battlefield Senu's ability does nothing, so Isamaru
+/// unblocked triggers nothing.
+#[test]
+fn senu_on_the_battlefield_doesnt_trigger() {
+    let mut game = senu_and(ISAMARU, false, &[("Forest", 60)], &[]);
+    let isamaru = creature(&game, "Isamaru, Hound of Konda").unwrap();
+    to_attackers(&mut game);
+    step(&mut game, Answer::Attack(vec![(isamaru, THEM)]));
+    while game.step_now() < Step::DeclareBlockers {
+        step(&mut game, Answer::Act(Action::Pass));
+    }
+    assert_eq!(game.pending().len() + game.stack().len(), 0);
+    through_combat(&mut game);
+    assert_eq!(game.player(THEM).life(), 18);
+}
+
+/// CR 509.1h, 509.3g: a blocker declared for Isamaru, it isn't unblocked,
+/// and Senu stays in exile.
+#[test]
+fn senu_stays_exiled_when_the_legendary_creature_is_blocked() {
+    let mut game = senu_and(
+        ISAMARU,
+        true,
+        &[("Forest", 40), ("Grizzly Bears", 20)],
+        &[("Forest", 2), ("Grizzly Bears", 1)],
+    );
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Forest");
+    pass_until(&mut game, THEM, Step::Upkeep);
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Forest");
+    cast_as(&mut game, THEM, "Grizzly Bears", None);
+    resolve(&mut game);
+    let bears = creature(&game, "Grizzly Bears").unwrap();
+    my_next_main(&mut game);
+    let isamaru = creature(&game, "Isamaru, Hound of Konda").unwrap();
+    to_attackers(&mut game);
+    step(&mut game, Answer::Attack(vec![(isamaru, THEM)]));
+    loop {
+        if let Decision::Blockers { .. } = game.decision() {
+            break;
+        }
+        step(&mut game, Answer::Act(Action::Pass));
+    }
+    step(&mut game, Answer::Block(vec![(bears, isamaru)]));
+    assert_eq!(game.pending().len() + game.stack().len(), 0);
+    through_combat(&mut game);
+    assert!(creature(&game, "Senu, Keen-Eyed Protector").is_none());
+    assert!(game
+        .exile()
+        .iter()
+        .any(|c| game.card(*c).unwrap().name == "Senu, Keen-Eyed Protector"));
+}
+
+/// CR 509.3g: Savannah Lions isn't legendary, so its attacking unblocked
+/// leaves Senu in exile.
+#[test]
+fn senu_ignores_a_nonlegendary_creature_unblocked() {
+    let mut game = senu_and("Savannah Lions", true, &[("Forest", 60)], &[]);
+    let lions = creature(&game, "Savannah Lions").unwrap();
+    to_attackers(&mut game);
+    step(&mut game, Answer::Attack(vec![(lions, THEM)]));
+    while game.step_now() < Step::DeclareBlockers {
+        step(&mut game, Answer::Act(Action::Pass));
+    }
+    assert_eq!(game.pending().len() + game.stack().len(), 0);
+    through_combat(&mut game);
+    assert_eq!(game.player(THEM).life(), 18);
+    assert!(creature(&game, "Senu, Keen-Eyed Protector").is_none());
+}
+
+/// CR 113.6b: an ability that functions in exile is read of a card
+/// that is no permanent, so one doing other than entering attacking, or
+/// triggering on another event, is refused by name.
+#[test]
+fn an_exile_trigger_doing_or_waiting_for_anything_else_is_refused() {
+    for (name, node) in [
+        (
+            "Senu, Drawing Protector",
+            "doing other than entering attacking",
+        ),
+        ("Senu, Watchful Protector", "a trigger in exile on"),
+    ] {
+        let game = deal(
+            &[("Plains", 40), (name, 20)],
+            &[("Forest", 60)],
+            &[(name, 1)],
+        );
+        let c = in_hand(&game, ME, name).unwrap();
+        let refusal = game.refusal(c).expect("refused");
+        assert!(refusal.node.contains(node), "{name}: {}", refusal.node);
+    }
+}
+
+/// CR 603.4, 400.7: Isamaru and Thalia unblocked trigger Senu twice; the
+/// first puts it onto the battlefield, Swords to Plowshares exiles it
+/// again, a new object, and the second trigger finds the card it
+/// triggered from gone, so Senu stays in exile.
+#[test]
+fn senu_exiled_again_isnt_the_card_its_second_trigger_returns() {
+    const THALIA: &str = "Thalia, Guardian of Thraben";
+    const SWORDS: &str = "Swords to Plowshares";
+    const SENU: &str = "Senu, Keen-Eyed Protector";
+    let mut game = deal(
+        &[
+            ("Plains", 30),
+            (SENU, 10),
+            (ISAMARU, 10),
+            (THALIA, 5),
+            (SWORDS, 5),
+        ],
+        &[("Forest", 60)],
+        &[
+            ("Plains", 3),
+            (SENU, 1),
+            (ISAMARU, 1),
+            (THALIA, 1),
+            (SWORDS, 1),
+        ],
+    );
+    play(&mut game, "Plains");
+    cast(&mut game, ISAMARU, None);
+    resolve(&mut game);
+    my_next_main(&mut game);
+    play(&mut game, "Plains");
+    cast(&mut game, SENU, None);
+    resolve(&mut game);
+    my_next_main(&mut game);
+    play(&mut game, "Plains");
+    cast(&mut game, THALIA, None);
+    resolve(&mut game);
+    let senu = creature(&game, SENU).unwrap();
+    let Decision::Priority { actions, .. } = game.decision() else {
+        panic!("priority")
+    };
+    let activate = actions
+        .iter()
+        .find_map(|a| match a {
+            Action::Activate(x) if x.source == senu => Some(*x),
+            _ => None,
+        })
+        .expect("Senu's ability is offered");
+    step(&mut game, Answer::Act(Action::Activate(activate)));
+    let Decision::Scry { cards, .. } = resolve(&mut game) else {
+        panic!("{:?}", game.decision())
+    };
+    step(
+        &mut game,
+        Answer::Scry {
+            top: cards,
+            bottom: vec![],
+        },
+    );
+    my_next_main(&mut game);
+    let isamaru = creature(&game, ISAMARU).unwrap();
+    let thalia = creature(&game, THALIA).unwrap();
+    to_attackers(&mut game);
+    step(
+        &mut game,
+        Answer::Attack(vec![(isamaru, THEM), (thalia, THEM)]),
+    );
+    while game.stack().len() < 2 {
+        match game.decision() {
+            Decision::Order { triggers, .. } => {
+                step(&mut game, Answer::Order((0..triggers.len()).collect()))
+            }
+            _ => step(&mut game, Answer::Act(Action::Pass)),
+        };
+    }
+    assert_eq!(game.step_now(), Step::DeclareBlockers);
+    resolve(&mut game);
+    let senu = creature(&game, SENU).expect("the first trigger returned Senu");
+    assert_eq!(game.stack().len(), 1);
+    cast(&mut game, SWORDS, Some(vec![Target::Object(senu)]));
+    resolve(&mut game);
+    assert!(creature(&game, SENU).is_none());
+    assert_eq!(game.stack().len(), 1);
+    resolve(&mut game);
+    assert!(
+        creature(&game, SENU).is_none(),
+        "the second trigger did nothing"
+    );
+    assert!(game
+        .exile()
+        .iter()
+        .any(|c| game.card(*c).unwrap().name == SENU));
 }

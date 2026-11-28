@@ -1109,11 +1109,11 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-28 204 of the 500 replay to
-the end and 64.68% of their lines are followed** (20,478 of 31,659), 3
+Worked card by card from there, **on 2026-11-28 205 of the 500 replay to
+the end and 64.79% of their lines are followed** (20,513 of 31,659), 3
 of them relying on a land the log never names (2 to the end) and 11 on a
 card no one named in a graveyard having no ability there (2 to the end),
-and 199 games have no card the engine refuses before any game (from 21). The
+and 200 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
 Warchief); "for each" sizes counted on resolution (Goblin Piledriver);
@@ -1501,9 +1501,11 @@ once, that source's amount, "that source's controller" read as the
 trigger resolves, a permanent's now or as it last existed and a spell's
 its caster, a narrower source refused by name (CR 120.2, 603.2c, 510.2,
 608.2h: Phyrexian Obliterator, whose 4 games go on). And a bare plural,
-"creatures you control get +1/+1 until end of turn", each permanent its
-filter matches as the instruction resolves (CR 611.2c: Basri, Tomorrow's
-Champion, Jirina, Dauntless General and Soltari Champion). And "deals 3
+Soltari Champion's "other creatures you control get +1/+1 until end of
+turn" and Basri, Tomorrow's Champion's "Cats you control gain hexproof
+and indestructible until end of turn", each permanent its filter matches
+as the instruction resolves (CR 611.2c: those two and Jirina, Dauntless
+General). And "deals 3
 damage to each opponent", each of its controller's opponents still in
 the game, every other player (CR 102.2, 806.1, 120.3a: Atarka's Command's
 mode, and Ramunap Ruins's sacrifice ability, which now runs whole in Loam). And "Choose two —",
@@ -1513,7 +1515,18 @@ targets can all be chosen, a pair whose modes would share one target slot
 refused by name, and the log's modes read from the cast line or the
 "Chosen mode:" lines after it (CR 700.2a, 700.2c, 700.2d, 608.2c:
 Kolaghan's, Atarka's and Titania's Command, whose 4 games go to the end
-and 2 to a filter of alternatives in Titania's).
+and 2 to a filter of alternatives in Titania's). And "When a legendary
+creature you control attacks and isn't blocked, if this card is exiled,
+put it onto the battlefield attacking": a trigger once every defending
+player has declared blockers, for each attacker none was declared for;
+an intervening "if" saying its card is exiled, so the ability works
+only there, checked again as it resolves against the card's exile
+timestamp, a card that left and came back being a new object; and the
+card entering attacking the one defending player, unblocked, a choice
+among several refused by name; with Senu's "{T}, Exile Senu" as an activation
+cost (CR 509.1h, 509.3g, 113.6b, 603.4, 400.7, 508.4, 508.4d, 802.2,
+602.2b: Senu, Keen-Eyed Protector, whose 4 games go on, one to the
+end).
 And
 the replay's inferences: a card played or cast while its player may
 play cards from exile taken from there before the hand, the hand the

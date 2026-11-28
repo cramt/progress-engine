@@ -177,8 +177,31 @@ pub fn printed(c: &crate::deck::CardText) -> Result<Chars, Refusal> {
 /// it functions there (CR 113.6b) and a game with the card there runs it
 /// or can't go on.
 pub fn works_in_graveyard(card: &Card) -> bool {
+    says_itself_in(
+        card,
+        |z| matches!(z, i::Zone::Graveyard(_) | i::Zone::OwnersGraveyard),
+        says_graveyard_zone,
+    )
+}
+
+/// Whether an ability of the card says the card is exiled (Senu,
+/// Keen-Eyed Protector's "if this card is exiled"), so it functions there
+/// (CR 113.6b). A line Insight can't read is judged by its words.
+pub fn works_in_exile(card: &Card) -> bool {
+    says_itself_in(card, |z| matches!(z, i::Zone::Exile), says_exile_zone)
+}
+
+/// Whether a card's words say it is exiled, read without Insight.
+pub fn says_exile_zone(text: &str) -> bool {
+    let text = text.to_lowercase();
+    text.contains("is exiled") || text.contains("in exile")
+}
+
+/// Whether an ability of the card says the card itself is in a zone
+/// `zone` matches, or a line Insight can't read `says` it.
+fn says_itself_in(card: &Card, zone: fn(&i::Zone) -> bool, says: fn(&str) -> bool) -> bool {
     use vivisurgeons_insight::walk::{Visitor, Walk};
-    struct Finds(bool);
+    struct Finds(bool, fn(&i::Zone) -> bool);
     impl Visitor for Finds {
         fn enter(&mut self, _: &mut Objects) -> bool {
             true
@@ -187,12 +210,8 @@ pub fn works_in_graveyard(card: &Card) -> bool {
             true
         }
         fn condition(&mut self, c: &mut i::Condition) {
-            if let i::Condition::In {
-                what,
-                zone: i::Zone::Graveyard(_) | i::Zone::OwnersGraveyard,
-            } = c
-            {
-                self.0 |= what.quant == Quant::SelfRef;
+            if let i::Condition::In { what, zone } = c {
+                self.0 |= what.quant == Quant::SelfRef && (self.1)(zone);
             }
         }
     }
@@ -201,13 +220,13 @@ pub fn works_in_graveyard(card: &Card) -> bool {
         type_line: card.type_line,
         text: card.oracle_text,
     };
-    let mut finds = Finds(false);
+    let mut finds = Finds(false, zone);
     for line in read_face(&face, card.name) {
         match line.parsed {
             Ok(mut a) => a.walk(&mut finds),
             // A line Insight can't read may still say its zone: taken as
             // one that does, rather than as none.
-            Err(_) => finds.0 |= says_graveyard_zone(&line.text),
+            Err(_) => finds.0 |= says(&line.text),
         }
     }
     finds.0
@@ -1775,6 +1794,11 @@ pub enum Effect {
     /// ability's source, if it is still in its owner's graveyard. Such an
     /// ability functions only there (CR 113.6m, `Triggered::from_graveyard`).
     SelfFromGraveyardToHand,
+    /// "Put this card onto the battlefield attacking", of an ability that
+    /// functions only in exile (`Triggered::from_exile`): the card, if it
+    /// is still in exile, enters under its owner's control (CR 108.4a)
+    /// attacking the defending player (CR 508.4).
+    SelfFromExileAttacking,
     /// Undying's and persist's "return it to the battlefield under its
     /// owner's control with a +1/+1 counter on it" (CR 702.93a, 702.79a):
     /// the card the ability's source became in its owner's graveyard as it
@@ -2472,6 +2496,12 @@ pub enum TriggerEvent {
     /// filter matches becomes blocked as blockers are declared, once
     /// however many block it (CR 509.1h, 509.3c).
     BecomesBlocked(Filter),
+    /// "Whenever a legendary creature you control attacks and isn't
+    /// blocked": an attacking creature the filter matches has no creature
+    /// declared as its blocker once every defending player has declared
+    /// them, whether it was declared as an attacker or entered attacking
+    /// (CR 509.1h, 509.3g).
+    AttacksUnblocked(Filter),
     /// "When this creature enters or dies": any of these, once for an
     /// event that is more than one of them (CR 603.2c).
     Or(Vec<TriggerEvent>),
@@ -2544,6 +2574,14 @@ impl Triggered {
     pub fn from_graveyard(&self) -> bool {
         moves_itself_from_graveyard(&self.program.effects)
     }
+
+    /// Whether it functions only while its card is in exile: its
+    /// intervening "if" says the card is exiled, which states the zone it
+    /// functions in (CR 113.6b, 603.4: Senu, Keen-Eyed Protector's "if
+    /// this card is exiled").
+    pub fn from_exile(&self) -> bool {
+        self.condition == Some(Intervening::Exiled)
+    }
 }
 
 /// Whether instructions move their own card out of its owner's graveyard,
@@ -2580,6 +2618,9 @@ pub enum Intervening {
     /// Evoke's "if its evoke cost was paid": the permanent was the spell
     /// cast for it (CR 702.74a).
     Evoked,
+    /// "If this card is exiled": the ability's own card is in exile, the
+    /// zone the ability functions in (CR 113.6b).
+    Exiled,
     /// Undying's "if it had no +1/+1 counters on it": its source, which
     /// has died, had none of that counter as it last existed on the
     /// battlefield (CR 702.93a, 603.10a).
@@ -2833,7 +2874,31 @@ pub fn triggered(
             scope.event_object = binder(what, bind);
         }
     }
+    scope.in_exile = condition == Some(Intervening::Exiled);
+    // A card in exile is no permanent, so what its filter would read of
+    // its source ("another", "enchanted", the type it chose) isn't there.
+    if scope.in_exile {
+        let TriggerEvent::AttacksUnblocked(f) = &event else {
+            return Err(format!("a trigger in exile on {}", trigger_node(trigger)));
+        };
+        if let Some(p) = f.0.iter().find(|p| {
+            !matches!(
+                p,
+                Pred::Is(_)
+                    | Pred::IsNot(_)
+                    | Pred::IsAny(_)
+                    | Pred::YouControl
+                    | Pred::OpponentsControl
+            )
+        }) {
+            return Err(format!("a trigger in exile on a creature {p:?}"));
+        }
+    }
     let lowered = scope.effects(effect)?;
+    // What else it does would be read of a permanent it isn't yet.
+    if scope.in_exile && lowered != [Effect::SelfFromExileAttacking] {
+        return Err("a trigger in exile doing other than entering attacking".into());
+    }
     scope.program.effects = lowered;
     Ok(Triggered {
         event,
@@ -2974,6 +3039,9 @@ fn when(e: &i::Event, bound: &dyn Fn(&Objects) -> Objects) -> Result<TriggerEven
         i::Event::Dies(what) => TriggerEvent::Dies(entering(what)?),
         i::Event::Blocks(what) => TriggerEvent::Blocks(entering(what)?),
         i::Event::BecomesBlocked(what) => TriggerEvent::BecomesBlocked(entering(what)?),
+        i::Event::AttacksUnblocked { what, at: None } => {
+            TriggerEvent::AttacksUnblocked(entering(what)?)
+        }
         // "A source", the bare word: any object that deals damage (CR
         // 120.2), a spell or an ability's source as much as a creature.
         i::Event::DealsDamageTo { what, to }
@@ -3127,6 +3195,15 @@ pub fn mana_trigger(
 /// 603.4), of those lowered: "if you control at least five other
 /// Mountains", "other" than the object a `Let` binds being the event's.
 fn intervening(cond: &i::Condition, bind: &[Objects]) -> Result<Intervening, String> {
+    if let i::Condition::In {
+        what,
+        zone: i::Zone::Exile,
+    } = cond
+    {
+        if itself(what) {
+            return Ok(Intervening::Exiled);
+        }
+    }
     if let i::Condition::Is { what, filter } = cond {
         let tapped = i::Filter {
             alts: vec![vec![Adj::State(i::State::Tapped)]],
@@ -3372,6 +3449,10 @@ struct Scope<'a> {
     /// Whether the instructions being lowered are a "may"'s, followed
     /// only if its player chose to.
     in_may: bool,
+    /// Whether the instructions are a triggered ability's that functions
+    /// only while its card is exiled (`Triggered::from_exile`), so "this
+    /// card" is the card in exile.
+    in_exile: bool,
     /// Whether the trigger event names a player, a spell's caster, whom
     /// "that player" names.
     caster: bool,
@@ -3435,6 +3516,7 @@ impl<'a> Scope<'a> {
             player: None,
             amount: false,
             in_may: false,
+            in_exile: false,
             caster: false,
             event_object: None,
             program: Program::default(),
@@ -3944,6 +4026,20 @@ impl<'a> Scope<'a> {
             i::Effect::Exile(what) => Effect::Exile(self.on(what)?),
             i::Effect::DamageCantBePrevented(i::Duration::ThisTurn) => {
                 Effect::DamageCantBePreventedThisTurn
+            }
+            i::Effect::EntersAttacking(m)
+                if self.in_exile
+                    && matches!(&**m, i::Effect::Move {
+                        what,
+                        from: None,
+                        to: i::Zone::Battlefield,
+                        tapped: false,
+                        transformed: false,
+                        under: None,
+                        order: None,
+                    } if itself(what)) =>
+            {
+                Effect::SelfFromExileAttacking
             }
             i::Effect::ExileUntilLeaves { what, until } if itself(until) => {
                 Effect::ExileUntilLeaves(self.on(what)?)
@@ -5766,6 +5862,9 @@ pub struct ActivationCost {
     /// hand": the source leaves for its owner's hand as it is activated
     /// (CR 602.2b, 601.2h).
     pub return_itself: bool,
+    /// Senu, Keen-Eyed Protector's "{T}, Exile Senu": the source leaves
+    /// for exile as it is activated (CR 602.2b, 601.2h, 406.2).
+    pub exile_itself: bool,
     /// Quirion Ranger's "Return a Forest you control to its owner's
     /// hand": that many permanents the filter matches, of the activator's,
     /// returned as it is activated (CR 602.2b, 601.2h).
@@ -5960,6 +6059,7 @@ fn activation_cost(cost: &[i::Cost]) -> Result<ActivationCost, String> {
             i::Cost::PayLife(i::Amount::N(n)) => paid.life += n,
             i::Cost::Sacrifice(o) if itself(o) => paid.sacrifice = true,
             i::Cost::ReturnToHand(o) if itself(o) => paid.return_itself = true,
+            i::Cost::Exile(o) if itself(o) => paid.exile_itself = true,
             i::Cost::ReturnToHand(o) if paid.return_others.is_none() => {
                 paid.return_others = Some(permanents_paid(o)?)
             }
@@ -6000,14 +6100,22 @@ fn activation_cost(cost: &[i::Cost]) -> Result<ActivationCost, String> {
         return Err("an activation cost sacrificing itself and another".into());
     }
     // A source can leave the battlefield only once.
-    if paid.return_itself && paid.sacrifice {
-        return Err("an activation cost sacrificing and returning itself".into());
+    if [paid.return_itself, paid.sacrifice, paid.exile_itself]
+        .iter()
+        .filter(|l| **l)
+        .count()
+        > 1
+    {
+        return Err("an activation cost moving itself two ways".into());
     }
     // One permanent could be both what a cost returns and what it
     // sacrifices, or the source returned twice, and which is paid first
     // isn't modelled.
     if paid.return_others.is_some()
-        && (paid.sacrifice || paid.return_itself || paid.sacrifice_others.is_some())
+        && (paid.sacrifice
+            || paid.return_itself
+            || paid.exile_itself
+            || paid.sacrifice_others.is_some())
     {
         return Err("an activation cost returning permanents and leaving another way".into());
     }
