@@ -29,7 +29,10 @@ the clone's project. Whether a batch is alive is T3's thread status, never
 a timeout: a claim outlives a dead thread, and a slow batch outlives any fixed
 limit. The contract it relies on:
 
-- `start` sets `inFlight` (with `startedAt`) before anything slow.
+- `start` sets `inFlight` (with `startedAt`) before anything slow, then
+  deletes every earlier batch's scratch, `target/b<k>/` in the clone (the
+  brief tells the writer to keep its worktrees and cargo targets there), and
+  prunes git's worktree list.
 - `triage`, the batch's last command, clears it. So does every exit 3 after
   `start` set it.
 - A stop only a human can clear sets `stopped: {reason, at}` and writes the

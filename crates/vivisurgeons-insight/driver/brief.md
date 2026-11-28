@@ -30,6 +30,9 @@ they read is the commits, `{{handoffPath}}` and `{{batchDir}}/report.json`.
 - Put **exact counts** in commit bodies: abilities and cards gained, trees
   changed. Measure them with the CLI; never estimate.
 - Run `cargo fmt --all` before every commit.
+- Build any worktree, `CARGO_TARGET_DIR` or temp files of your own under
+  `{{scratchDir}}`, never elsewhere. The driver deletes it when the next
+  batch starts.
 - `src/walk.rs` is generated from `ast.rs`. After any `ast.rs` change, once the
   crate compiles, run `UPDATE_WALK=1 cargo test -p vivisurgeons-insight --test
   walk`, then `cargo fmt -p vivisurgeons-insight`.

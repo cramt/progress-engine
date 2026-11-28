@@ -8,8 +8,10 @@ import {
   copyFileSync,
   existsSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
   renameSync,
+  rmSync,
   writeFileSync,
 } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
@@ -364,6 +366,7 @@ async function brief(
   return render(join(DRIVER, "brief.md"), {
     batch,
     batchDir: dir,
+    scratchDir: scratchDir(batch),
     startedAt,
     repo: REPO,
     branch: branchName(),
@@ -628,6 +631,26 @@ async function toolTrees(): Promise<string> {
   return r.stdout.trim();
 }
 
+/** A batch's own scratch: its check worktree and that worktree's cargo target. */
+const scratchDir = (b: number) => join(REPO, "target", `b${b}`);
+
+/**
+ * Earlier batches' scratch, removed before a new one starts. Writers build
+ * a worktree per check there, and each one left about 6.6 GB on /pool plus a
+ * registered worktree that nothing removed.
+ */
+async function pruneScratch(batch: number): Promise<void> {
+  const root = join(REPO, "target");
+  if (!existsSync(root)) return;
+  const old = readdirSync(root)
+    .map((n) => /^b(\d+)$/.exec(n))
+    .filter((m): m is RegExpExecArray => m !== null && Number(m[1]) < batch)
+    .map((m) => Number(m[1]));
+  for (const b of old) rmSync(scratchDir(b), { recursive: true, force: true });
+  await run("git", ["worktree", "prune"], { cwd: REPO });
+  if (old.length > 0) log("scratch", `removed target/b{${old.join(",")}}`);
+}
+
 async function start(): Promise<number> {
   let state = loadState();
   if (args["dry-run"]) return dryRun(state);
@@ -665,6 +688,7 @@ async function start(): Promise<number> {
   // Before anything slow, so a trigger meanwhile skips.
   state = { ...state, inFlight: { step: "start", batch, startedAt } };
   saveState(state);
+  await pruneScratch(batch);
 
   const before = await toolTrees();
   const pf = await preflight(REPO);
