@@ -60,6 +60,11 @@ is chosen inside a "When you do" or a delayed trigger must sit inside it.
 Before proposing a binding other than the tree's, check the `<semantics>` row
 that settles that shape (such as `[branch-binds]` or `[done-this-way]`); a tree
 that follows a settled row is right.
+Each `Target`, `TargetOpponent` or `Controller(Target)` node is its own
+target choice. Count the targets the text prints and the target nodes the tree
+holds: one printed target ("target opponent's graveyard, hand, and library",
+"each creature target player controls loses … and becomes …") is one target
+node, and its later mentions are `That`.
 After a subject other than you ("that player", "its controller"), every verb
 joined to it by "and" or "then" has that subject too, including who orders
 cards "in any order": check each such verb sits in its `Performed`.
