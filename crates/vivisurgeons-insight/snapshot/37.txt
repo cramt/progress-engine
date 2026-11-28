@@ -902,7 +902,7 @@ type: Land
 > As this land enters, you may reveal a Dragon card from your hand. This land enters tapped unless you revealed a Dragon card this way or you control a Dragon.
 > As this land enters, choose a color.
 > {T}: Add one mana of the chosen color.
-= BROKE at "revealed" after: as this land enters , you may reveal a dragon card from your hand . this land enters tapped unless you
+= Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [May { who: You, then: [Reveal { who: You, what: Objects { quant: One, filter: Filter { alts: [[Subtype("dragon")]], kind: Some(Card), posts: [In(Hand(You))], or: None } } }] }, If { order: Trailing, cond: Not(Or([ThisWay(Reveals { who: You, what: Objects { quant: One, filter: Filter { alts: [[Subtype("dragon")]], kind: Some(Card), posts: [], or: None } } }), YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("dragon")]], kind: None, posts: [], or: None } })])), then: [EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }] }])
 = Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(Color)] }])
 = Activated { cost: [Tap], effect: [AddMana(Of { n: N(1), pick: Stated, within: Some(Chosen) })], limits: [] }
 

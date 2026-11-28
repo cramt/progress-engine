@@ -3349,4 +3349,33 @@ mod round_nine_d {
         let each = read("At the beginning of your upkeep, each player may put two +1/+1 counters on a creature they control. If a player does, creatures that player controls can't attack you until your next turn.");
         assert!(!each.contains("IfYouDo"), "{each}");
     }
+
+    #[test]
+    fn unless_you_revealed_a_card_this_way() {
+        let read = |text: &str| {
+            let face = Face {
+                name: "Some Card",
+                type_line: "Land",
+                text,
+            };
+            format!(
+                "{:?}",
+                read_face_unresolved(&face, "Some Card")
+                    .iter()
+                    .map(|l| l.parsed.as_ref().ok())
+                    .collect::<Vec<_>>()
+            )
+        };
+        let beach = read("This land enters tapped unless you revealed a Soldier card this way or you control a Soldier.");
+        assert!(
+            beach.contains("unless: Or([ThisWay(Reveals { who: You"),
+            "{beach}"
+        );
+        // [revealed-this-way]: a reveal not said to be "this way" is no
+        // earlier reveal of the ability's own.
+        let bare = read(
+            "This land enters tapped unless you revealed a Soldier card or you control a Soldier.",
+        );
+        assert!(!bare.contains("Reveals"), "{bare}");
+    }
 }

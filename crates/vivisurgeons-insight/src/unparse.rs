@@ -12411,6 +12411,11 @@ fn event(o: &mut Out, e: &Event) {
             o.verb("exile", player_num(who));
             objects(o, what);
         }
+        Event::Reveals { who, what } => {
+            player(o, who);
+            o.verb("reveal", player_num(who));
+            objects(o, what);
+        }
         Event::DealsNoncombatDamageTo { what, to } => {
             obj_subj(o, what, "deal");
             o.w("noncombat damage to");
@@ -12571,6 +12576,7 @@ fn event_subject(e: &Event) -> Option<Subject<'_>> {
         | Event::TapsFor { who, .. }
         | Event::Puts { who, .. }
         | Event::Exiles { who, .. }
+        | Event::Reveals { who, .. }
         | Event::AttacksWith { who, .. }
         | Event::Performs { who, .. }
         | Event::Exerts { who, .. }
@@ -13424,6 +13430,13 @@ fn condition_said(o: &mut Out, c: &Condition) {
             Event::Exiles { who, what } => {
                 player(o, who);
                 syn::did_tense(o, "exiled", out(|o| o.verb("exile", player_num(who))));
+                objects(o, what);
+                o.w("this way");
+            }
+            // "you revealed a Soldier card this way".
+            Event::Reveals { who, what } => {
+                player(o, who);
+                syn::did_tense(o, "revealed", out(|o| o.verb("reveal", player_num(who))));
                 objects(o, what);
                 o.w("this way");
             }

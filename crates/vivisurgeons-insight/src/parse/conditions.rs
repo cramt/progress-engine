@@ -215,6 +215,16 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             p.words("this way")?;
             Some(Condition::ThisWay(Box::new(Event::Exiles { who, what })))
         },
+        // "unless you revealed a Soldier card this way" (Fortified
+        // Beachhead), "if you revealed it this way" (Fisher's Talent): the
+        // reveal the ability's own earlier words offered ([revealed-this-way]).
+        |p| {
+            let who = alt!(p; |p| p.word("you").map(|_| Player::You), player_simple)?;
+            p.word("revealed")?;
+            let what = objects(p)?;
+            p.words("this way")?;
+            Some(Condition::ThisWay(Box::new(Event::Reveals { who, what })))
+        },
         // "you had a land enter the battlefield under your control this turn".
         |p| {
             p.words("you had")?;

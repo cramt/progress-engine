@@ -321,7 +321,7 @@ type: Land
 > As this land enters, you may reveal a Soldier card from your hand. This land enters tapped unless you revealed a Soldier card this way or you control a Soldier.
 > {T}: Add {W} or {U}.
 > {5}, {T}: Soldiers you control get +1/+1 until end of turn.
-= BROKE at "revealed" after: as this land enters , you may reveal a soldier card from your hand . this land enters tapped unless you
+= Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [May { who: You, then: [Reveal { who: You, what: Objects { quant: One, filter: Filter { alts: [[Subtype("soldier")]], kind: Some(Card), posts: [In(Hand(You))], or: None } } }] }, If { order: Trailing, cond: Not(Or([ThisWay(Reveals { who: You, what: Objects { quant: One, filter: Filter { alts: [[Subtype("soldier")]], kind: Some(Card), posts: [], or: None } } }), YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("soldier")]], kind: None, posts: [], or: None } })])), then: [EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }] }])
 = Activated { cost: [Tap], effect: [AddMana(Or([Mana(["W"]), Mana(["U"])]))], limits: [] }
 = Activated { cost: [Mana(Mana(["5"])), Tap], effect: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("soldier")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 

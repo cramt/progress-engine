@@ -3691,6 +3691,12 @@ pub enum Event {
         who: Player,
         what: Objects,
     },
+    /// "unless you revealed a Soldier card this way" (Fortified Beachhead):
+    /// a player reveals cards.
+    Reveals {
+        who: Player,
+        what: Objects,
+    },
     /// "would deal noncombat damage to an opponent".
     DealsNoncombatDamageTo {
         what: Objects,

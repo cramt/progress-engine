@@ -1870,6 +1870,10 @@ impl Walk for Event {
                 Walk::walk(who, v);
                 Walk::walk(what, v);
             }
+            Event::Reveals { who, what } => {
+                Walk::walk(who, v);
+                Walk::walk(what, v);
+            }
             Event::DealsNoncombatDamageTo { what, to } => {
                 Walk::walk(what, v);
                 for x0 in (to).iter_mut() {

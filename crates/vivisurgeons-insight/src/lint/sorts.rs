@@ -609,6 +609,7 @@ fn event(e: &Event, out: &mut Vec<(*const Objects, To)>) {
         | Event::Discards { what: o, .. }
         | Event::Sacrifices { what: o, .. }
         | Event::Exiles { what: o, .. }
+        | Event::Reveals { what: o, .. }
         | Event::Exiled(o)
         | Event::ReturnedToHand(o)
         | Event::Countered(o)

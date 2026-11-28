@@ -209,7 +209,7 @@ cost: {4}{U}{U}
 > If you revealed a Dragon card or controlled a Dragon as you cast this spell, this spell can't be countered.
 > Draw four cards.
 = Static([OptionalAdditionalCost([Reveal(Objects { quant: One, filter: Filter { alts: [[Subtype("dragon")]], kind: Some(Card), posts: [In(Hand(You))], or: None } })])])
-= BROKE at "controlled" after: if you revealed a dragon card or
+= BROKE at "a" after: if you revealed a dragon card or controlled
 = Spell([Draw { who: You, n: N(4) }])
 
 ## Draugr Necromancer
