@@ -1107,8 +1107,8 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-28 190 of the 500 replay to
-the end and 63.12% of their lines are followed** (19,982 of 31,659), 3
+Worked card by card from there, **on 2026-11-28 192 of the 500 replay to
+the end and 63.38% of their lines are followed** (20,065 of 31,659), 3
 of them relying on a land the log never names (2 to the end) and 11 on a
 card no one named in a graveyard having no ability there (2 to the end),
 and 188 games have no card the engine refuses before any game (from 21). The
@@ -1477,7 +1477,9 @@ way back when what is left in it says so; a mana ability adding mana
 for each permanent it counts (Gaea's Cradle) tapped last of a spell's
 payments, and tapped first, its mana floating, before a cost returns a
 permanent it counts, left untapped the way back (CR 605.3a, 608.2h,
-106.4); and triggers a concession
+106.4); a card a line returns from the graveyard by its own trigger
+waited for until that trigger's "may" is answered (CR 608.2d, 113.6m:
+Squee, Goblin Nabob, whose 5 games go on, 2 to the end); and triggers a concession
 leaves unshown put on the stack after those it shows; the permanents an
 instruction has a player sacrifice, from the log's "sacrifices" lines,
 one each, every other choice of permanents of those names a way back;

@@ -216,6 +216,7 @@ const INDEXED: &[&str] = &[
     "Centaur Courser",
     "Wall of Blossoms",
     "Yavimaya, Cradle of Growth",
+    "Squee, Goblin Nabob",
 ];
 
 fn index() -> &'static IndexFile {
@@ -4004,4 +4005,99 @@ fn gaeas_cradle_under_yavimaya_is_tapped_for_its_count() {
     let game = r.game.expect("set up");
     assert_eq!(on_battlefield(&game, "Masticore"), 1);
     assert_eq!(on_battlefield(&game, "Quirion Ranger"), 1);
+}
+
+/// CR 113.6m, 608.2d: Squee, discarded to Survival of the Fittest,
+/// returns at alice's upkeep by its own trigger, the line saying it did.
+/// Its "may" is answered as the trigger resolves, the stack by then
+/// empty.
+#[test]
+fn squee_returns_from_the_graveyard_by_its_upkeep_trigger() {
+    let (_, r) = run("
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Forest].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Forest].
+        alice casts [Survival of the Fittest].
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 3: alice
+        alice draws a card.
+        alice discards [Squee, Goblin Nabob].
+        alice activates an ability of [Survival of the Fittest] ( Search your library for a creature card, reveal that card, put it into your hand, then shuffle.).
+        alice reveals [Wall of Roots].
+        Turn 3: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 4: alice
+        alice puts triggered ability from [Squee, Goblin Nabob] onto the stack (At the beginning of your upkeep, you may return Squee, Goblin Nabob from your graveyard to your hand.).
+        [Squee, Goblin Nabob] is returned to alice's hand from the graveyard.
+        alice draws a card.
+        alice plays [Forest].
+        Turn 4: bob
+        bob draws a card.
+        bob has conceded from the game.
+        alice wins the game.
+        Winner: alice
+    ");
+    assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+    let game = r.game.expect("set up");
+    assert_eq!(
+        named_in(&game, game.player(ALICE).hand(), "Squee, Goblin Nabob"),
+        1
+    );
+    assert_eq!(
+        named_in(&game, game.player(ALICE).graveyard(), "Squee, Goblin Nabob"),
+        0
+    );
+}
+
+/// A line returning Squee from the graveyard with no trigger of it before
+/// it is unfollowed by name: nothing in the game returned it.
+#[test]
+fn squee_returned_with_no_trigger_is_unfollowed() {
+    let (_, r) = run("
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Forest].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Forest].
+        alice casts [Survival of the Fittest].
+        Turn 2: bob
+        bob draws a card.
+        bob plays [Swamp].
+        Turn 3: alice
+        alice draws a card.
+        alice discards [Squee, Goblin Nabob].
+        alice activates an ability of [Survival of the Fittest] ( Search your library for a creature card, reveal that card, put it into your hand, then shuffle.).
+        alice reveals [Wall of Roots].
+        [Squee, Goblin Nabob] is returned to alice's hand from the graveyard.
+        Turn 3: bob
+        bob draws a card.
+        bob has conceded from the game.
+        alice wins the game.
+        Winner: alice
+    ");
+    assert!(
+        matches!(&r.end, End::Stopped { stop: Stop::Unfollowed { card: Some(c), .. }, .. }
+            if c == "Squee, Goblin Nabob"),
+        "{:?}",
+        r.end
+    );
 }

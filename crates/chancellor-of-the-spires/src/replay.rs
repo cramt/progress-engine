@@ -1286,7 +1286,12 @@ impl Driver<'_> {
                         .iter()
                         .any(|c| game.face_name(*c) == Some(name))
                 };
-                while !has(self) && !self.game().stack().is_empty() {
+                // Until it has resolved: the engine has taken it off the
+                // stack by the time its "may" (CR 608.2d) is asked.
+                while !has(self)
+                    && (!self.game().stack().is_empty()
+                        || matches!(self.game().decision(), Decision::May { .. }))
+                {
                     self.pass()?;
                 }
                 if !has(self) {
