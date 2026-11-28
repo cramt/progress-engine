@@ -1639,9 +1639,17 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             let who = subject_player(p);
             p.verb("search")?;
             let whose = whose(p)?;
+            // "Search target opponent's graveyard, hand, and library"
+            // (Memoricide): the player is said once and targeted once, so
+            // the zones after the first are that player's
+            // ([target-opponent-choice]).
+            let then = match whose {
+                Player::Target | Player::TargetOpponent => Player::That,
+                ref w => w.clone(),
+            };
             let zones = alt!(p;
-                |p| p.words("library and/or graveyard").map(|_| vec![Zone::Library(whose.clone()), Zone::Graveyard(whose.clone())]),
-                |p| p.words("graveyard , hand , and library").map(|_| vec![Zone::Graveyard(whose.clone()), Zone::Hand(whose.clone()), Zone::Library(whose.clone())]),
+                |p| p.words("library and/or graveyard").map(|_| vec![Zone::Library(whose.clone()), Zone::Graveyard(then.clone())]),
+                |p| p.words("graveyard , hand , and library").map(|_| vec![Zone::Graveyard(whose.clone()), Zone::Hand(then.clone()), Zone::Library(then.clone())]),
                 |p| p.word("library").map(|_| vec![Zone::Library(whose.clone())]),
             )?;
             p.word("for")?;

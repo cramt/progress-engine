@@ -208,7 +208,7 @@ face: Cranial Extraction
 type: Sorcery — Arcane
 cost: {3}{B}
 > Choose a nonland card name. Search target player's graveyard, hand, and library for all cards with that name and exile them. Then that player shuffles.
-= Spell([Choose(CardName(Filter { alts: [[Non("land")]], kind: Some(Card), posts: [], or: None })), With { bind: [/* found */ Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [WithThatName], or: None } }], then: [Search { who: You, zones: [Graveyard(Target), Hand(Target), Library(Target)], what: Objects { quant: Introduced(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, and: [] }, Exile(Objects { quant: Bound(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Shuffle(That)] }])
+= Spell([Choose(CardName(Filter { alts: [[Non("land")]], kind: Some(Card), posts: [], or: None })), With { bind: [/* found */ Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [WithThatName], or: None } }], then: [Search { who: You, zones: [Graveyard(Target), Hand(That), Library(That)], what: Objects { quant: Introduced(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, and: [] }, Exile(Objects { quant: Bound(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Shuffle(That)] }])
 
 ## Desolation Angel
 face: Desolation Angel

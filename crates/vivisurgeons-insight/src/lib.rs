@@ -3165,4 +3165,35 @@ mod round_nine_d {
             read("{T}: Add {W}{U}{B}{R}{G}. This mana can't be spent to pay colored mana costs.");
         assert!(!colored.contains("SpendNot"), "{colored}");
     }
+
+    #[test]
+    fn a_target_players_three_zones_name_one_target() {
+        let read = |text: &str| {
+            let face = Face {
+                name: "Some Card",
+                type_line: "Sorcery",
+                text,
+            };
+            format!(
+                "{:?}",
+                read_face_unresolved(&face, "Some Card")
+                    .iter()
+                    .map(|l| l.parsed.as_ref().ok())
+                    .collect::<Vec<_>>()
+            )
+        };
+        let target = read("Search target opponent's graveyard, hand, and library for any number of cards and exile them.");
+        assert!(
+            target.contains("zones: [Graveyard(TargetOpponent), Hand(That), Library(That)]"),
+            "{target}"
+        );
+        // [target-opponent-choice]: only a target player is chosen once.
+        let yours = read(
+            "Search your graveyard, hand, and library for any number of cards and exile them.",
+        );
+        assert!(
+            yours.contains("zones: [Graveyard(You), Hand(You), Library(You)]"),
+            "{yours}"
+        );
+    }
 }
