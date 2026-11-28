@@ -473,23 +473,61 @@ impl Runnable {
     }
 }
 
+/// The modes chosen for a modal spell (CR 700.2a), by their indexes in
+/// its text, each at most once (CR 700.2d); none for a spell that isn't
+/// modal.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct Modes(u16);
+
+impl Modes {
+    /// The modes of these indexes; `None` past the 16th or for one given
+    /// twice.
+    pub fn of(modes: impl IntoIterator<Item = u8>) -> Option<Modes> {
+        modes
+            .into_iter()
+            .try_fold(0u16, |bits, k| {
+                let bit = 1u16.checked_shl(u32::from(k))?;
+                (bits & bit == 0).then_some(bits | bit)
+            })
+            .map(Modes)
+    }
+
+    /// Their indexes, in the order written.
+    pub fn iter(self) -> impl Iterator<Item = u8> {
+        (0..16u8).filter(move |k| self.0 & (1 << k) != 0)
+    }
+}
+
+impl fmt::Display for Modes {
+    /// "mode 2", "modes 1 and 3", counted from 1 as the text's bullets.
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let all: Vec<String> = self.iter().map(|k| (k + 1).to_string()).collect();
+        match all.as_slice() {
+            [one] => write!(f, "mode {one}"),
+            [init @ .., last] => write!(f, "modes {} and {last}", init.join(", ")),
+            [] => f.write_str("no mode"),
+        }
+    }
+}
+
 /// An instant's or sorcery's instructions (CR 113.3a).
 #[derive(Clone, Debug)]
 enum SpellText {
     /// Its paragraphs in order.
     One(Program),
-    /// "Choose one —" (CR 700.2): each mode's, or why the engine can't run
-    /// it, refused if it is chosen.
-    Modes(Vec<Result<Program, Unrunnable>>),
+    /// "Choose one —", "Choose two —" (CR 700.2): each choice of modes and
+    /// their instructions, or why the engine can't run them, refused if it
+    /// is chosen.
+    Modes(Vec<(Modes, Result<Program, Unrunnable>)>),
 }
 
 impl SpellText {
-    /// The instructions the mode chosen follows; a spell that isn't modal
+    /// The instructions the modes chosen follow; a spell that isn't modal
     /// has the one.
-    fn program(&self, mode: u8) -> Option<&Program> {
+    fn program(&self, modes: Modes) -> Option<&Program> {
         match self {
             SpellText::One(p) => Some(p),
-            SpellText::Modes(m) => m.get(mode as usize)?.as_ref().ok(),
+            SpellText::Modes(m) => m.iter().find(|(k, _)| *k == modes)?.1.as_ref().ok(),
         }
     }
 
@@ -499,7 +537,8 @@ impl SpellText {
             SpellText::One(p) => (Some(p), &[][..]),
             SpellText::Modes(m) => (None, m.as_slice()),
         };
-        one.into_iter().chain(modes.iter().flatten())
+        one.into_iter()
+            .chain(modes.iter().filter_map(|(_, p)| p.as_ref().ok()))
     }
 }
 
@@ -721,9 +760,9 @@ pub enum StackObject {
         via: Via,
         /// Its kicker was paid (CR 702.33d).
         kicked: bool,
-        /// The mode chosen of a modal spell (CR 700.2a); 0 for one that
-        /// isn't.
-        mode: u8,
+        /// The modes chosen of a modal spell (CR 700.2a); none for one
+        /// that isn't.
+        mode: Modes,
         /// Its X, set as it was cast (CR 107.3a): Blazing Shoal's, the
         /// mana value of the card it exiled. `None` with no X set.
         x: Option<u32>,
@@ -797,7 +836,7 @@ enum Instructions {
         card: CardId,
         via: Via,
         kicked: bool,
-        mode: u8,
+        mode: Modes,
         x: Option<u32>,
     },
     /// An activated ability, of the text it is printed on, and the X
@@ -1525,12 +1564,12 @@ pub enum Decision {
         among: Vec<ObjectId>,
     },
     /// CR 601.2b, 700.2a: `player` casting modal `card` chooses one of
-    /// its `modes`, by their index in its text, answered `Answer::Mode`:
-    /// those whose targets can all be chosen.
+    /// its choices of `modes`, answered `Answer::Mode`: those whose
+    /// targets can all be chosen.
     Mode {
         player: PlayerId,
         card: CardId,
-        modes: Vec<u8>,
+        modes: Vec<Modes>,
     },
     /// CR 601.2b, 702.33a: `player` casting `card` announces whether they
     /// pay its kicker, `cost` more, answered `Answer::Kick`.
@@ -1985,8 +2024,8 @@ pub enum Answer {
     Kick(bool),
     /// CR 107.3a: the X announced.
     X(u32),
-    /// CR 700.2a: the mode chosen, by its index in the spell's text.
-    Mode(u8),
+    /// CR 700.2a: the modes chosen.
+    Mode(Modes),
     /// CR 601.2c: one target per slot.
     Targets(Vec<Target>),
     /// CR 603.3b.
@@ -2872,7 +2911,7 @@ impl Game {
     /// Whether a known card's spell has a target slot a spell or an
     /// ability on the stack fills: in `mode` if it is modal and one is
     /// given, else in any.
-    pub fn targets_the_stack(&self, c: CardId, mode: Option<u8>) -> bool {
+    pub fn targets_the_stack(&self, c: CardId, mode: Option<Modes>) -> bool {
         let fills = |p: &Program| p.targets.iter().any(on_the_stack);
         self.known(c)
             .and_then(|k| k.runs.as_ref().ok())
@@ -4473,7 +4512,7 @@ impl Game {
                     return Err(Rejected::Illegal(answer));
                 }
                 if let Some(SpellText::Modes(modes)) = &self.runs_of(card).spell {
-                    if let Err(refusal) = &modes[*mode as usize] {
+                    if let Some((_, Err(refusal))) = modes.iter().find(|(k, _)| k == mode) {
                         return Err(Rejected::Refused {
                             card: self
                                 .known(card)
@@ -5868,7 +5907,7 @@ impl Game {
                     targets: Vec::new(),
                     via: Via::FaceDown,
                     kicked: false,
-                    mode: 0,
+                    mode: Modes::default(),
                     x: None,
                 });
                 let owed = self.total_cost(p, card, ManaCost::default().plus_generic(3));
@@ -6299,7 +6338,7 @@ impl Game {
             targets: Vec::new(),
             via,
             kicked: false,
-            mode: 0,
+            mode: Modes::default(),
             x: None,
         });
         // CR 903.8: commander tax is on a cast from the command zone.
@@ -6351,23 +6390,22 @@ impl Game {
         match &runs.spell {
             None => true,
             Some(SpellText::One(program)) => has_targets(program),
-            Some(SpellText::Modes(modes)) => {
-                modes.iter().any(|m| m.as_ref().map_or(true, has_targets))
-            }
+            Some(SpellText::Modes(modes)) => modes
+                .iter()
+                .any(|(_, m)| m.as_ref().map_or(true, has_targets)),
         }
     }
 
-    /// CR 700.2a: the modes of a modal spell `p` casts that can be chosen,
-    /// those whose every target slot has a legal choice; one the engine
-    /// can't run is listed, to be refused as it is chosen.
-    fn choosable_modes(&self, p: PlayerId, card: CardId) -> Vec<u8> {
+    /// CR 700.2a: the choices of modes of a modal spell `p` casts that can
+    /// be chosen, those whose every target slot has a legal choice; one the
+    /// engine can't run is listed, to be refused as it is chosen.
+    fn choosable_modes(&self, p: PlayerId, card: CardId) -> Vec<Modes> {
         let Some(SpellText::Modes(modes)) = &self.runs_of(card).spell else {
             return Vec::new();
         };
         let source = self.spell_chars(card);
         modes
             .iter()
-            .enumerate()
             .filter(|(_, m)| {
                 m.as_ref().map_or(true, |program| {
                     program
@@ -6376,7 +6414,7 @@ impl Game {
                         .all(|t| !self.legal_targets(t, p, source.as_ref(), None).is_empty())
                 })
             })
-            .map(|(k, _)| k as u8)
+            .map(|(k, _)| *k)
             .collect()
     }
 
@@ -6407,16 +6445,21 @@ impl Game {
     /// an Aura's one, what it can enchant (CR 303.4a).
     fn spell_targets(&self, card: CardId) -> Option<Vec<TargetSpec>> {
         let runs = self.runs_of(card);
-        let mode = self.stack.iter().rev().find_map(|o| match o {
-            StackObject::Spell { card: c, mode, .. } if *c == card => Some(*mode),
-            _ => None,
-        });
+        let mode = self
+            .stack
+            .iter()
+            .rev()
+            .find_map(|o| match o {
+                StackObject::Spell { card: c, mode, .. } if *c == card => Some(*mode),
+                _ => None,
+            })
+            .expect("a spell being cast is on the stack");
         match &runs.enchant {
             Some(f) => Some(vec![TargetSpec::Permanent(f.clone())]),
             None => runs
                 .spell
                 .as_ref()
-                .and_then(|s| s.program(mode.unwrap_or(0)))
+                .and_then(|s| s.program(mode))
                 .map(|p| p.targets.clone()),
         }
     }
@@ -12123,7 +12166,13 @@ fn runnable(lowered: Lowered) -> Result<Runnable, Unrunnable> {
                     ));
                 }
                 runs.spell = Some(SpellText::Modes(
-                    modes.into_iter().map(|m| m.map_err(refused)).collect(),
+                    modes
+                        .into_iter()
+                        .map(|(k, m)| {
+                            let k = Modes::of(k).expect("lowered with at most 16 modes");
+                            (k, m.map_err(refused))
+                        })
+                        .collect(),
                 ));
             }
             // "Void — ~ deals 3 damage instead if …": the paragraph before

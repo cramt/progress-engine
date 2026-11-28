@@ -2596,14 +2596,18 @@ pub fn spell(bind: &[Objects], effects: &[i::Effect]) -> Result<Program, String>
     Ok(scope.program)
 }
 
-/// A modal spell's "Choose one —" (CR 700.2): each mode's instructions,
-/// lowered apart with targets of its own (CR 700.2c), or the node one
-/// can't be lowered at, so a spell can be cast with the modes the engine
-/// runs. `None` if the spell isn't modal.
+/// A modal spell's choices (CR 700.2): each set of modes its "Choose one
+/// —" or "Choose two —" lets its caster choose, by their indexes in its
+/// text, and their instructions, lowered apart with targets of their own
+/// (CR 700.2c), or the node they can't be lowered at, so a spell can be
+/// cast with the modes the engine runs. Several modes are their
+/// instructions in the order written (CR 608.2c), and none is chosen twice
+/// (CR 700.2d). `None` if the spell isn't modal.
+#[allow(clippy::type_complexity)]
 pub fn modes(
     bind: &[Objects],
     effects: &[i::Effect],
-) -> Option<Result<Vec<Result<Program, String>>, String>> {
+) -> Option<Result<Vec<(Vec<u8>, Result<Program, String>)>, String>> {
     // Archdruid's Charm's "Search your library for a creature or land
     // card": Insight binds what a mode finds in a `With` around the whole
     // `Modal`, the effect it is said in. A `With` does nothing itself, so
@@ -2616,40 +2620,104 @@ pub fn modes(
     let [i::Effect::Modal { choose, modes }] = modal else {
         return None;
     };
-    if !matches!(choose, i::Choose::One) {
-        return Some(Err(format!("a modal spell choosing {}", short(choose))));
+    let n = match choose {
+        i::Choose::One => 1,
+        // Kolaghan's Command's "Choose two —".
+        i::Choose::N(n) if found.is_none() && (2..=modes.len()).contains(&(*n as usize)) => {
+            *n as usize
+        }
+        _ => return Some(Err(format!("a modal spell choosing {}", short(choose)))),
+    };
+    // The engine holds a choice of modes as 16 bits (`game::Modes`).
+    if modes.len() > 16 {
+        return Some(Err("a modal spell of more than 16 modes".to_string()));
     }
     let Some(found) = found else {
-        return Some(Ok(modes.iter().map(|m| spell(bind, m)).collect()));
+        let apart: Vec<Result<Program, String>> = modes.iter().map(|m| spell(bind, m)).collect();
+        return Some(Ok(combinations(modes.len(), n)
+            .into_iter()
+            .map(|chosen| {
+                let lowered = joined(bind, modes, &apart, &chosen);
+                (chosen, lowered)
+            })
+            .collect()));
+    };
+    let with_found = |m: &Vec<i::Effect>| -> Result<Program, String> {
+        let wrapped = vec![i::Effect::With {
+            bind: found.clone(),
+            then: m.clone(),
+        }];
+        let tree = i::Ability::Let {
+            bind: bind.to_vec(),
+            ability: Box::new(i::Ability::Spell(wrapped.clone())),
+        };
+        let ours = bind.len()..bind.len() + found.len();
+        let reads = vivisurgeons_insight::binders::bindings(&tree)
+            .refs
+            .values()
+            .flatten()
+            .any(|b| b.is_some_and(|b| ours.contains(&b)));
+        if reads {
+            return spell(bind, &wrapped);
+        }
+        let mut scope = Scope::new(bind);
+        scope.cost_x = true;
+        scope.withs.extend(std::iter::repeat_n(None, found.len()));
+        let lowered = scope.effects(m)?;
+        scope.program.effects = lowered;
+        Ok(scope.program)
     };
     Some(Ok(modes
         .iter()
-        .map(|m| {
-            let wrapped = vec![i::Effect::With {
-                bind: found.clone(),
-                then: m.clone(),
-            }];
-            let tree = i::Ability::Let {
-                bind: bind.to_vec(),
-                ability: Box::new(i::Ability::Spell(wrapped.clone())),
-            };
-            let ours = bind.len()..bind.len() + found.len();
-            let reads = vivisurgeons_insight::binders::bindings(&tree)
-                .refs
-                .values()
-                .flatten()
-                .any(|b| b.is_some_and(|b| ours.contains(&b)));
-            if reads {
-                return spell(bind, &wrapped);
-            }
-            let mut scope = Scope::new(bind);
-            scope.cost_x = true;
-            scope.withs.extend(std::iter::repeat_n(None, found.len()));
-            let lowered = scope.effects(m)?;
-            scope.program.effects = lowered;
-            Ok(scope.program)
-        })
+        .enumerate()
+        .map(|(k, m)| (vec![k as u8], with_found(m)))
         .collect()))
+}
+
+/// The modes `chosen` of a modal spell lowered as one spell, their
+/// instructions in the order written (CR 608.2c). Each mode is lowered
+/// apart first, refused as it is alone; and since one scope numbers the
+/// pair's target slots, each mode must keep targets of its own (CR
+/// 700.2d's "different targets may be chosen"): two modes that each say
+/// "target player" sharing one slot are refused by name.
+fn joined(
+    bind: &[Objects],
+    modes: &[Vec<i::Effect>],
+    apart: &[Result<Program, String>],
+    chosen: &[u8],
+) -> Result<Program, String> {
+    let mut targets = Vec::new();
+    for k in chosen {
+        targets.extend(apart[*k as usize].clone()?.targets);
+    }
+    let effects: Vec<i::Effect> = chosen
+        .iter()
+        .flat_map(|k| modes[*k as usize].iter().cloned())
+        .collect();
+    let program = spell(bind, &effects)?;
+    if program.targets != targets {
+        return Err("a modal spell's modes sharing a target".to_string());
+    }
+    Ok(program)
+}
+
+/// Every set of `k` of the indexes below `n`, each in increasing order,
+/// the sets in lexicographic order.
+fn combinations(n: usize, k: usize) -> Vec<Vec<u8>> {
+    fn from(start: usize, n: usize, k: usize, chosen: &mut Vec<u8>, out: &mut Vec<Vec<u8>>) {
+        if chosen.len() == k {
+            out.push(chosen.clone());
+            return;
+        }
+        for next in start..n {
+            chosen.push(next as u8);
+            from(next + 1, n, k, chosen, out);
+            chosen.pop();
+        }
+    }
+    let mut out = Vec::new();
+    from(0, n, k, &mut Vec::new(), &mut out);
+    out
 }
 
 /// A triggered ability (CR 603), with the `Let` that binds its targets and

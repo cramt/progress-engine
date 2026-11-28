@@ -24,8 +24,8 @@ use std::fmt;
 use crate::deck::{CardText, DeckCards, Side};
 use crate::game::{
     Action, Activation, Answer, CardId, Decision, Format, Found, Game, Mana, ManaActivation,
-    ManaCost, ManaPool, Outcome, Payment, Rejected, Setup, StackObject, Step, Target, Unnameable,
-    HAND_SIZE,
+    ManaCost, ManaPool, Modes, Outcome, Payment, Rejected, Setup, StackObject, Step, Target,
+    Unnameable, HAND_SIZE,
 };
 use crate::log::{self, Entry, Event, Object};
 use crate::lower::{CastFrom, CastWhen, PaidWith};
@@ -5748,7 +5748,7 @@ impl Driver<'_> {
         kind: Kind,
         respond: bool,
         answers: bool,
-        mode: Option<u8>,
+        mode: Option<Modes>,
     ) -> Result<Action, Stop> {
         // The face the line names, a two-faced card's back by its name.
         let side = self.text(name)?.side_named(name);
@@ -5927,7 +5927,7 @@ impl Driver<'_> {
             })?;
             if !modes.contains(&k) {
                 return Err(Stop::Diverged(Divergence::NeverOffered {
-                    what: format!("mode {} of {name}", k + 1),
+                    what: format!("{k} of {name}"),
                 }));
             }
             self.act(Answer::Mode(k))?;
@@ -5967,34 +5967,78 @@ impl Driver<'_> {
         })
     }
 
-    /// The mode of the card called `name` the log says was chosen, by its
-    /// index among the card's "•" lines: quoted on the cast line, or on a
-    /// "Chosen mode:" line right after it, which is then followed. The log
-    /// may cut a mode's text short with "...". `None` if no mode is said
-    /// or none matches.
-    fn mode_said(&mut self, i: usize, cast: &log::Cast, name: &str) -> Result<Option<u8>, Stop> {
-        let after = self.entries.get(i + 1).and_then(|e| match &e.event {
-            Event::ChosenMode(m) => Some(m.clone()),
-            _ => None,
-        });
-        let Some(said) = cast.modes.first().cloned().or_else(|| after.clone()) else {
-            return Ok(None);
-        };
+    /// The modes of the card called `name` the log says were chosen, by
+    /// their indexes among the card's "•" lines: quoted on the cast line,
+    /// or on the "Chosen mode:" lines right after it that say one of its
+    /// modes, which are then followed. The log may cut a mode's text short
+    /// with "...", which must then begin exactly one. `None` if no mode is
+    /// said or one said matches none; a mode said twice is no choice of
+    /// modes (CR 700.2d).
+    fn mode_said(&mut self, i: usize, cast: &log::Cast, name: &str) -> Result<Option<Modes>, Stop> {
         let text = self.text(name)?.rules_text();
-        let said = digits(said.trim());
-        let k = text
+        let bullets: Vec<String> = text
             .lines()
             .filter_map(|l| l.trim().strip_prefix('•'))
             .map(|m| digits(m.trim()))
-            .position(|m| match said.strip_suffix("...") {
-                Some(cut) => m.starts_with(cut.trim_end()),
-                None => m == said,
-            });
-        if k.is_some() && cast.modes.is_empty() && after.is_some() {
-            self.consumed.insert(i + 1);
-            self.did(i + 1, "the mode chosen as the spell before it was cast");
+            .collect();
+        let which = |said: &str| -> Option<usize> {
+            let said = digits(said.trim());
+            let mut matching =
+                bullets
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, m)| match said.strip_suffix("...") {
+                        Some(cut) => m.starts_with(cut.trim_end()),
+                        None => **m == said,
+                    });
+            match (matching.next(), matching.next()) {
+                (Some((k, _)), None) => Some(k),
+                _ => None,
+            }
+        };
+        // A "Chosen mode:" line after the cast that says none of its modes
+        // is another object's, left to be followed on its own.
+        let after: Vec<usize> = self.entries[i + 1..]
+            .iter()
+            .map_while(|e| match &e.event {
+                Event::ChosenMode(m) => which(m),
+                _ => None,
+            })
+            .collect();
+        let ks: Vec<usize> = if cast.modes.is_empty() {
+            after.clone()
+        } else {
+            match cast
+                .modes
+                .iter()
+                .map(|m| which(m))
+                .collect::<Option<Vec<usize>>>()
+            {
+                Some(ks) => ks,
+                None => return Ok(None),
+            }
+        };
+        if ks.is_empty() {
+            return Ok(None);
         }
-        Ok(k.and_then(|k| u8::try_from(k).ok()))
+        let distinct: BTreeSet<usize> = ks.iter().copied().collect();
+        if distinct.len() != ks.len() {
+            return Err(Stop::Diverged(Divergence::NeverOffered {
+                what: format!("a mode of {name} chosen twice"),
+            }));
+        }
+        if cast.modes.is_empty() {
+            for j in i + 1..=i + after.len() {
+                self.consumed.insert(j);
+                self.did(j, "a mode chosen as the spell before it was cast");
+            }
+        }
+        Ok(ks
+            .into_iter()
+            .map(u8::try_from)
+            .collect::<Result<Vec<u8>, _>>()
+            .ok()
+            .and_then(Modes::of))
     }
 
     /// The card of `p`'s named `name` where `kind` casts or plays it from:

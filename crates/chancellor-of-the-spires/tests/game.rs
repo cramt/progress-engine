@@ -531,7 +531,7 @@ fn a_creature_cast_at_sorcery_speed_resolves_onto_the_battlefield() {
             controller: ME,
             via: Via::ManaCost,
             kicked: false,
-            mode: 0,
+            mode: Modes::default(),
             x: None,
         }]
     );
@@ -966,6 +966,7 @@ fn loam_coverage() {
             continue;
         }
         let mut done = false;
+        let mut refused_here = false;
         for _ in 0..12 {
             my_next_main(&mut game);
             if land {
@@ -999,12 +1000,38 @@ fn loam_coverage() {
                 continue;
             }
             act(&mut game, Action::Cast(target));
+            // A modal spell whose every choice its targets allow here
+            // is one the engine refuses (Quandrix Command with no creature
+            // to target): counted by that refusal.
+            if let Decision::Mode { modes, .. } = game.decision() {
+                let refusals: Vec<Option<String>> = modes
+                    .iter()
+                    .map(|m| match game.clone().step(Answer::Mode(*m)) {
+                        Err(Rejected::Refused { refusal, .. }) => Some(refusal.node),
+                        _ => None,
+                    })
+                    .collect();
+                if let Some(Some(node)) = refusals
+                    .first()
+                    .filter(|_| refusals.iter().all(Option::is_some))
+                {
+                    refused
+                        .entry(node.clone())
+                        .or_default()
+                        .push(c.name.clone());
+                    refused_here = true;
+                    break;
+                }
+            }
             if pay(&mut game) {
                 resolve_stack(&mut game);
                 done = permanent(&game, target).is_some()
                     || game.player(ME).graveyard().contains(&target);
                 break;
             }
+        }
+        if refused_here {
+            continue;
         }
         assert!(done, "{} ran but wasn't played or cast", c.name);
         runs.push((c.name.clone(), game.dormant(target).to_vec()));

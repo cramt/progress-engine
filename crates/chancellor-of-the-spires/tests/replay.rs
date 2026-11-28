@@ -130,6 +130,7 @@ fn scalding_viper() -> CardText {
 /// The real cards the logs here name beyond these, from the card index.
 const INDEXED: &[&str] = &[
     "Mountain",
+    "Kolaghan's Command",
     "Outcaster Trailblazer",
     "Swamp",
     "Wooded Foothills",
@@ -609,6 +610,89 @@ fn a_shock_land_is_paid_for_only_when_what_follows_needs_it() {
         .iter()
         .any(|t| t.did == "Stomping Ground enters tapped, no life paid"));
     assert_eq!(r.game.unwrap().player(ALICE).life(), 20);
+}
+
+/// CR 700.2a, 608.2c: Kolaghan's Command's two modes, quoted on the cast
+/// line or said on a "Chosen mode:" line each after it, choose that pair:
+/// bob discards and his Elite Vanguard takes 2 and dies.
+fn kolaghans_command(cast: &str) -> Replay {
+    let lines = format!(
+        "
+        alice chooses to play first.
+        alice begins the game with seven cards in hand.
+        bob begins the game with seven cards in hand.
+        Turn 1: alice
+        alice skips their draw step.
+        alice plays [Mountain].
+        Turn 1: bob
+        bob draws a card.
+        bob plays [Plains].
+        bob casts [Elite Vanguard].
+        Turn 2: alice
+        alice draws a card.
+        alice plays [Swamp].
+        Turn 2: bob
+        bob draws a card.
+        Turn 3: alice
+        alice draws a card.
+        alice plays [Mountain].
+        {cast}
+        bob discards [Plains].
+        alice has conceded from the game.
+    "
+    );
+    run(&lines).1
+}
+
+#[test]
+fn a_modal_spell_s_two_modes_are_read_from_its_line_or_the_lines_after() {
+    for cast in [
+        "alice casts [Kolaghan's Command] choosing \"Target player discards a card.\" and \"Kolaghan's Command deals 2 damage to any target.\" targeting bob and [Elite Vanguard] (Kolaghan's Command deals 2 damage to any target.).",
+        "alice casts [Kolaghan's Command] targeting bob, and [Elite Vanguard].
+        Chosen mode: Target player discards a card.
+        Chosen mode: Kolaghan's Command deals 2 damage to any target.",
+    ] {
+        let r = kolaghans_command(cast);
+        assert_eq!(r.end, End::Finished, "{:?}", r.trace);
+        let game = r.game.unwrap();
+        let graveyard: Vec<String> = game
+            .player(BOB)
+            .graveyard()
+            .iter()
+            .filter_map(|c| game.card(*c).map(|t| t.name.clone()))
+            .collect();
+        assert_eq!(graveyard, ["Plains", "Elite Vanguard"], "{cast}");
+    }
+}
+
+/// A mode cut short to "..." begins every mode's text: it says none of
+/// them, and the replay stops at the mode unsaid, never taking the first.
+#[test]
+fn a_mode_cut_short_that_begins_several_is_no_mode() {
+    let r = kolaghans_command(
+        "alice casts [Kolaghan's Command] choosing \"Target player discards a card.\" and \"...\" targeting bob and [Elite Vanguard].",
+    );
+    assert!(
+        format!("{:?}", r.end).contains("Unlogged { what: \"the mode of Kolaghan's Command\" }"),
+        "{:?}",
+        r.end
+    );
+}
+
+/// A mode said twice is no choice of two modes (CR 700.2d): the replay
+/// stops at it.
+#[test]
+fn a_mode_said_twice_is_not_chosen() {
+    let r = kolaghans_command(
+        "alice casts [Kolaghan's Command] targeting bob, and bob.
+        Chosen mode: Target player discards a card.
+        Chosen mode: Target player discards a card.",
+    );
+    assert!(
+        format!("{:?}", r.end).contains("a mode of Kolaghan's Command chosen twice"),
+        "{:?}",
+        r.end
+    );
 }
 
 /// Duress and Champion of the Parish, as newer logs print them: the

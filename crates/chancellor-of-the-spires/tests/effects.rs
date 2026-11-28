@@ -69,9 +69,39 @@ fn drum_elf() -> CardText {
     }
 }
 
+/// A modal spell's one mode, by its index in the text.
+fn mode(k: u8) -> Modes {
+    Modes::of([k]).expect("a mode")
+}
+
 /// Cards no printed card is, for a branch only they reach.
 fn invented(name: &str) -> Option<CardText> {
     let (type_line, mana_cost, oracle, colors, power) = match name {
+        // Kolaghan's Command and Atarka's Command for one mana, so a test
+        // casts them on its first turn.
+        "Kolaghan's Quick Command" => (
+            "Instant",
+            "{R}",
+            "Choose two —\n• Return target creature card from your graveyard to your hand.\n• Target player discards a card.\n• Destroy target artifact.\n• This spell deals 2 damage to any target.",
+            vec![Color::Black, Color::Red],
+            None,
+        ),
+        "Atarka's Quick Command" => (
+            "Instant",
+            "{R}",
+            "Choose two —\n• Your opponents can't gain life this turn.\n• This spell deals 3 damage to each opponent.\n• You may put a land card from your hand onto the battlefield.\n• Creatures you control get +1/+1 and gain reach until end of turn.",
+            vec![Color::Red, Color::Green],
+            None,
+        ),
+        // A Command two of whose modes say "target player", as Primal
+        // Command's do.
+        "Two Player Command" => (
+            "Sorcery",
+            "{G}",
+            "Choose two —\n• Target player gains 7 life.\n• Target player draws a card.\n• This spell deals 3 damage to each opponent.",
+            vec![Color::Green],
+            None,
+        ),
         // Sizzle and Overrun for one mana.
         "Quick Sizzle" => (
             "Sorcery",
@@ -84,6 +114,14 @@ fn invented(name: &str) -> Option<CardText> {
             "Sorcery",
             "{R}",
             "Creatures you control get +3/+3 and gain trample until end of turn.",
+            vec![Color::Red],
+            None,
+        ),
+        // "Choose one or both", which the engine doesn't run yet.
+        "Either Command" => (
+            "Instant",
+            "{R}",
+            "Choose one or both —\n• This spell deals 3 damage to each opponent.\n• Creatures you control get +1/+1 until end of turn.",
             vec![Color::Red],
             None,
         ),
@@ -6934,9 +6972,9 @@ fn red_elemental_blast_offers_only_a_mode_with_a_legal_target() {
     let Decision::Mode { modes, .. } = step(&mut game, Answer::Act(Action::Cast(blast))) else {
         panic!("{:?}", game.decision())
     };
-    assert_eq!(modes, vec![1]);
-    assert!(game.clone().step(Answer::Mode(0)).is_err());
-    let Decision::Targets { slots, .. } = step(&mut game, Answer::Mode(1)) else {
+    assert_eq!(modes, vec![mode(1)]);
+    assert!(game.clone().step(Answer::Mode(mode(0))).is_err());
+    let Decision::Targets { slots, .. } = step(&mut game, Answer::Mode(mode(1))) else {
         panic!("{:?}", game.decision())
     };
     assert_eq!(slots, vec![vec![Target::Object(men)]]);
@@ -6946,6 +6984,139 @@ fn red_elemental_blast_offers_only_a_mode_with_a_legal_target() {
     }
     resolve(&mut game);
     assert_eq!(creature(&game, "Flying Men"), None);
+}
+
+fn modes(ks: &[u8]) -> Modes {
+    Modes::of(ks.iter().copied()).expect("modes")
+}
+
+/// CR 700.2a, 700.2c, 700.2d: Kolaghan's Command's "Choose two —" offers
+/// each pair of modes whose targets can all be chosen, never one mode
+/// alone or one twice: with no artifact and no creature card in my
+/// graveyard, only "Target player discards a card" and the 2 damage.
+/// CR 608.2c: the pair's instructions in the order written, a target for
+/// each, so they discard a card and their Flying Men die.
+#[test]
+fn kolaghans_command_chooses_two_modes_and_follows_both() {
+    let mut game = deal_both(
+        &[("Mountain", 30), ("Kolaghan's Quick Command", 30)],
+        &[("Island", 40), ("Flying Men", 20)],
+        &[("Mountain", 1), ("Kolaghan's Quick Command", 1)],
+        &[("Island", 1), ("Flying Men", 1)],
+    );
+    play(&mut game, "Mountain");
+    pass_until(&mut game, THEM, Step::PrecombatMain);
+    play_as(&mut game, THEM, "Island");
+    cast_as(&mut game, THEM, "Flying Men", None);
+    resolve(&mut game);
+    let men = creature(&game, "Flying Men").expect("theirs");
+    pass_until(&mut game, ME, Step::PrecombatMain);
+    let their_hand = game.player(THEM).hand().len();
+    let command = in_hand(&game, ME, "Kolaghan's Quick Command").unwrap();
+    let Decision::Mode { modes: offered, .. } = step(&mut game, Answer::Act(Action::Cast(command)))
+    else {
+        panic!("{:?}", game.decision())
+    };
+    // "Return target creature card" can't be run yet: its pairs are
+    // offered, to be refused as they are chosen.
+    assert_eq!(
+        offered,
+        vec![
+            modes(&[0, 1]),
+            modes(&[0, 2]),
+            modes(&[0, 3]),
+            modes(&[1, 3])
+        ]
+    );
+    assert!(
+        game.clone().step(Answer::Mode(mode(1))).is_err(),
+        "one mode"
+    );
+    assert!(
+        game.clone().step(Answer::Mode(modes(&[1, 2, 3]))).is_err(),
+        "three"
+    );
+    assert!(
+        game.clone().step(Answer::Mode(modes(&[1, 2]))).is_err(),
+        "no artifact"
+    );
+    assert!(matches!(
+        game.clone().step(Answer::Mode(modes(&[0, 1]))),
+        Err(Rejected::Refused { .. })
+    ));
+    let Decision::Targets { slots, .. } = step(&mut game, Answer::Mode(modes(&[1, 3]))) else {
+        panic!("{:?}", game.decision())
+    };
+    assert_eq!(
+        slots.len(),
+        2,
+        "a target for each mode, in the order written"
+    );
+    assert!(slots[0].contains(&Target::Player(THEM)));
+    assert!(
+        !slots[0].contains(&Target::Object(men)),
+        "the first is a player's"
+    );
+    assert!(slots[1].contains(&Target::Object(men)));
+    let mut d = step(
+        &mut game,
+        Answer::Targets(vec![Target::Player(THEM), Target::Object(men)]),
+    );
+    while let Decision::Pay { actions, .. } = d {
+        d = step(&mut game, Answer::Pay(actions[0]));
+    }
+    let mut d = resolve(&mut game);
+    while let Decision::Discard { hand, count, .. } = d {
+        d = step(&mut game, Answer::Discard(hand[..count].to_vec()));
+    }
+    assert_eq!(game.player(THEM).hand().len(), their_hand - 1);
+    assert_eq!(creature(&game, "Flying Men"), None);
+}
+
+/// CR 700.2a, 608.2c: Atarka's Command choosing its damage and its
+/// anthem deals 3 damage to each opponent and gives my creatures +1/+1;
+/// a pair with a mode the engine can't run is offered and refused by
+/// name as it is chosen.
+#[test]
+fn atarkas_command_follows_the_two_modes_chosen() {
+    let mut game = deal(
+        &[
+            ("Mountain", 20),
+            ("Goblin Guide", 20),
+            ("Atarka's Quick Command", 20),
+        ],
+        &[("Island", 60)],
+        &[
+            ("Mountain", 2),
+            ("Goblin Guide", 1),
+            ("Atarka's Quick Command", 1),
+        ],
+    );
+    play(&mut game, "Mountain");
+    cast(&mut game, "Goblin Guide", None);
+    resolve(&mut game);
+    let guide = creature(&game, "Goblin Guide").expect("mine");
+    my_next_main(&mut game);
+    play(&mut game, "Mountain");
+    let command = in_hand(&game, ME, "Atarka's Quick Command").unwrap();
+    let Decision::Mode { modes: offered, .. } = step(&mut game, Answer::Act(Action::Cast(command)))
+    else {
+        panic!("{:?}", game.decision())
+    };
+    assert_eq!(offered.len(), 6, "each pair of four: {offered:?}");
+    let refused = game.clone().step(Answer::Mode(modes(&[0, 1])));
+    assert!(
+        matches!(refused, Err(Rejected::Refused { .. })),
+        "{refused:?}"
+    );
+    let life = game.player(THEM).life();
+    let mut d = step(&mut game, Answer::Mode(modes(&[1, 3])));
+    while let Decision::Pay { actions, .. } = d {
+        d = step(&mut game, Answer::Pay(actions[0]));
+    }
+    resolve(&mut game);
+    assert_eq!(game.player(THEM).life(), life - 3);
+    assert_eq!(pt_of(&game, guide), pt(3, 3));
 }
 
 /// CR 120.3a, 102.2: "deals 3 damage to each opponent" takes 3 life from
@@ -7005,6 +7176,52 @@ fn a_bare_plural_pumps_each_creature_its_filter_matches() {
     assert_eq!(pt_of(&game, theirs), pt(2, 2));
 }
 
+/// CR 700.2d: two modes that each say "target player" are two targets,
+/// which may be different players; a pair the engine would give one slot
+/// is refused by name as it is chosen, not cast with one player for both.
+#[test]
+fn two_modes_each_naming_a_target_player_are_refused_not_merged() {
+    let mut game = deal(
+        &[("Forest", 30), ("Two Player Command", 30)],
+        &[("Island", 60)],
+        &[("Forest", 1), ("Two Player Command", 1)],
+    );
+    play(&mut game, "Forest");
+    let c = in_hand(&game, ME, "Two Player Command").unwrap();
+    let Decision::Mode { modes: offered, .. } = step(&mut game, Answer::Act(Action::Cast(c)))
+    else {
+        panic!("{:?}", game.decision())
+    };
+    assert_eq!(
+        offered,
+        vec![modes(&[0, 1]), modes(&[0, 2]), modes(&[1, 2])]
+    );
+    match game.clone().step(Answer::Mode(modes(&[0, 1]))) {
+        Err(Rejected::Refused { refusal, .. }) => {
+            assert_eq!(refusal.node, "a modal spell's modes sharing a target")
+        }
+        other => panic!("{other:?}"),
+    }
+    // A pair with one target player is two modes' worth of instructions.
+    let Decision::Targets { slots, .. } = step(&mut game, Answer::Mode(modes(&[0, 2]))) else {
+        panic!("{:?}", game.decision())
+    };
+    assert_eq!(slots.len(), 1);
+}
+
+/// "Choose one or both —" is refused by name, not read as "choose one".
+#[test]
+fn a_modal_spell_choosing_one_or_both_is_refused() {
+    let game = deal(
+        &[("Mountain", 30), ("Either Command", 30)],
+        &[("Island", 60)],
+        &[("Either Command", 1)],
+    );
+    let c = in_hand(&game, ME, "Either Command").unwrap();
+    let refusal = game.refusal(c).expect("refused");
+    assert!(refusal.node.contains("choosing OneOrBoth"), "{refusal:?}");
+}
+
 /// CR 608.2c, 700.2a: Pyroblast's "Destroy target permanent if it's
 /// blue" may target any permanent, and does nothing to one that isn't
 /// blue as it resolves: their Island stays, their Flying Men don't.
@@ -7029,8 +7246,8 @@ fn pyroblast_destroys_its_target_only_if_it_is_blue() {
         let Decision::Mode { modes, .. } = step(game, Answer::Act(Action::Cast(pyro))) else {
             panic!("{:?}", game.decision())
         };
-        assert_eq!(modes, vec![1], "no spell on the stack to counter");
-        let Decision::Targets { slots, .. } = step(game, Answer::Mode(1)) else {
+        assert_eq!(modes, vec![mode(1)], "no spell on the stack to counter");
+        let Decision::Targets { slots, .. } = step(game, Answer::Mode(mode(1))) else {
             panic!("{:?}", game.decision())
         };
         assert!(slots[0].contains(&Target::Object(at)));
@@ -8087,8 +8304,8 @@ fn archdruids_charm_puts_a_land_found_onto_the_battlefield_and_a_creature_in_han
         let Decision::Mode { modes, .. } = step(game, Answer::Act(Action::Cast(c))) else {
             panic!("{:?}", game.decision())
         };
-        assert!(modes.contains(&0), "{modes:?}");
-        let mut d = step(game, Answer::Mode(0));
+        assert!(modes.contains(&mode(0)), "{modes:?}");
+        let mut d = step(game, Answer::Mode(mode(0)));
         while let Decision::Pay { actions, .. } = d {
             d = step(game, Answer::Pay(actions[0]));
         }

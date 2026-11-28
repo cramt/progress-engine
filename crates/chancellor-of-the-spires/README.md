@@ -1109,11 +1109,11 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-28 200 of the 500 replay to
-the end and 64.46% of their lines are followed** (20,406 of 31,659), 3
+Worked card by card from there, **on 2026-11-28 204 of the 500 replay to
+the end and 64.68% of their lines are followed** (20,478 of 31,659), 3
 of them relying on a land the log never names (2 to the end) and 11 on a
 card no one named in a graveyard having no ability there (2 to the end),
-and 194 games have no card the engine refuses before any game (from 21). The
+and 199 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
 Warchief); "for each" sizes counted on resolution (Goblin Piledriver);
@@ -1506,7 +1506,14 @@ filter matches as the instruction resolves (CR 611.2c: Basri, Tomorrow's
 Champion, Jirina, Dauntless General and Soltari Champion). And "deals 3
 damage to each opponent", each of its controller's opponents still in
 the game, every other player (CR 102.2, 806.1, 120.3a: Atarka's Command's
-mode, and Ramunap Ruins's sacrifice ability, which now runs whole in Loam).
+mode, and Ramunap Ruins's sacrifice ability, which now runs whole in Loam). And "Choose two —",
+each pair of modes its caster may choose, their instructions in the order
+written and their targets their own, offered only where the pair's
+targets can all be chosen, a pair whose modes would share one target slot
+refused by name, and the log's modes read from the cast line or the
+"Chosen mode:" lines after it (CR 700.2a, 700.2c, 700.2d, 608.2c:
+Kolaghan's, Atarka's and Titania's Command, whose 4 games go to the end
+and 2 to a filter of alternatives in Titania's).
 And
 the replay's inferences: a card played or cast while its player may
 play cards from exile taken from there before the hand, the hand the
