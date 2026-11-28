@@ -285,7 +285,7 @@ cost: {3}{W}{W}
 > You may cast this spell as though it had flash if a creature is attacking and a creature is blocking.
 > Target creature you control and target creature an opponent controls each gain indestructible until end of turn. Then destroy all creatures.
 = Static([If { order: Trailing, cond: And([Is { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Attacking)]], kind: None, posts: [], or: None } }, Is { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Blocking)]], kind: None, posts: [], or: None } }]), then: [CastAsThoughFlash(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
-= BROKE at "gain" after: target creature you control and target creature an opponent controls each
+= BROKE at "indestructible" after: target creature you control and target creature an opponent controls each gain
 
 ## Feast on the Fallen
 face: Feast on the Fallen

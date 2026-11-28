@@ -2998,4 +2998,59 @@ mod round_nine_d {
         );
         assert!(!s.contains("CardName"), "{s}");
     }
+
+    #[test]
+    fn a_static_gain_of_a_quoted_ability_is_have() {
+        let face = Face {
+            name: "Some Card",
+            type_line: "Enchantment",
+            text:
+                "Lands your opponents control lose all abilities, and they gain \"{T}: Add {C}.\"",
+        };
+        let s = format!(
+            "{:?}",
+            read_face_unresolved(&face, "Some Card")
+                .iter()
+                .map(|l| l.parsed.as_ref().ok())
+                .collect::<Vec<_>>()
+        );
+        assert!(s.contains("Loses {") && s.contains("HasAbility {"), "{s}");
+    }
+
+    #[test]
+    fn a_gain_with_a_duration_is_no_static_have() {
+        // "until end of turn" makes it an effect's grant, not a static's.
+        let face = Face {
+            name: "Some Card",
+            type_line: "Enchantment",
+            text: "Lands your opponents control gain \"{T}: Add {C}.\" until end of turn.",
+        };
+        let s = format!(
+            "{:?}",
+            read_face_unresolved(&face, "Some Card")
+                .iter()
+                .map(|l| l.parsed.as_ref().ok())
+                .collect::<Vec<_>>()
+        );
+        assert!(!s.contains("HasAbility"), "{s}");
+    }
+
+    #[test]
+    fn a_static_gain_takes_only_a_quoted_ability() {
+        // [static-gain-is-have] is a granted ability's row; "gain flying" in a
+        // static is not read by it.
+        let face = Face {
+            name: "Some Card",
+            type_line: "Enchantment",
+            text: "Creatures your opponents control lose all abilities and gain flying.",
+        };
+        let s = format!(
+            "{:?}",
+            read_face_unresolved(&face, "Some Card")
+                .iter()
+                .map(|l| l.parsed.as_ref().ok())
+                .collect::<Vec<_>>()
+        );
+        assert!(!s.contains("Loses"), "{s}");
+    }
 }

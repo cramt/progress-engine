@@ -1437,7 +1437,10 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
             Some(vec![Static::EntersTappedUnless { what: what.clone(), unless }])
         },
         |p| {
-            p.verb("have")?;
+            // "lose all land types and abilities, and they gain "{T}: …""
+            // (Alpine Moon): a static's "gain" grants for as long as the
+            // static applies, as "have" does ([static-gain-is-have]).
+            alt!(p; |p| p.verb("have"), |p| p.verb("gain"))?;
             let a = quoted(p)?;
             let mut v = vec![Static::HasAbility { what: what.clone(), ability: Box::new(a) }];
             // "have "Equipped creature gets +2/+0" and equip {2}" (Armed

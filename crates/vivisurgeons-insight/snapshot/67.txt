@@ -16,7 +16,7 @@ cost: {R}
 > As this enchantment enters, choose a nonbasic land card name.
 > Lands your opponents control with the chosen name lose all land types and abilities, and they gain "{T}: Add one mana of any color."
 = Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(CardName(Filter { alts: [[Non("basic"), Type("land")]], kind: Some(Card), posts: [], or: None }))] }])
-= BROKE at "gain" after: lands your opponents control with the chosen name lose all land types and abilities , and they
+= Static([Loses { what: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(EachOpponent), WithChosenName], or: None } }, lost: [All { other: false, of: LandTypes }, All { other: false, of: Abilities }] }, HasAbility { what: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(EachOpponent), WithChosenName], or: None } }, ability: Activated { cost: [Tap], effect: [AddMana(Of { n: N(1), pick: AnyColor, within: None })], limits: [] } }])
 
 ## Ana Sanctuary
 face: Ana Sanctuary

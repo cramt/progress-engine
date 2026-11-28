@@ -2217,6 +2217,21 @@ mod syn {
         alt(o, vec![for_each, owner_of]);
     }
 
+    /// Named rewrite [static-gain-is-have]: "Lands your opponents control
+    /// with the chosen name lose all land types and abilities, and they gain
+    /// "{T}: Add one mana of any color."" (Alpine Moon) is "… and have …". A
+    /// static ability's effect isn't locked in and applies at any moment to
+    /// whatever its text indicates (CR 611.3a), so an ability its objects
+    /// "gain" is one they have while it applies; the tree is
+    /// `Static::HasAbility` either way.
+    pub fn static_gain_is_have(o: &mut Out, n: Num) {
+        let mut have = Out::default();
+        have.verb("have", n);
+        let mut gain = Out::default();
+        gain.verb("gain", n);
+        alt(o, vec![have, gain]);
+    }
+
     /// Named rewrite [when-is-whenever]: a printed "When this creature
     /// enters" (Oblivion Ring) is "whenever this creature enters". CR 603.1
     /// writes every trigger "[When/Whenever/At] [trigger condition or event],
@@ -14638,7 +14653,7 @@ fn static_predicate(o: &mut Out, s: &Static) {
             }
         },
         Static::HasAbility { ability, .. } => {
-            o.verb("have", n);
+            syn::static_gain_is_have(o, n);
             quoted(o, ability);
         }
         Static::Restrict { rule, .. } => restriction(o, rule, n),

@@ -1103,7 +1103,7 @@ cost: {3}{R}
 > You may cast creature spells with power 4 or greater from the top of your library. If you cast a creature spell this way, it gains haste until end of turn.
 = Keywords([Keyword { name: "flying", param: None }])
 = Static([LookAtTopAnyTime])
-= BROKE at "gains" after: you may cast creature spells with power 4 or greater from the top of your library . if you cast a creature spell this way , it
+= BROKE at "haste" after: you may cast creature spells with power 4 or greater from the top of your library . if you cast a creature spell this way , it gains
 
 ## Titan's Revenge
 face: Titan's Revenge
