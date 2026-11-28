@@ -807,7 +807,7 @@ type: Creature — Human Warlock
 cost: {3}{U}
 > When this creature enters, create a 2/2 blue and black Zombie Rogue creature token, then put two +1/+1 counters on that token for each spell you've cast this turn other than the first.
 > Plot {4}{U} (You may pay {4}{U} and exile this card from your hand. Cast it as a sorcery on a later turn without paying its mana cost. Plot only as a sorcery.)
-= BROKE at "the" after: when this creature enters , create a <pt> blue and black zombie rogue creature token , then put two <pt> counters on that token for each spell you've cast this turn other than
+= BROKE at "." after: when this creature enters , create a <pt> blue and black zombie rogue creature token , then put two <pt> counters on that token for each spell you've cast this turn other than the first
 = Keywords([Keyword { name: "plot", param: Some(Cost([Mana(Mana(["4", "U"]))])) }])
 
 ## Persistent Marshstalker

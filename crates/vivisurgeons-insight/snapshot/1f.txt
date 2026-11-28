@@ -686,7 +686,7 @@ type: Legendary Creature — Human Wizard
 cost: {1}{U}{R}
 > At the beginning of each player's end step, that player may draw a card if a player other than you lost life this turn.
 > Partner (You can have two commanders if both have partner.)
-= BROKE at "you" after: at the beginning of each player 's end step , that player may draw a card if a player other than
+= BROKE at "lost" after: at the beginning of each player 's end step , that player may draw a card if a player other than you
 = Keywords([Keyword { name: "partner", param: None }])
 
 ## Magus of the Tabernacle

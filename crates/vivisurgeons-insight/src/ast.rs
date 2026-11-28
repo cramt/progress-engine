@@ -1278,6 +1278,9 @@ pub enum Post {
     /// of its own: a trigger's event still names one object. The noun it
     /// was named by is no condition, as with `Quant::SelfRef`.
     OtherThanSelf,
+    /// "target creature you control other than that creature" (Pawpatch
+    /// Recruit): not the object a reference names ([other-than-it]).
+    OtherThanObject(Box<Objects>),
     Cast(Player),
     ExiledWith(Box<Objects>),
     /// "the exiled cards used to craft it": the cards exiled to pay the

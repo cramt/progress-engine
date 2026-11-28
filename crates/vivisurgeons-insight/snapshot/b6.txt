@@ -537,7 +537,7 @@ face: Lucy MacLean, Positively Armed
 type: Legendary Creature — Human Survivor
 cost: {4}{W}
 > Golden Rule — Whenever a token enters, you may have target player other than its controller create a token that's a copy of it, then you draw a card if an opponent created a token this way. Do this only once each turn.
-= BROKE at "its" after: golden rule — whenever a token enters , you may have target player other than
+= BROKE at "controller" after: golden rule — whenever a token enters , you may have target player other than its
 
 ## Martyrdom
 face: Martyrdom

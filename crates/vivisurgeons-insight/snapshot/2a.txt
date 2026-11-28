@@ -833,7 +833,7 @@ cost: {2}{W}
 > When Rosie Cotton enters, create a Food token. (It's an artifact with "{2}, {T}, Sacrifice this token: You gain 3 life.")
 > Whenever you create a token, put a +1/+1 counter on target creature you control other than Rosie Cotton.
 = BROKE at "," after: when rosie cotton enters
-= BROKE at "rosie" after: whenever you create a token , put a <pt> counter on target creature you control other than
+= BROKE at "cotton" after: whenever you create a token , put a <pt> counter on target creature you control other than rosie
 
 ## Rust Elemental
 face: Rust Elemental

@@ -535,7 +535,7 @@ cost: {2}{B}{B}
 > Flying
 > Whenever a creature becomes the target of a spell or ability, destroy that creature.
 = Keywords([Keyword { name: "flying", param: None }])
-= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [], or: None } }], ability: Triggered { trigger: When(BecomesTarget { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, of: Some(Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }), effect: [Destroy { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }], limits: [] } }
+= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(BecomesTarget { what: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, of: Some(Objects { quant: One, filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [], or: None } }) }), effect: [Destroy { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }], limits: [] } }
 
 ## Horror of the Dim
 face: Horror of the Dim

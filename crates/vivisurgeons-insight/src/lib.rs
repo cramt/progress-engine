@@ -2926,4 +2926,41 @@ mod round_nine_d {
         );
         assert!(!s.contains("CantBlock"), "{s}");
     }
+    #[test]
+    fn that_creature_after_a_spell_or_ability_is_the_creature() {
+        let s = format!(
+            "{:?}",
+            read_face(
+                &Face { name: "Some Card", type_line: "Creature — Raccoon Warrior", text: "Whenever a creature you control becomes the target of a spell or ability an opponent controls, put a +1/+1 counter on target creature you control other than that creature." },
+                "Some Card"
+            )
+            .iter()
+            .map(|l| l.parsed.as_ref().ok())
+            .collect::<Vec<_>>()
+        );
+        assert!(
+            s.starts_with("[Some(Let { bind: [Objects { quant: One, filter: Filter { alts: [[Type(\"creature\")]]")
+                && s.contains("OtherThanObject(Objects { quant: Bound(0)"),
+            "{s}"
+        );
+    }
+
+    #[test]
+    fn that_spell_or_abilitys_controller_is_still_the_spells() {
+        let s = format!(
+            "{:?}",
+            read_face(
+                &Face { name: "Some Card", type_line: "Enchantment — Aura", text: "Whenever enchanted creature becomes the target of a spell or ability, that spell or ability's controller gains control of that creature." },
+                "Some Card"
+            )
+            .iter()
+            .map(|l| l.parsed.as_ref().ok())
+            .collect::<Vec<_>>()
+        );
+        assert!(
+            s.contains("by: ControllerOf(Objects { quant: Bound(1), filter: Filter { alts: [], kind: Some(SpellOrAbility)")
+                && s.contains("GainControl { what: Objects { quant: Bound(0)"),
+            "{s}"
+        );
+    }
 }

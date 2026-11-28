@@ -259,7 +259,7 @@ cost: {2}{W}
 > When this Aura enters, target creature you control other than enchanted creature gets +2/+2 and gains vigilance until end of turn.
 > Enchanted creature gets +2/+2 and has vigilance.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
-= BROKE at "enchanted" after: when this aura enters , target creature you control other than
+= BROKE at "<pt>" after: when this aura enters , target creature you control other than enchanted creature gets
 = Static([Modify { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [Keyword { name: "vigilance", param: None }], per: None }])
 
 ## Ebony Fly

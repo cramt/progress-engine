@@ -1096,7 +1096,7 @@ cost: {1}{B}
 > When this Aura enters, target player sacrifices a creature of their choice other than enchanted creature.
 > When enchanted creature is dealt damage, destroy it.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
-= BROKE at "enchanted" after: when this aura enters , target player sacrifices a creature of their choice other than
+= BROKE at "." after: when this aura enters , target player sacrifices a creature of their choice other than enchanted creature
 = Let { bind: [/* trigger */ Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(IsDealtDamage(Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Destroy { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, no_regen: false }], limits: [] } }
 
 ## Spring-Loaded Sawblades // Bladewheel Chariot

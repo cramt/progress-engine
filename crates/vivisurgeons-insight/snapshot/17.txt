@@ -900,7 +900,7 @@ type: Legendary Planeswalker — Sorin
 = Keywords([Keyword { name: "extort", param: None }])
 = Loyalty { change: N(2), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["food"], keywords: [], abilities: [], named: Some("food"), attacking: None } }] }
 = Loyalty { change: N(-1), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: LifeGainedThisTurn(You), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }] }
-= BROKE at "that" after: N(-6) : gain control of target creature . it becomes a vampire in addition to its other types . put a lifelink counter on it if you control a white permanent other than
+= BROKE at "." after: N(-6) : gain control of target creature . it becomes a vampire in addition to its other types . put a lifelink counter on it if you control a white permanent other than that creature or ~
 
 ## Souldrinker
 face: Souldrinker

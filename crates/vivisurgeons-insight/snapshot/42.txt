@@ -908,7 +908,7 @@ cost: {1}{B}
 > When enchanted creature becomes the target of a spell or ability, destroy that creature. It can't be regenerated.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
 = Static([Modify { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: true }), has: [], per: None }])
-= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [], or: None } }], ability: Triggered { trigger: When(BecomesTarget { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, of: Some(Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }), effect: [Destroy { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: true }], limits: [] } }
+= Let { bind: [/* trigger */ Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(BecomesTarget { what: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, of: Some(Objects { quant: One, filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [], or: None } }) }), effect: [Destroy { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: true }], limits: [] } }
 
 ## Sudden Insight
 face: Sudden Insight

@@ -612,7 +612,7 @@ face: Loki, Lord of Misrule
 type: Legendary Creature — God Sorcerer Villain
 cost: {3}{U}
 > {U}, {T}: Choose target creature you control. Each creature you control other than the chosen creature becomes a copy of that creature until end of turn, except it isn't legendary. Activate only as a sorcery.
-= BROKE at "the" after: {U} , {T} : choose target creature you control . each creature you control other than
+= BROKE at "a" after: {U} , {T} : choose target creature you control . each creature you control other than the chosen creature becomes
 
 ## Longhorn Firebeast
 face: Longhorn Firebeast

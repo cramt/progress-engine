@@ -358,7 +358,7 @@ face: Haunting Echoes
 type: Sorcery
 cost: {3}{B}{B}
 > Exile all cards from target player's graveyard other than basic land cards. For each card exiled this way, search that player's library for all cards with the same name as that card and exile them. Then that player shuffles.
-= BROKE at "basic" after: exile all cards from target player 's graveyard other than
+= BROKE at "." after: exile all cards from target player 's graveyard other than basic land cards
 
 ## Hidden Ancients
 face: Hidden Ancients

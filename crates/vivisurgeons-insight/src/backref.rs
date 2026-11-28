@@ -1001,6 +1001,14 @@ fn compat(r: &Objects, e: &Ev) -> bool {
     {
         return false;
     }
+    // "becomes the target of a spell or ability an opponent controls, …
+    // that creature" (Pawpatch Recruit, [spell-or-ability-not-permanent]):
+    // a spell or ability is never the permanent a typed reference names.
+    if matches!(ek, Some(Noun::SpellOrAbility))
+        && (matches!(rf.kind, Some(Noun::Permanent)) || rf.kind.is_none() && !rf.alts.is_empty())
+    {
+        return false;
+    }
     let ctl = |f: &Filter| {
         f.posts.iter().find_map(|p| match p {
             Post::Controller(x) => Some(x.clone()),

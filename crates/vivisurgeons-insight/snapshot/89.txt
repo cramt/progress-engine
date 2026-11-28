@@ -215,7 +215,7 @@ face: Cloud Cover
 type: Enchantment
 cost: {2}{W}{U}
 > Whenever another permanent you control becomes the target of a spell or ability an opponent controls, you may return that permanent to its owner's hand.
-= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [Controller(AnOpponent)], or: None } }], ability: Triggered { trigger: When(BecomesTarget { what: Objects { quant: Another, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You)], or: None } }, of: Some(Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }), effect: [May { who: You, then: [Move { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }] }], limits: [] } }
+= Let { bind: [/* trigger */ Objects { quant: Another, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You)], or: None } }], ability: Triggered { trigger: When(BecomesTarget { what: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, of: Some(Objects { quant: One, filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [Controller(AnOpponent)], or: None } }) }), effect: [May { who: You, then: [Move { what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }] }], limits: [] } }
 
 ## Dakkon, Shadow Slayer
 face: Dakkon, Shadow Slayer

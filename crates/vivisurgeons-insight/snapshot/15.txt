@@ -188,7 +188,7 @@ cost: {G/U}{W}
 > When enchanted creature becomes the target of a spell or ability, exile that creature.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
 = Static([Restrict { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: CantAttackOrBlock }])
-= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [], or: None } }], ability: Triggered { trigger: When(BecomesTarget { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, of: Some(Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }), effect: [Exile(Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], limits: [] } }
+= Let { bind: [/* trigger */ Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Triggered { trigger: When(BecomesTarget { what: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, of: Some(Objects { quant: One, filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [], or: None } }) }), effect: [Exile(Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], limits: [] } }
 
 ## Daemogoth Titan
 face: Daemogoth Titan

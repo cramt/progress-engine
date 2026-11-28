@@ -5754,6 +5754,10 @@ fn post(o: &mut Out, q: &Post, n: Num) {
             o.w("attached to");
             objects(o, x);
         }
+        Post::OtherThanObject(x) => {
+            o.w("other than");
+            objects(o, x);
+        }
         Post::Except(f) => {
             syn::except_for(o);
             filter(o, f, Num::Pl);

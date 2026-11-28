@@ -502,7 +502,7 @@ face: Ichneumon Druid
 type: Creature — Human Druid
 cost: {1}{G}{G}
 > Whenever an opponent casts an instant spell other than the first instant spell that player casts each turn, this creature deals 4 damage to that player.
-= BROKE at "the" after: whenever an opponent casts an instant spell other than
+= BROKE at "," after: whenever an opponent casts an instant spell other than the first instant spell that player casts each turn
 
 ## Impractical Joke
 face: Impractical Joke

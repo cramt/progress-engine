@@ -1327,6 +1327,19 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
             Some(Post::Cleave(v))
         },
         |p| { p.words("other than")?; p.one_of(&["a", "an"])?; filter(p).map(Post::OtherThan) },
+        // "target creature you control other than that creature" (Pawpatch
+        // Recruit, [other-than-it]): one object a reference names, bound as
+        // any reference is. Not "other than the chosen creature" yet: Loki,
+        // Lord of Misrule's "becomes a copy of that creature" after it binds
+        // each creature to itself.
+        |p| {
+            p.words("other than")?;
+            let o = objects(p)?;
+            (matches!(o.quant, Quant::Unresolved(_))
+                && o.filter.or.is_none()
+                && !o.filter.posts.contains(&Post::Marked(Marked::Chosen)))
+            .then(|| Post::OtherThanObject(Box::new(o)))
+        },
         // "you've cycled or discarded this turn".
         |p| {
             p.word("you've")?;

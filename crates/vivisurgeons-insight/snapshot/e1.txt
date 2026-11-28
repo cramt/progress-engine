@@ -514,7 +514,7 @@ face: Monk Gyatso
 type: Legendary Creature — Human Monk
 cost: {3}{W}
 > Whenever another creature you control becomes the target of a spell or ability, you may airbend that creature. (Exile it. While it's exiled, its owner may cast it for {2} rather than its mana cost.)
-= Let { bind: [/* trigger */ Objects { quant: One, filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [], or: None } }], ability: Triggered { trigger: When(BecomesTarget { what: Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, of: Some(Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }), effect: [May { who: You, then: [ActionOn { who: You, name: "airbend", what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }] }], limits: [] } }
+= Let { bind: [/* trigger */ Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }], ability: Triggered { trigger: When(BecomesTarget { what: Objects { quant: Introduced(0) /* trigger */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, of: Some(Objects { quant: One, filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [], or: None } }) }), effect: [May { who: You, then: [ActionOn { who: You, name: "airbend", what: Objects { quant: Bound(0) /* trigger */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }] }], limits: [] } }
 
 ## Moorland Drifter
 face: Moorland Drifter

@@ -43,7 +43,7 @@ cost: {2}{R}
 > Whenever you cast a spell other than your first spell each turn, put a +1/+1 counter on this creature.
 = Keywords([Keyword { name: "menace", param: None }])
 = Keywords([Keyword { name: "modular", param: Some(N(N(2))) }])
-= BROKE at "your" after: whenever you cast a spell other than
+= BROKE at "," after: whenever you cast a spell other than your first spell each turn
 
 ## Back from the Brink
 face: Back from the Brink
