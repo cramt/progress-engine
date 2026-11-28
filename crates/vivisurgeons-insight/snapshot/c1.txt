@@ -212,7 +212,7 @@ cost: {2}
 > Spells with the chosen name cost {3} more to cast.
 > Activated abilities of sources with the chosen name can't be activated unless they're mana abilities.
 = Keywords([Keyword { name: "flash", param: None }])
-= Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(CardName)] }])
+= Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(CardName(Filter { alts: [], kind: Some(Card), posts: [], or: None }))] }])
 = Static([CostChange { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [WithChosenName], or: None } }, by: Mana(["3"]), less: false, per: None }])
 = Static([Restrict { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Source), posts: [WithChosenName], or: None } }, rule: NoNonManaActivatedAbilities }])
 

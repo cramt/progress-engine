@@ -675,7 +675,7 @@ type: Artifact
 cost: {1}
 > As this artifact enters, choose a card name.
 > Activated abilities of sources with the chosen name can't be activated unless they're mana abilities.
-= Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(CardName)] }])
+= Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(CardName(Filter { alts: [], kind: Some(Card), posts: [], or: None }))] }])
 = Static([Restrict { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Source), posts: [WithChosenName], or: None } }, rule: NoNonManaActivatedAbilities }])
 
 ## Planar Outburst
@@ -883,7 +883,7 @@ cost: {2}{B}{R}
 > This spell can't be countered.
 > Choose a nonland card name. Search target opponent's graveyard, hand, and library for any number of cards with that name and exile them. Then that player shuffles.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeCountered }])
-= Spell([Choose(NonlandCardName), With { bind: [/* found */ Objects { quant: AnyNumber, filter: Filter { alts: [], kind: Some(Card), posts: [WithThatName], or: None } }], then: [Search { who: You, zones: [Graveyard(TargetOpponent), Hand(TargetOpponent), Library(TargetOpponent)], what: Objects { quant: Introduced(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, and: [] }, Exile(Objects { quant: Bound(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Shuffle(That)] }])
+= Spell([Choose(CardName(Filter { alts: [[Non("land")]], kind: Some(Card), posts: [], or: None })), With { bind: [/* found */ Objects { quant: AnyNumber, filter: Filter { alts: [], kind: Some(Card), posts: [WithThatName], or: None } }], then: [Search { who: You, zones: [Graveyard(TargetOpponent), Hand(TargetOpponent), Library(TargetOpponent)], what: Objects { quant: Introduced(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, and: [] }, Exile(Objects { quant: Bound(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Shuffle(That)] }])
 
 ## Slogurk, the Overslime
 face: Slogurk, the Overslime

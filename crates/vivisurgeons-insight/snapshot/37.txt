@@ -860,7 +860,7 @@ cost: {4}{B}
 > Convoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)
 > Choose a nonland card name. Search target player's graveyard, hand, and library for any number of cards with that name and exile them. Then that player shuffles.
 = Keywords([Keyword { name: "convoke", param: None }])
-= Spell([Choose(NonlandCardName), With { bind: [/* found */ Objects { quant: AnyNumber, filter: Filter { alts: [], kind: Some(Card), posts: [WithThatName], or: None } }], then: [Search { who: You, zones: [Graveyard(Target), Hand(Target), Library(Target)], what: Objects { quant: Introduced(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, and: [] }, Exile(Objects { quant: Bound(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Shuffle(That)] }])
+= Spell([Choose(CardName(Filter { alts: [[Non("land")]], kind: Some(Card), posts: [], or: None })), With { bind: [/* found */ Objects { quant: AnyNumber, filter: Filter { alts: [], kind: Some(Card), posts: [WithThatName], or: None } }], then: [Search { who: You, zones: [Graveyard(Target), Hand(Target), Library(Target)], what: Objects { quant: Introduced(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, and: [] }, Exile(Objects { quant: Bound(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Shuffle(That)] }])
 
 ## Summon: Yojimbo
 face: Summon: Yojimbo

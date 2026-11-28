@@ -1069,7 +1069,7 @@ cost: {3}{U}
 > III — Choose a card name. Whenever a creature with the chosen name deals combat damage to a player this turn, draw a card.
 = Chapter { chapters: [1], effect: [Surveil(N(3))] }
 = BROKE at "the" after: ii — when you next cast a creature spell this turn , copy it , except
-= Chapter { chapters: [3], effect: [Choose(CardName), During { dur: ThisTurn, then: [DelayedWhenever { event: DealsCombatDamageToPlayer(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [WithChosenName], or: None } }), then: [Draw { who: You, n: N(1) }] }] }] }
+= Chapter { chapters: [3], effect: [Choose(CardName(Filter { alts: [], kind: Some(Card), posts: [], or: None })), During { dur: ThisTurn, then: [DelayedWhenever { event: DealsCombatDamageToPlayer(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [WithChosenName], or: None } }), then: [Draw { who: You, n: N(1) }] }] }] }
 
 ## The Reaver Cleaver
 face: The Reaver Cleaver
@@ -1124,7 +1124,7 @@ face: Unmoored Ego
 type: Sorcery
 cost: {1}{U}{B}
 > Choose a card name. Search target opponent's graveyard, hand, and library for up to four cards with that name and exile them. That player shuffles, then draws a card for each card exiled from their hand this way.
-= Spell([Choose(CardName), With { bind: [/* found */ Objects { quant: UpTo(N(4)), filter: Filter { alts: [], kind: Some(Card), posts: [WithThatName], or: None } }], then: [Search { who: You, zones: [Graveyard(TargetOpponent), Hand(TargetOpponent), Library(TargetOpponent)], what: Objects { quant: Introduced(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, and: [] }, Exile(Objects { quant: Bound(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Shuffle(That), ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [MarkedFrom { how: Exiled, from: Hand(That) }], or: None } }, then: [Draw { who: That, n: N(1) }] }] }])
+= Spell([Choose(CardName(Filter { alts: [], kind: Some(Card), posts: [], or: None })), With { bind: [/* found */ Objects { quant: UpTo(N(4)), filter: Filter { alts: [], kind: Some(Card), posts: [WithThatName], or: None } }], then: [Search { who: You, zones: [Graveyard(TargetOpponent), Hand(TargetOpponent), Library(TargetOpponent)], what: Objects { quant: Introduced(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, and: [] }, Exile(Objects { quant: Bound(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Shuffle(That), ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [MarkedFrom { how: Exiled, from: Hand(That) }], or: None } }, then: [Draw { who: That, n: N(1) }] }] }])
 
 ## Vraska's Conquistador
 face: Vraska's Conquistador

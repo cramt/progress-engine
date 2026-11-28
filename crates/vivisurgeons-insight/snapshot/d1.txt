@@ -188,7 +188,7 @@ type: Enchantment
 cost: {U}{U}
 > As this enchantment enters, choose a card name.
 > {U}: Counter target spell with the chosen name.
-= Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(CardName)] }])
+= Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(CardName(Filter { alts: [], kind: Some(Card), posts: [], or: None }))] }])
 = Activated { cost: [Mana(Mana(["U"]))], effect: [Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [WithChosenName], or: None } }, unless: None }], limits: [] }
 
 ## Deepfathom Skulker

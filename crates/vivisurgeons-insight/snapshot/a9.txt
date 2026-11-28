@@ -725,7 +725,7 @@ face: Nebuchadnezzar
 type: Legendary Creature — Human Wizard
 cost: {3}{U}{B}
 > {X}, {T}: Choose a card name. Target opponent reveals X cards at random from their hand. Then that player discards all cards with that name revealed this way. Activate only during your turn.
-= Activated { cost: [Mana(Mana(["X"])), Tap], effect: [Choose(CardName), Reveal { who: TargetOpponent, what: Objects { quant: N(X), filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom, In(Hand(That))], or: None } } }, Discard { who: That, what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [WithThatName, Marked(Revealed)], or: None } } }], limits: [OnlyDuringYourTurn] }
+= Activated { cost: [Mana(Mana(["X"])), Tap], effect: [Choose(CardName(Filter { alts: [], kind: Some(Card), posts: [], or: None })), Reveal { who: TargetOpponent, what: Objects { quant: N(X), filter: Filter { alts: [], kind: Some(Card), posts: [AtRandom, In(Hand(That))], or: None } } }, Discard { who: That, what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [WithThatName, Marked(Revealed)], or: None } } }], limits: [OnlyDuringYourTurn] }
 
 ## Necromancer's Magemark
 face: Necromancer's Magemark

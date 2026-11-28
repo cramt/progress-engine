@@ -108,7 +108,7 @@ face: Cheering Fanatic
 type: Creature — Goblin
 cost: {1}{R}
 > Whenever this creature attacks, choose a card name. Spells with the chosen name cost {1} less to cast this turn.
-= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Choose(CardName), CostChange { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [WithChosenName], or: None } }, by: Mana(["1"]), less: true, dur: ThisTurn }], limits: [] }
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Choose(CardName(Filter { alts: [], kind: Some(Card), posts: [], or: None })), CostChange { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [WithChosenName], or: None } }, by: Mana(["1"]), less: true, dur: ThisTurn }], limits: [] }
 
 ## Collective Unconscious
 face: Collective Unconscious

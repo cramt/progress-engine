@@ -4320,14 +4320,18 @@ impl<'a> Scope<'a> {
             },
             i::Effect::RevealHand(p) => Effect::RevealHand(self.who(p)?),
             // CR 201.4a.
-            i::Effect::Choose(c @ (i::Choice::NonlandCardName | i::Choice::CardName)) => {
+            i::Effect::Choose(i::Choice::CardName(f))
+                if f.kind == Some(i::Noun::Card) && f.posts.is_empty() && f.or.is_none() =>
+            {
+                let nonland =
+                    |a: &Vec<i::Adj>| matches!(a.as_slice(), [i::Adj::Non(t)] if t == "land");
+                let preds = match f.alts.as_slice() {
+                    [] => Vec::new(),
+                    [a] if nonland(a) => vec![Pred::IsNot(Prop::Type(CardType::Land))],
+                    _ => return Err(node()),
+                };
                 self.named = true;
-                let nonland = matches!(c, i::Choice::NonlandCardName);
-                Effect::ChooseName(CardFilter(vec![Filter(if nonland {
-                    vec![Pred::IsNot(Prop::Type(CardType::Land))]
-                } else {
-                    Vec::new()
-                })]))
+                Effect::ChooseName(CardFilter(vec![Filter(preds)]))
             }
             i::Effect::Discard { who, what }
                 if self.named

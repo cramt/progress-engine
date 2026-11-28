@@ -1099,7 +1099,7 @@ cost: {2}
 > Spells with the chosen name cost {3} more to cast.
 > Activated abilities of sources with the chosen name can't be activated unless they're mana abilities.
 = Keywords([Keyword { name: "flash", param: None }])
-= Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(CardName)] }])
+= Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(CardName(Filter { alts: [], kind: Some(Card), posts: [], or: None }))] }])
 = Static([CostChange { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [WithChosenName], or: None } }, by: Mana(["3"]), less: false, per: None }])
 = Static([Restrict { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Source), posts: [WithChosenName], or: None } }, rule: NoNonManaActivatedAbilities }])
 
@@ -3139,7 +3139,7 @@ type: Land
 > Activated abilities of sources with the chosen name can't be activated unless they're mana abilities.
 > Lands with the chosen name have "{T}: Add {C}."
 > {T}: Add {C}.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Choose(LandCardName)], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Choose(CardName(Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None }))], limits: [] }
 = Static([Restrict { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Source), posts: [WithChosenName], or: None } }, rule: NoNonManaActivatedAbilities }])
 = Static([HasAbility { what: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [WithChosenName], or: None } }, ability: Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["C"])))], limits: [] } }])
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["C"])))], limits: [] }
@@ -3178,7 +3178,7 @@ type: Artifact
 cost: {1}
 > As this artifact enters, choose a card name.
 > Activated abilities of sources with the chosen name can't be activated unless they're mana abilities.
-= Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(CardName)] }])
+= Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(CardName(Filter { alts: [], kind: Some(Card), posts: [], or: None }))] }])
 = Static([Restrict { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Source), posts: [WithChosenName], or: None } }, rule: NoNonManaActivatedAbilities }])
 
 ## Plains
@@ -4499,7 +4499,7 @@ face: The Stone Brain
 type: Legendary Artifact
 cost: {2}
 > {2}, {T}, Exile The Stone Brain: Choose a card name. Search target opponent's graveyard, hand, and library for up to four cards with that name and exile them. That player shuffles, then draws a card for each card exiled from their hand this way. Activate only as a sorcery.
-= Activated { cost: [Mana(Mana(["2"])), Tap, Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Choose(CardName), With { bind: [/* found */ Objects { quant: UpTo(N(4)), filter: Filter { alts: [], kind: Some(Card), posts: [WithThatName], or: None } }], then: [Search { who: You, zones: [Graveyard(TargetOpponent), Hand(TargetOpponent), Library(TargetOpponent)], what: Objects { quant: Introduced(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, and: [] }, Exile(Objects { quant: Bound(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Shuffle(That), ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [MarkedFrom { how: Exiled, from: Hand(That) }], or: None } }, then: [Draw { who: That, n: N(1) }] }] }], limits: [SorcerySpeed] }
+= Activated { cost: [Mana(Mana(["2"])), Tap, Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Choose(CardName(Filter { alts: [], kind: Some(Card), posts: [], or: None })), With { bind: [/* found */ Objects { quant: UpTo(N(4)), filter: Filter { alts: [], kind: Some(Card), posts: [WithThatName], or: None } }], then: [Search { who: You, zones: [Graveyard(TargetOpponent), Hand(TargetOpponent), Library(TargetOpponent)], what: Objects { quant: Introduced(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, and: [] }, Exile(Objects { quant: Bound(0) /* found */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Shuffle(That), ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [MarkedFrom { how: Exiled, from: Hand(That) }], or: None } }, then: [Draw { who: That, n: N(1) }] }] }], limits: [SorcerySpeed] }
 
 ## The Underworld Cookbook
 face: The Underworld Cookbook

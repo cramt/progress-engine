@@ -318,7 +318,7 @@ face: Divining Witch
 type: Creature — Human Spellshaper
 cost: {1}{B}
 > {1}{B}, {T}, Discard a card: Choose a card name. Exile the top six cards of your library, then reveal cards from the top of your library until you reveal a card with the chosen name. Put that card into your hand and exile all other cards revealed this way.
-= Activated { cost: [Mana(Mana(["1", "B"])), Tap, Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], effect: [Choose(CardName), Exile(Objects { quant: N(N(6)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } }), With { bind: [/* revealed */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [WithChosenName], or: None } }], then: [UntilFound { who: You, verb: Reveal, zone: TopOfLibrary(You), until: Objects { quant: Introduced(0) /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Move { what: Objects { quant: Bound(0) /* revealed */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, Exile(Objects { quant: All, filter: Filter { alts: [[OtherThan(Objects { quant: Bound(0) /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } })]], kind: Some(Card), posts: [Marked(Revealed)], or: None } })] }], limits: [] }
+= Activated { cost: [Mana(Mana(["1", "B"])), Tap, Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], effect: [Choose(CardName(Filter { alts: [], kind: Some(Card), posts: [], or: None })), Exile(Objects { quant: N(N(6)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } }), With { bind: [/* revealed */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [WithChosenName], or: None } }], then: [UntilFound { who: You, verb: Reveal, zone: TopOfLibrary(You), until: Objects { quant: Introduced(0) /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Move { what: Objects { quant: Bound(0) /* revealed */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, Exile(Objects { quant: All, filter: Filter { alts: [[OtherThan(Objects { quant: Bound(0) /* revealed */, filter: Filter { alts: [], kind: None, posts: [], or: None } })]], kind: Some(Card), posts: [Marked(Revealed)], or: None } })] }], limits: [] }
 
 ## Dovin's Dismissal
 face: Dovin's Dismissal
@@ -731,7 +731,7 @@ face: Predict
 type: Instant
 cost: {1}{U}
 > Choose a card name, then target player mills a card. If a card with the chosen name was milled this way, you draw two cards. Otherwise, you draw a card.
-= Spell([Choose(CardName), Mill { who: Target, n: N(1) }, If { order: Leading, cond: DoneThisWay { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [WithChosenName], or: None } }, how: Milled }, then: [Draw { who: You, n: N(2) }] }, Otherwise([Draw { who: You, n: N(1) }])])
+= Spell([Choose(CardName(Filter { alts: [], kind: Some(Card), posts: [], or: None })), Mill { who: Target, n: N(1) }, If { order: Leading, cond: DoneThisWay { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [WithChosenName], or: None } }, how: Milled }, then: [Draw { who: You, n: N(2) }] }, Otherwise([Draw { who: You, n: N(1) }])])
 
 ## Renegade Doppelganger
 face: Renegade Doppelganger

@@ -838,7 +838,7 @@ type: Creature — Human Cleric
 cost: {W}{B}
 > As this creature enters, choose a nonland card name.
 > Whenever an opponent casts a spell with the chosen name, they lose 3 life and you draw a card.
-= Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(NonlandCardName)] }])
+= Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(CardName(Filter { alts: [[Non("land")]], kind: Some(Card), posts: [], or: None }))] }])
 = Triggered { trigger: When(Casts { who: AnOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [WithChosenName], or: None } } }), effect: [LoseLife { who: That, n: N(3) }, Draw { who: You, n: N(1) }], limits: [] }
 
 ## Skull Fracture

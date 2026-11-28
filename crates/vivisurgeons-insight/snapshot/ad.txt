@@ -675,7 +675,7 @@ type: Artifact Creature — Phyrexian Horror
 cost: {2}
 > As this creature enters, choose a nonland card name.
 > Activated abilities of sources with the chosen name can't be activated.
-= Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(NonlandCardName)] }])
+= Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(CardName(Filter { alts: [[Non("land")]], kind: Some(Card), posts: [], or: None }))] }])
 = Static([Restrict { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Source), posts: [WithChosenName], or: None } }, rule: NoActivatedAbilities }])
 
 ## Pick Your Poison

@@ -667,7 +667,7 @@ cost: {1}{U}
 > III — When you cast a spell with the chosen name for the first time this turn, draw two cards.
 > IV — Look at the top card of each player's library.
 = Chapter { chapters: [1], effect: [Scry(N(2))] }
-= Chapter { chapters: [2], effect: [Choose(CardName)] }
+= Chapter { chapters: [2], effect: [Choose(CardName(Filter { alts: [], kind: Some(Card), posts: [], or: None }))] }
 = BROKE at "this" after: iii — when you cast a spell with the chosen name for the first time
 = Chapter { chapters: [4], effect: [LookAtTop { who: You, whose: Each, n: N(1) }] }
 

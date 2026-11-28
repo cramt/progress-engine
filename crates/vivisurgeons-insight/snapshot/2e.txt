@@ -422,7 +422,7 @@ cost: {2}{W}{W}
 > As this enchantment enters, choose a card name.
 > Your opponents can't cast spells with the chosen name.
 > Prevent all damage that would be dealt to you and permanents you control by sources with the chosen name.
-= Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(CardName)] }])
+= Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(CardName(Filter { alts: [], kind: Some(Card), posts: [], or: None }))] }])
 = Static([PlayerRestrict { who: EachOpponent, rules: [CantCast(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [WithChosenName], or: None } })] }])
 = BROKE at "by" after: prevent all damage that would be dealt to you and permanents you control
 
@@ -603,7 +603,7 @@ type: Instant
 cost: {1}{G}
 > Choose a card name, then target player mills a card. If a card with the chosen name was milled this way, you gain life equal to its mana value.
 > Draw a card.
-= Spell([Choose(CardName), Mill { who: Target, n: N(1) }, With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [WithChosenName], or: None } }], then: [If { order: Leading, cond: DoneThisWay { what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, how: Milled }, then: [GainLife { who: You, n: ManaValueOf(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }] }] }])
+= Spell([Choose(CardName(Filter { alts: [], kind: Some(Card), posts: [], or: None })), Mill { who: Target, n: N(1) }, With { bind: [/* it */ Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [WithChosenName], or: None } }], then: [If { order: Leading, cond: DoneThisWay { what: Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, how: Milled }, then: [GainLife { who: You, n: ManaValueOf(Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }] }] }])
 = Spell([Draw { who: You, n: N(1) }])
 
 ## Lassoed by the Law

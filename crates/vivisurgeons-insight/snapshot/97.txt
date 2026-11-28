@@ -341,7 +341,7 @@ type: Instant
 cost: {1}{U}
 > Choose a card name, then target opponent mills a card. If a card with the chosen name was milled this way, you draw a card.
 > Draw a card at the beginning of the next turn's upkeep.
-= Spell([Choose(CardName), Mill { who: TargetOpponent, n: N(1) }, If { order: Leading, cond: DoneThisWay { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [WithChosenName], or: None } }, how: Milled }, then: [Draw { who: You, n: N(1) }] }])
+= Spell([Choose(CardName(Filter { alts: [], kind: Some(Card), posts: [], or: None })), Mill { who: TargetOpponent, n: N(1) }, If { order: Leading, cond: DoneThisWay { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [WithChosenName], or: None } }, how: Milled }, then: [Draw { who: You, n: N(1) }] }])
 = Spell([Delayed { step: Upkeep(NextTurns), then: [Draw { who: You, n: N(1) }] }])
 
 ## Garza's Assassin

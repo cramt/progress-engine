@@ -962,7 +962,7 @@ cost: {1}{W}
 > Activated abilities of sources with the chosen name cost {2} more to activate.
 > Crew 2
 = Keywords([Keyword { name: "flying", param: None }])
-= Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(NonlandCardName)] }])
+= Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(CardName(Filter { alts: [[Non("land")]], kind: Some(Card), posts: [], or: None }))] }])
 = Static([AbilityCostChange { kind: Activated, of: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Source), posts: [WithChosenName], or: None } }, targeting: None, by: Mana(["2"]), shift: More }])
 = Keywords([Keyword { name: "crew", param: Some(N(N(2))) }])
 

@@ -353,6 +353,9 @@ impl Walk for Choice {
     #[allow(clippy::all)]
     fn walk(&mut self, v: &mut dyn Visitor) {
         match self {
+            Choice::CardName(f0) => {
+                Walk::walk(f0, v);
+            }
             Choice::Objects(f0) => {
                 Walk::walk(f0, v);
             }

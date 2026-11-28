@@ -306,7 +306,7 @@ face: Diviner's Lockbox
 type: Artifact
 cost: {4}
 > {1}, {T}: Choose a card name, then reveal the top card of your library. If that card has the chosen name, sacrifice this artifact and draw three cards. Activate only as a sorcery.
-= Activated { cost: [Mana(Mana(["1"])), Tap], effect: [Choose(CardName), With { bind: [/* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [RevealTop { who: You, whose: You, n: N(1) }, If { order: Leading, cond: Is { what: Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, filter: Filter { alts: [], kind: None, posts: [WithChosenName], or: None } }, then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Draw { who: You, n: N(3) }] }] }], limits: [SorcerySpeed] }
+= Activated { cost: [Mana(Mana(["1"])), Tap], effect: [Choose(CardName(Filter { alts: [], kind: Some(Card), posts: [], or: None })), With { bind: [/* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [RevealTop { who: You, whose: You, n: N(1) }, If { order: Leading, cond: Is { what: Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, filter: Filter { alts: [], kind: None, posts: [WithChosenName], or: None } }, then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Draw { who: You, n: N(3) }] }] }], limits: [SorcerySpeed] }
 
 ## Dryad's Revival
 face: Dryad's Revival
@@ -717,7 +717,7 @@ type: Land
 > Activated abilities of sources with the chosen name can't be activated unless they're mana abilities.
 > Lands with the chosen name have "{T}: Add {C}."
 > {T}: Add {C}.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Choose(LandCardName)], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Choose(CardName(Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None }))], limits: [] }
 = Static([Restrict { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Source), posts: [WithChosenName], or: None } }, rule: NoNonManaActivatedAbilities }])
 = Static([HasAbility { what: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [WithChosenName], or: None } }, ability: Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["C"])))], limits: [] } }])
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["C"])))], limits: [] }

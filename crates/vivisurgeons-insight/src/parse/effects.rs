@@ -625,6 +625,21 @@ pub(super) fn effect(p: &mut P) -> Option<Effect> {
     p.attempt(effect_more)
 }
 
+/// "a card name", "a nonland card name": the filter of the card the
+/// chosen name is a name of.
+fn chosen_card_name(p: &mut P) -> Option<Filter> {
+    let card = |alts: Vec<Vec<Adj>>| Filter {
+        alts,
+        kind: Some(Noun::Card),
+        ..Filter::default()
+    };
+    alt!(p;
+        |p| p.words("a card name").map(|_| card(vec![])),
+        |p| p.words("a nonland card name").map(|_| card(vec![vec![Adj::Non("land".into())]])),
+        |p| p.words("a land card name").map(|_| card(vec![vec![Adj::Type("land".into())]])),
+    )
+}
+
 /// Templates an older rule would read a shorter part of and commit to:
 /// bare "shuffle" before "shuffle this artifact and your graveyard into
 /// …", "gain control of target opponent" before "during that player's next
@@ -1347,9 +1362,7 @@ fn effect_main(p: &mut P) -> Option<Effect> {
                 |p| p.words("a planeswalker type").map(|_| Choice::PlaneswalkerType),
                 |p| p.words("a card type").map(|_| Choice::CardType),
                 |p| p.words("a permanent type").map(|_| Choice::PermanentType),
-                |p| p.words("a card name").map(|_| Choice::CardName),
-                |p| p.words("a nonland card name").map(|_| Choice::NonlandCardName),
-                |p| p.words("a land card name").map(|_| Choice::LandCardName),
+                |p| chosen_card_name(p).map(Choice::CardName),
                 |p| p.words("a number").map(|_| Choice::Number),
                 |p| { let n = number(p)?; p.one_of(&["abilities", "ability"])?; p.words("from among")?; let among = keyword_list(p)?; Some(Choice::KeywordsAmong { n, among }) },
                 // "choose artifact, creature, enchantment, instant, or
@@ -1919,8 +1932,7 @@ fn effect_main(p: &mut P) -> Option<Effect> {
                         |p| p.words("a color").map(|_| Choice::Color),
                         |p| p.words("a creature type").map(|_| Choice::CreatureType),
                         |p| p.words("a card type").map(|_| Choice::CardType),
-                        |p| p.words("a card name").map(|_| Choice::CardName),
-                        |p| p.words("a nonland card name").map(|_| Choice::NonlandCardName),
+                        |p| chosen_card_name(p).map(Choice::CardName),
                         |p| p.words("a number").map(|_| Choice::Number),
                     )?;
                     Some(Effect::Choose(c))

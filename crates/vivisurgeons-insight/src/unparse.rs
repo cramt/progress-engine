@@ -11472,8 +11472,11 @@ fn choice(o: &mut Out, c: &Choice) {
         Choice::PlaneswalkerType => o.w("a planeswalker type"),
         Choice::CardType => o.w("a card type"),
         Choice::PermanentType => o.w("a permanent type"),
-        Choice::CardName => o.w("a card name"),
-        Choice::NonlandCardName => o.w("a nonland card name"),
+        Choice::CardName(f) => {
+            o.w("a");
+            filter(o, f, Num::Sg);
+            o.w("name");
+        }
         Choice::Number => o.w("a number"),
         Choice::Player => o.w("a player"),
         Choice::Opponent => o.w("an opponent"),
@@ -11509,7 +11512,6 @@ fn choice(o: &mut Out, c: &Choice) {
                 o.w(t);
             }
         }
-        Choice::LandCardName => o.w("a land card name"),
         Choice::TargetOpponent => o.w("target opponent"),
         Choice::TargetPlayer => o.w("target player"),
         Choice::OneOfEach { picks, among } => {

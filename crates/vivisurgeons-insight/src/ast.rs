@@ -4668,9 +4668,9 @@ pub enum Choice {
     /// "choose a permanent type": artifact, battle, creature, enchantment,
     /// land or planeswalker (CR 110.4).
     PermanentType,
-    CardName,
-    /// "choose a nonland card name".
-    NonlandCardName,
+    /// "choose a card name", "choose a nonland card name": the name of a
+    /// card the filter describes (CR 201.4a), its kind always `Card`.
+    CardName(Filter),
     Number,
     Player,
     Opponent,
@@ -4695,7 +4695,6 @@ pub enum Choice {
         n: u32,
         among: Vec<Keyword>,
     },
-    LandCardName,
     /// "choose target opponent": a target, so it can be illegal on
     /// resolution and hexproof stops it, where "choose an opponent" is not.
     TargetOpponent,

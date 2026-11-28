@@ -121,7 +121,7 @@ cost: {W}
 > Spells with the chosen name enchanted player casts cost {2} more to cast.
 > Whenever enchanted player casts a spell with the chosen name, you may sacrifice this Aura. If you do, draw a card.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Player), posts: [], or: None } })) }])
-= Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(CardName)] }])
+= Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(CardName(Filter { alts: [], kind: Some(Card), posts: [], or: None }))] }])
 = Static([CostChange { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [WithChosenName, Cast(Enchanted)], or: None } }, by: Mana(["2"]), less: false, per: None }])
 = BROKE at "the" after: whenever enchanted player casts a spell with
 
