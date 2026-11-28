@@ -1356,7 +1356,12 @@ fn each_players_amount(k: &i::Amount) -> Result<Amount, String> {
                 },
             })?)
         }
-        other => return Err(format!("damage to each player of {}", short(other))),
+        other => {
+            return Err(format!(
+                "damage to each player or opponent of {}",
+                short(other)
+            ))
+        }
     })
 }
 
@@ -2324,6 +2329,9 @@ pub enum DamageTo {
     /// "To each player": every player still in the game, at once, each
     /// the amount counted for them.
     EachPlayer,
+    /// "To each opponent": each of its controller's opponents still in
+    /// the game (CR 102.2, 806.1), as `EachPlayer` deals each player.
+    EachOpponent,
 }
 
 /// What a target slot may be (CR 115.1).
@@ -4095,9 +4103,14 @@ impl<'a> Scope<'a> {
                 n: k,
                 to,
             } if source.quant == Quant::SelfRef && source.filter == i::Filter::default() => {
-                if let [i::Recipient::Player(i::Player::Each)] = to.as_slice() {
+                if let [i::Recipient::Player(each @ (i::Player::Each | i::Player::EachOpponent))] =
+                    to.as_slice()
+                {
                     Effect::Damage {
-                        to: DamageTo::EachPlayer,
+                        to: match each {
+                            i::Player::Each => DamageTo::EachPlayer,
+                            _ => DamageTo::EachOpponent,
+                        },
                         n: each_players_amount(k)?,
                     }
                 } else {

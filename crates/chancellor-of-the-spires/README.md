@@ -451,7 +451,7 @@ non-mana activated ability
 the engine can't run (a limit, another cost, another effect) is
 carried and never offered, so the card plays and the ability doesn't.
 
-**45 of Loam's 90 distinct cards are played or cast and resolved, 35 of
+**45 of Loam's 90 distinct cards are played or cast and resolved, 36 of
 them with every ability running** (the basics, Birds of Paradise, Elvish
 Mystic, Command Tower, Karplusan Forest, Yavimaya, Cradle of Growth, the
 fetchlands Misty Rainforest, Prismatic Vista, Scalding Tarn and Wooded
@@ -470,7 +470,9 @@ from 2026-11-22, and Desperate Ravings, since a discard can be at
 random, 32 the same day, and Squee, Goblin Nabob, since an ability can
 work from a graveyard, 33, and Frantic Search, since "untap up to three
 lands" is chosen as it resolves, 34, and Cephalid Coliseum, since an
-activated ability can be limited to threshold, 35, 2026-11-24), Blast Zone played too since it
+activated ability can be limited to threshold, 35, 2026-11-24, and
+Ramunap Ruins, since damage can be dealt to each opponent, 36,
+2026-11-28), Blast Zone played too since it
 enters with its counter, its abilities carried:
 `cargo test -p chancellor-of-the-spires --test game loam_coverage --
 --nocapture` plays each in a game of its own and prints the rest by the
@@ -1501,7 +1503,10 @@ its caster, a narrower source refused by name (CR 120.2, 603.2c, 510.2,
 608.2h: Phyrexian Obliterator, whose 4 games go on). And a bare plural,
 "creatures you control get +1/+1 until end of turn", each permanent its
 filter matches as the instruction resolves (CR 611.2c: Basri, Tomorrow's
-Champion, Jirina, Dauntless General and Soltari Champion).
+Champion, Jirina, Dauntless General and Soltari Champion). And "deals 3
+damage to each opponent", each of its controller's opponents still in
+the game, every other player (CR 102.2, 806.1, 120.3a: Atarka's Command's
+mode, and Ramunap Ruins's sacrifice ability, which now runs whole in Loam).
 And
 the replay's inferences: a card played or cast while its player may
 play cards from exile taken from there before the hand, the hand the

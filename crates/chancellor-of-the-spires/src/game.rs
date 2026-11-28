@@ -7713,12 +7713,15 @@ impl Game {
                 // for themselves, all dealt by one instruction at once
                 // (CR 120.2b, 120.3a).
                 Effect::Damage {
-                    to: DamageTo::EachPlayer,
+                    to: to @ (DamageTo::EachPlayer | DamageTo::EachOpponent),
                     n,
                 } => {
                     let hits: Vec<(Target, u32)> = (0..self.players.len())
                         .map(|q| PlayerId(q as u8))
                         .filter(|q| !self.player(*q).left)
+                        // CR 102.2, 806.1: its controller's opponents, every
+                        // other player, as the engine plays no teams.
+                        .filter(|q| to == DamageTo::EachPlayer || *q != at.controller)
                         .map(|q| {
                             let them = Resuming {
                                 player: Some(q),
@@ -7734,7 +7737,9 @@ impl Game {
                 }
                 Effect::Damage { to, n } => {
                     let to = match to {
-                        DamageTo::Each(_) | DamageTo::EachPlayer => unreachable!("dealt above"),
+                        DamageTo::Each(_) | DamageTo::EachPlayer | DamageTo::EachOpponent => {
+                            unreachable!("dealt above")
+                        }
                         DamageTo::You => Some(Target::Player(p)),
                         DamageTo::EventPlayer => at.player.map(Target::Player),
                         DamageTo::Target(s) => at.targets[s],

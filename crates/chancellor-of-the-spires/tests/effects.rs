@@ -72,7 +72,14 @@ fn drum_elf() -> CardText {
 /// Cards no printed card is, for a branch only they reach.
 fn invented(name: &str) -> Option<CardText> {
     let (type_line, mana_cost, oracle, colors, power) = match name {
-        // Overrun for one mana.
+        // Sizzle and Overrun for one mana.
+        "Quick Sizzle" => (
+            "Sorcery",
+            "{R}",
+            "This spell deals 3 damage to each opponent.",
+            vec![Color::Red],
+            None,
+        ),
         "Quick Overrun" => (
             "Sorcery",
             "{R}",
@@ -6939,6 +6946,22 @@ fn red_elemental_blast_offers_only_a_mode_with_a_legal_target() {
     }
     resolve(&mut game);
     assert_eq!(creature(&game, "Flying Men"), None);
+}
+
+/// CR 120.3a, 102.2: "deals 3 damage to each opponent" takes 3 life from
+/// them and none from its caster.
+#[test]
+fn sizzle_deals_damage_to_each_opponent_only() {
+    let mut game = deal(
+        &[("Mountain", 30), ("Quick Sizzle", 30)],
+        &[("Island", 60)],
+        &[("Mountain", 1), ("Quick Sizzle", 1)],
+    );
+    play(&mut game, "Mountain");
+    cast(&mut game, "Quick Sizzle", None);
+    resolve(&mut game);
+    assert_eq!(game.player(THEM).life(), 17);
+    assert_eq!(game.player(ME).life(), 20);
 }
 
 /// CR 611.2c: "Creatures you control get +3/+3 and gain trample until
