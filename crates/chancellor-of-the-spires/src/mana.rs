@@ -425,7 +425,26 @@ pub struct ManaAbility {
     pub sacrificed_when_none: bool,
     /// "Sacrifice this artifact", "Sacrifice a Goblin" (CR 701.21a).
     pub sacrifice: Option<Sacrifice>,
+    /// Birchlore Rangers's "Tap two untapped Elves you control".
+    pub tap_others: Option<TapOthers>,
 }
+
+/// A mana ability's cost of tapping permanents besides its source: `n`
+/// untapped permanents its controller controls that `filter` matches, the
+/// source among them unless its cost taps it too. "Untapped" is no part
+/// of the filter: only an untapped permanent can be tapped (CR 701.26a).
+/// It isn't the source's {T}, so a creature tapped this way needn't have
+/// been controlled since the turn began (CR 302.6).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TapOthers {
+    pub n: u32,
+    pub filter: Filter,
+}
+
+/// The most permanents a mana ability's cost taps besides its source:
+/// Heritage Druid's three Elves. An activation names each, and so has
+/// room for this many.
+pub const MOST_TAPPED: usize = 3;
 
 /// What a mana ability's cost sacrifices.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -531,6 +550,7 @@ fn lower_mana_ability(
         sacrifice: None,
         remove_counter: None,
         sacrificed_when_none: false,
+        tap_others: None,
     };
     for c in cost {
         match c {
@@ -582,6 +602,9 @@ fn lower_mana_ability(
                         return Err(format!("a mana ability sacrificing {}", short(&o.quant)));
                     },
                 )
+            }
+            i::Cost::TapUntapped(o) if ability.tap_others.is_none() => {
+                ability.tap_others = Some(tap_others(o)?)
             }
             other => return Err(format!("a mana ability costing {}", short(other))),
         }
@@ -647,6 +670,39 @@ fn lower_mana_ability(
         }
     }
     Ok(ability)
+}
+
+/// "Tap two untapped Elves you control": how many, and of what.
+fn tap_others(o: &i::Objects) -> Result<TapOthers, String> {
+    let n = match &o.quant {
+        i::Quant::One => 1,
+        i::Quant::N(i::Amount::N(n)) => *n,
+        other => return Err(format!("a mana ability tapping {}", short(other))),
+    };
+    if n == 0 || n as usize > MOST_TAPPED {
+        return Err(format!("a mana ability tapping {n} permanents"));
+    }
+    if !matches!(
+        o.filter.posts.as_slice(),
+        [i::Post::Controller(i::Player::You)]
+    ) {
+        return Err("a mana ability tapping permanents not said to be yours".into());
+    }
+    let mut filter = o.filter.clone();
+    for alt in &mut filter.alts {
+        let before = alt.len();
+        alt.retain(|a| *a != i::Adj::State(i::State::Untapped));
+        if alt.len() == before {
+            return Err("a mana ability tapping permanents not said to be untapped".into());
+        }
+    }
+    Ok(TapOthers {
+        n,
+        filter: lower::counted(&i::Objects {
+            quant: i::Quant::All,
+            filter,
+        })?,
+    })
 }
 
 pub(crate) fn adds(add: &i::ManaAdd) -> Result<Adds, String> {

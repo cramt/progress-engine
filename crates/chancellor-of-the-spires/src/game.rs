@@ -1827,6 +1827,45 @@ pub struct ManaActivation {
     /// The permanent its cost sacrifices, if it sacrifices one (CR
     /// 701.21a).
     pub sacrifices: Option<ObjectId>,
+    /// Whether its cost has {T}, tapping its source (CR 107.5).
+    pub taps_source: bool,
+    /// The permanents its cost taps besides its source's {T} (Birchlore
+    /// Rangers's two Elves), none for most.
+    pub taps: Taps,
+}
+
+/// The permanents a mana ability's cost taps besides its source's {T},
+/// in id order, at most `m::MOST_TAPPED` of them.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Taps {
+    len: u8,
+    ids: [ObjectId; m::MOST_TAPPED],
+}
+
+impl Default for Taps {
+    fn default() -> Taps {
+        Taps::of(&[])
+    }
+}
+
+impl Taps {
+    pub(crate) fn of(ids: &[ObjectId]) -> Taps {
+        assert!(ids.len() <= m::MOST_TAPPED, "lowering refuses more");
+        let mut t = Taps {
+            len: ids.len() as u8,
+            ids: [ObjectId(0); m::MOST_TAPPED],
+        };
+        t.ids[..ids.len()].copy_from_slice(ids);
+        t
+    }
+
+    pub fn ids(&self) -> &[ObjectId] {
+        &self.ids[..self.len as usize]
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
 }
 
 /// What a player with priority can do.
@@ -5383,11 +5422,16 @@ impl Game {
                 && began.is_none_or(|t| perm.since >= t);
             let runs = self.known(perm.card).and_then(|k| k.runs.as_ref().ok());
             for ability in &chars.abilities {
-                let (tap, life, mana, options, sacrifice) = match ability {
+                let (tap, life, mana, options, sacrifice, tap_others) = match ability {
                     // CR 305.6.
-                    Ability::Intrinsic(t) => {
-                        (true, 0, None, vec![ManaPool::of([Mana::of(*t)])], None)
-                    }
+                    Ability::Intrinsic(t) => (
+                        true,
+                        0,
+                        None,
+                        vec![ManaPool::of([Mana::of(*t)])],
+                        None,
+                        None,
+                    ),
                     // CR 602.5, 602.5b.
                     Ability::Unread(n)
                         if runs
@@ -5415,6 +5459,7 @@ impl Game {
                                 self.count(f, id, chars, &all)
                             }),
                             a.sacrifice.as_ref(),
+                            a.tap_others.as_ref(),
                         ),
                         None => continue,
                     },
@@ -5451,19 +5496,39 @@ impl Game {
                 } else {
                     ManaPool::default()
                 };
+                // CR 601.2h, 701.26a: each set of untapped permanents it
+                // could tap, none if there are too few to pay it.
+                let tapped: Vec<Taps> = match tap_others {
+                    None => vec![Taps::default()],
+                    Some(t) => {
+                        let can: Vec<ObjectId> = self
+                            .untapped_matching(p, id, chars, &t.filter, &all)
+                            .into_iter()
+                            .filter(|o| !(tap && *o == id))
+                            .collect();
+                        subsets(&can, t.n as usize)
+                            .iter()
+                            .map(|s| Taps::of(s))
+                            .collect()
+                    }
+                };
                 let mut seen = BTreeSet::new();
                 for mut adds in options {
                     adds.add_all(&extra);
                     for pays in &ways {
                         for sacrifices in &sacrificed {
-                            if seen.insert((adds, *pays, *sacrifices)) {
-                                out.push(ManaActivation {
-                                    source: id,
-                                    ability: *ability,
-                                    adds,
-                                    pays: *pays,
-                                    sacrifices: *sacrifices,
-                                });
+                            for taps in &tapped {
+                                if seen.insert((adds, *pays, *sacrifices, *taps)) {
+                                    out.push(ManaActivation {
+                                        source: id,
+                                        ability: *ability,
+                                        adds,
+                                        pays: *pays,
+                                        sacrifices: *sacrifices,
+                                        taps_source: tap,
+                                        taps: *taps,
+                                    });
+                                }
                             }
                         }
                     }
@@ -5471,6 +5536,36 @@ impl Game {
             }
         }
         out
+    }
+
+    /// The untapped permanents `p` controls that `filter` matches, read
+    /// from `source`.
+    fn untapped_matching(
+        &self,
+        p: PlayerId,
+        source: ObjectId,
+        source_chars: &Chars,
+        filter: &Filter,
+        all: &BTreeMap<ObjectId, Chars>,
+    ) -> Vec<ObjectId> {
+        all.iter()
+            .filter(|(o, c)| {
+                c.controller == p
+                    && !self.permanents[*o].tapped
+                    && filter.matches(&Seen {
+                        id: **o,
+                        chars: c,
+                        source,
+                        source_chars,
+                        source_attached_to: self.battlefield.objects[&source].attached_to,
+                        source_chosen: self.battlefield.objects[&source].chosen_type.as_ref(),
+                        token: self.battlefield.objects[*o].token,
+                        attacking: self.battlefield.attacking.contains(*o),
+                        source_defending: self.defending(source),
+                    })
+            })
+            .map(|(o, _)| *o)
+            .collect()
     }
 
     /// The mana the triggered mana abilities on the battlefield add when
@@ -6592,6 +6687,11 @@ impl Game {
             .contains(&Ability::Keyword(Keyword::Lifelink));
         if tap {
             self.tap(a.source);
+        }
+        // Not tapped for mana, which only its source's {T} is (CR
+        // 106.12): Wild Growth adds nothing for them.
+        for o in a.taps.ids() {
+            self.tap(*o);
         }
         // CR 119.4.
         self.lose_life(p, life);
@@ -12031,6 +12131,21 @@ fn is_permanent(chars: &Chars) -> bool {
 /// A target slot something on the stack fills.
 fn on_the_stack(t: &TargetSpec) -> bool {
     matches!(t, TargetSpec::Spell(_) | TargetSpec::Ability { .. })
+}
+
+/// Every `n` of `of`, each in `of`'s order.
+fn subsets(of: &[ObjectId], n: usize) -> Vec<Vec<ObjectId>> {
+    if n == 0 {
+        return vec![Vec::new()];
+    }
+    let mut out = Vec::new();
+    for (k, o) in of.iter().enumerate() {
+        for mut rest in subsets(&of[k + 1..], n - 1) {
+            rest.insert(0, *o);
+            out.push(rest);
+        }
+    }
+    out
 }
 
 #[cfg(test)]

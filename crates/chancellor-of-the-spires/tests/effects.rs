@@ -26,6 +26,9 @@ fn card(name: &str) -> CardText {
     if name == UNREADABLE {
         return unreadable();
     }
+    if name == DRUM_ELF {
+        return drum_elf();
+    }
     two_faced(name).unwrap_or_else(|| deck::card(name, index()).unwrap_or_else(|e| panic!("{e}")))
 }
 
@@ -43,6 +46,23 @@ fn unreadable() -> CardText {
         colors: Vec::new(),
         pt: None,
         identity: Vec::new(),
+    }
+}
+
+/// An Elf whose mana ability taps it and another Elf, as no printed card
+/// does yet: the one cost can't tap it twice.
+const DRUM_ELF: &str = "Drum Elf";
+
+fn drum_elf() -> CardText {
+    CardText {
+        name: DRUM_ELF.into(),
+        type_line: "Creature — Elf".into(),
+        mana_cost: "{G}".into(),
+        oracle: Oracle::OneFace("{T}, Tap an untapped Elf you control: Add {G}{G}.".into()),
+        mana_value: 1,
+        colors: vec![Color::Green],
+        pt: Some(pt(1, 1)),
+        identity: vec![Color::Green],
     }
 }
 
@@ -9456,4 +9476,178 @@ fn a_cost_returning_and_sacrificing_is_never_offered() {
             .any(|d| d.contains("returning permanents and leaving another way")),
         "{dormant:?}"
     );
+}
+
+/// The Birchlore Rangers activations offered now, each with the
+/// permanents its cost taps.
+fn birchlore_taps(game: &Game) -> Vec<ManaActivation> {
+    let Decision::Priority { actions, .. } = game.decision() else {
+        panic!("{:?}", game.decision())
+    };
+    let birchlore = creature(game, "Birchlore Rangers").unwrap();
+    actions
+        .iter()
+        .filter_map(|a| match a {
+            Action::Mana(m) if m.source == birchlore => Some(*m),
+            _ => None,
+        })
+        .collect()
+}
+
+/// CR 602.2b, 701.26a, 302.6: Birchlore Rangers's "Tap two untapped Elves
+/// you control: Add one mana of any color" taps itself and Llanowar Elves
+/// the turn it is cast, its cost not being its own {T}; and once they are
+/// tapped, neither Elf makes mana again.
+#[test]
+fn birchlore_rangers_taps_two_elves_for_any_color() {
+    let mut game = deal(
+        &[
+            ("Forest", 30),
+            ("Llanowar Elves", 15),
+            ("Birchlore Rangers", 15),
+        ],
+        &[("Forest", 60)],
+        &[
+            ("Forest", 2),
+            ("Llanowar Elves", 1),
+            ("Birchlore Rangers", 1),
+        ],
+    );
+    play(&mut game, "Forest");
+    cast(&mut game, "Llanowar Elves", None);
+    resolve(&mut game);
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    cast(&mut game, "Birchlore Rangers", None);
+    resolve(&mut game);
+    let birchlore = creature(&game, "Birchlore Rangers").unwrap();
+    let llanowar = creature(&game, "Llanowar Elves").unwrap();
+    let offered = birchlore_taps(&game);
+    assert_eq!(offered.len(), 5, "one for each color: {offered:?}");
+    let mut both = vec![birchlore, llanowar];
+    both.sort();
+    assert!(offered.iter().all(|m| m.taps.ids() == both.as_slice()));
+    let blue = *offered
+        .iter()
+        .find(|m| m.adds == ManaPool::of([Mana::Blue]))
+        .unwrap();
+    step(&mut game, Answer::Act(Action::Mana(blue)));
+    assert_eq!(*game.player(ME).pool(), ManaPool::of([Mana::Blue]));
+    assert!(game.permanents()[&birchlore].tapped);
+    assert!(game.permanents()[&llanowar].tapped);
+    assert!(birchlore_taps(&game).is_empty());
+    let Decision::Priority { actions, .. } = game.decision() else {
+        panic!("{:?}", game.decision())
+    };
+    assert!(!actions
+        .iter()
+        .any(|a| matches!(a, Action::Mana(m) if m.source == llanowar)));
+}
+
+/// Birchlore Rangers counts only Elves: beside Grizzly Bears, a Bear, it
+/// is one Elf and can't pay its cost (CR 601.2h).
+#[test]
+fn birchlore_rangers_wont_tap_what_isnt_an_elf() {
+    let mut game = deal(
+        &[
+            ("Forest", 30),
+            ("Grizzly Bears", 15),
+            ("Birchlore Rangers", 15),
+        ],
+        &[("Forest", 60)],
+        &[
+            ("Forest", 3),
+            ("Grizzly Bears", 1),
+            ("Birchlore Rangers", 1),
+        ],
+    );
+    play(&mut game, "Forest");
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    cast(&mut game, "Grizzly Bears", None);
+    resolve(&mut game);
+    my_next_main(&mut game);
+    play(&mut game, "Forest");
+    cast(&mut game, "Birchlore Rangers", None);
+    resolve(&mut game);
+    assert!(birchlore_taps(&game).is_empty());
+}
+
+/// Heritage Druid's "Tap three untapped Elves you control: Add {G}{G}{G}"
+/// takes three of four Elves, once for each three.
+#[test]
+fn heritage_druid_taps_any_three_of_four_elves() {
+    let mut game = deal(
+        &[
+            ("Forest", 20),
+            ("Heritage Druid", 20),
+            ("Birchlore Rangers", 20),
+        ],
+        &[("Forest", 60)],
+        &[
+            ("Forest", 3),
+            ("Heritage Druid", 1),
+            ("Birchlore Rangers", 3),
+        ],
+    );
+    for _ in 0..3 {
+        play(&mut game, "Forest");
+        cast(&mut game, "Birchlore Rangers", None);
+        resolve(&mut game);
+        my_next_main(&mut game);
+    }
+    cast(&mut game, "Heritage Druid", None);
+    resolve(&mut game);
+    let druid = creature(&game, "Heritage Druid").unwrap();
+    let Decision::Priority { actions, .. } = game.decision() else {
+        panic!("{:?}", game.decision())
+    };
+    let taps: Vec<&[_]> = actions
+        .iter()
+        .filter_map(|a| match a {
+            Action::Mana(m) if m.source == druid => Some(m.taps.ids()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(taps.len(), 4, "four ways to choose three of four");
+    assert!(taps.iter().all(|t| t.len() == 3));
+}
+
+/// CR 701.26a: Drum Elf's "{T}, Tap an untapped Elf you control" taps
+/// itself for its {T}, so the other Elf is another: beside Llanowar
+/// Elves, that one, and alone, none.
+#[test]
+fn a_cost_tapping_its_source_taps_another_beside_it() {
+    let mut game = deal(
+        &[("Forest", 30), ("Llanowar Elves", 15), ("Drum Elf", 15)],
+        &[("Forest", 60)],
+        &[("Forest", 2), ("Llanowar Elves", 1), ("Drum Elf", 1)],
+    );
+    play(&mut game, "Forest");
+    cast(&mut game, "Drum Elf", None);
+    resolve(&mut game);
+    let drum = creature(&game, "Drum Elf").unwrap();
+    let offered = |game: &Game| -> Vec<ManaActivation> {
+        let Decision::Priority { actions, .. } = game.decision() else {
+            panic!("{:?}", game.decision())
+        };
+        actions
+            .iter()
+            .filter_map(|a| match a {
+                Action::Mana(m) if m.source == drum => Some(*m),
+                _ => None,
+            })
+            .collect()
+    };
+    my_next_main(&mut game);
+    assert!(offered(&game).is_empty(), "{:?}", offered(&game));
+    play(&mut game, "Forest");
+    cast(&mut game, "Llanowar Elves", None);
+    resolve(&mut game);
+    let llanowar = creature(&game, "Llanowar Elves").unwrap();
+    let taps: Vec<Vec<_>> = offered(&game)
+        .iter()
+        .map(|m| m.taps.ids().to_vec())
+        .collect();
+    assert_eq!(taps, vec![vec![llanowar]]);
 }

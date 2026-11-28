@@ -3795,6 +3795,7 @@ impl Driver<'_> {
                 Payment::Mana(m)
                     if m.pays.is_empty()
                         && m.sacrifices.is_none()
+                        && m.taps.is_empty()
                         && !game.permanents()[&m.source].tapped
                         && names.contains(
                             &game
@@ -3859,9 +3860,11 @@ impl Driver<'_> {
         let mut taps: Vec<ManaActivation> = actions
             .iter()
             .filter_map(|a| match a {
-                // Not one that sacrifices: that costs more than the tap.
+                // Not one that sacrifices or taps others: that costs
+                // more than the tap.
                 Action::Mana(m)
                     if m.sacrifices.is_none()
+                        && m.taps.is_empty()
                         && returned.iter().any(|o| game.mana_counts(m, *o)) =>
                 {
                     Some(*m)
@@ -4347,7 +4350,7 @@ impl Driver<'_> {
             }
             let tap = actions.iter().find(|a| {
                 matches!(a, Payment::Mana(m)
-                    if m.source == o && m.pays.is_empty() && m.sacrifices.is_none())
+                    if m.source == o && m.pays.is_empty() && m.sacrifices.is_none() && m.taps.is_empty())
             });
             if let Some(tap) = tap.copied() {
                 self.act(Answer::Pay(tap))?;
@@ -8145,7 +8148,13 @@ fn describe(payment: &Paid) -> String {
         let mana: Vec<String> = payment
             .mana
             .iter()
-            .map(|a| format!("#{} for {}", a.source.0, a.adds))
+            .map(|a| {
+                let taps: Vec<String> = a.taps.ids().iter().map(|o| format!("#{}", o.0)).collect();
+                match taps.as_slice() {
+                    [] => format!("#{} for {}", a.source.0, a.adds),
+                    _ => format!("#{} for {} tapping {}", a.source.0, a.adds, taps.join(" ")),
+                }
+            })
             .collect();
         format!("tapping {}", mana.join(", "))
     };
@@ -8199,16 +8208,28 @@ fn solve_mana(
     options: &[ManaActivation],
 ) -> Vec<Vec<ManaActivation>> {
     // An ability that sacrifices another permanent can be activated again
-    // for another (Skirk Prospector's "Sacrifice a Goblin"): each choice of
-    // what it sacrifices is a source of its own.
-    let mut sources: BTreeMap<(ObjectId, Option<ObjectId>), Vec<ManaActivation>> = BTreeMap::new();
+    // for another (Skirk Prospector's "Sacrifice a Goblin"), as one that
+    // taps others can for others (Birchlore Rangers's two Elves): each
+    // choice of what it sacrifices or taps is a source of its own.
+    type Key = (ObjectId, Option<ObjectId>, crate::game::Taps);
+    let mut sources: BTreeMap<Key, Vec<ManaActivation>> = BTreeMap::new();
     for m in options {
         let other = m.sacrifices.filter(|o| *o != m.source);
-        sources.entry((m.source, other)).or_default().push(*m);
+        sources
+            .entry((m.source, other, m.taps))
+            .or_default()
+            .push(*m);
     }
-    // Sources that cost mana last, so the mana they spend is made first.
+    // Sources that cost mana last, so the mana they spend is made first;
+    // before them, those that tap others, each of which could have made
+    // mana of its own.
     let mut sources: Vec<Vec<ManaActivation>> = sources.into_values().collect();
-    sources.sort_by_key(|v| v.iter().any(|a| !a.pays.is_empty()));
+    sources.sort_by_key(|v| {
+        (
+            v.iter().any(|a| !a.pays.is_empty()),
+            v.iter().any(|a| !a.taps.is_empty()),
+        )
+    });
     let filters = sources
         .iter()
         .filter(|v| v.iter().any(|a| !a.pays.is_empty()))
@@ -8255,7 +8276,7 @@ fn solve_mana(
                 return;
             }
             for a in &self.sources[i] {
-                if !pool.contains(&a.pays) {
+                if !pool.contains(&a.pays) || chosen.iter().any(|b| taps_what(a, b)) {
                     continue;
                 }
                 let mut more = pool.minus(&a.pays);
@@ -8300,7 +8321,8 @@ fn solve_mana(
             after.add_all(&a.adds);
         }
         for f in &filters {
-            if p.iter().any(|a| a.source == f.source) || !after.contains(&f.pays) {
+            if p.iter().any(|a| a.source == f.source || taps_what(a, f)) || !after.contains(&f.pays)
+            {
                 continue;
             }
             let mut more = after.minus(&f.pays);
@@ -8325,6 +8347,22 @@ fn solve_mana(
     out
 }
 
+/// Whether two activations' costs tap the same permanent, which can be
+/// tapped once (CR 701.26a). A source whose ability has no {T} can still
+/// be tapped by another's cost (Heritage Druid, by Birchlore Rangers).
+fn taps_what(a: &ManaActivation, b: &ManaActivation) -> bool {
+    let tapped = |x: &ManaActivation| {
+        x.taps
+            .ids()
+            .iter()
+            .copied()
+            .chain(x.taps_source.then_some(x.source))
+            .collect::<Vec<_>>()
+    };
+    let b = tapped(b);
+    tapped(a).iter().any(|o| b.contains(o))
+}
+
 /// A mode's text as the log prints it: numbers as digits ("Draw 2 cards,
 /// then discard 2 cards." for Izzet Charm's "Draw two cards, then discard
 /// two cards.").
@@ -8342,4 +8380,60 @@ fn digits(text: &str) -> String {
         })
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::game::{Mana, Taps};
+
+    fn activation(source: u32, adds: Mana, taps_source: bool, taps: &[u32]) -> ManaActivation {
+        let taps: Vec<ObjectId> = taps.iter().map(|o| ObjectId(*o)).collect();
+        ManaActivation {
+            source: ObjectId(source),
+            ability: Ability::Unread(0),
+            adds: ManaPool::of([adds]),
+            pays: ManaPool::default(),
+            sacrifices: None,
+            taps_source,
+            taps: Taps::of(&taps),
+        }
+    }
+
+    /// Llanowar Elves (1) taps itself for {G}; Birchlore Rangers (2) taps
+    /// two Elves for {U}, itself and Llanowar, or itself and Elvish
+    /// Visionary (3), which makes no mana. {G}{U} is paid only with the
+    /// Visionary tapped: Llanowar can't be tapped twice (CR 701.26a).
+    #[test]
+    fn no_permanent_is_tapped_by_two_activations() {
+        let cost = ManaCost::parse("{G}{U}").unwrap().unwrap();
+        let llanowar = activation(1, Mana::Green, true, &[]);
+        let with_llanowar = activation(2, Mana::Blue, false, &[1, 2]);
+        let with_visionary = activation(2, Mana::Blue, false, &[2, 3]);
+        let found = solve_mana(&cost, ManaPool::default(), &[llanowar, with_llanowar]);
+        assert!(found.is_empty(), "{found:?}");
+        let found = solve_mana(
+            &cost,
+            ManaPool::default(),
+            &[llanowar, with_llanowar, with_visionary],
+        );
+        assert_eq!(found, vec![vec![llanowar, with_visionary]]);
+    }
+
+    /// Birchlore Rangers (1) has no {T}: with three more Elves it taps
+    /// itself and one, then the other two, for {U}{U}; and it taps Heritage
+    /// Druid (5), whose own ability tapped three others for {G}.
+    #[test]
+    fn a_source_without_its_tap_is_activated_again_and_tapped_by_another() {
+        let uu = ManaCost::parse("{U}{U}").unwrap().unwrap();
+        let first = activation(1, Mana::Blue, false, &[1, 2]);
+        let second = activation(1, Mana::Blue, false, &[3, 4]);
+        let found = solve_mana(&uu, ManaPool::default(), &[first, second]);
+        assert_eq!(found, vec![vec![first, second]]);
+        let gu = ManaCost::parse("{G}{U}").unwrap().unwrap();
+        let druid = activation(5, Mana::Green, false, &[2, 3, 4]);
+        let birchlore = activation(1, Mana::Blue, false, &[1, 5]);
+        let found = solve_mana(&gu, ManaPool::default(), &[druid, birchlore]);
+        assert_eq!(found, vec![vec![birchlore, druid]]);
+    }
 }

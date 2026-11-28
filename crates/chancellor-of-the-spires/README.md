@@ -1107,11 +1107,11 @@ Diamond's replacement effect (19 games), Fanatic of Rhonas's "only if"
 mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
-Worked card by card from there, **on 2026-11-28 192 of the 500 replay to
-the end and 63.38% of their lines are followed** (20,065 of 31,659), 3
+Worked card by card from there, **on 2026-11-28 195 of the 500 replay to
+the end and 63.74% of their lines are followed** (20,181 of 31,659), 3
 of them relying on a land the log never names (2 to the end) and 11 on a
 card no one named in a graveyard having no ability there (2 to the end),
-and 188 games have no card the engine refuses before any game (from 21). The
+and 191 games have no card the engine refuses before any game (from 21). The
 general rules each card needed, in the order the worklist asked:
 protection and the keywords the layers name; cost changes (Thalia, Goblin
 Warchief); "for each" sizes counted on resolution (Goblin Piledriver);
@@ -1469,7 +1469,12 @@ games go on, four to the end and one to Gaea's Blessing, and Anger, whose
 owner's hand, the one the line before names, and a permanent no cost can
 return a divergence (CR 602.2b, 601.2h: Quirion Ranger, Wirewood
 Symbiote, whose 9 games go on, 4 to the end, one with Gaea's Cradle
-below).
+below); and a mana ability's cost tapping untapped permanents besides its
+source, any it controls that the cost's filter matches, its source among
+them unless the cost's {T} taps it already, sick creatures too, and no
+permanent tapped by two activations of one payment (CR 602.2b, 701.26a,
+302.6, 106.12: Birchlore Rangers, whose 3 games now finish, and Heritage
+Druid).
 And
 the replay's inferences: a card played or cast while its player may
 play cards from exile taken from there before the hand, the hand the
