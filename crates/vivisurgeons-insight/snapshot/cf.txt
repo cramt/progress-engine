@@ -706,7 +706,7 @@ face: Prowling Pangolin
 type: Creature — Pangolin Beast
 cost: {3}{B}{B}
 > When this creature enters, any player may sacrifice two creatures of their choice. If a player does, sacrifice this creature.
-= BROKE at "may" after: when this creature enters , any player
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: Each, then: [Sacrifice { who: Each, what: Objects { quant: N(N(2)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }] }, IfYouDo([Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }])], limits: [] }
 
 ## Psychic Transfer
 face: Psychic Transfer

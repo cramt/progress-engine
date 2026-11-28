@@ -264,7 +264,7 @@ type: Instant
 cost: {B}{B}
 > When you cast this spell, any player may pay 5 life. If a player does, counter Dash Hopes.
 > Counter target spell.
-= BROKE at "may" after: when you cast this spell , any player
+= Triggered { trigger: When(Casts { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [May { who: Each, then: [Pay { who: Each, cost: [PayLife(N(5))] }] }, IfYouDo([Counter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, unless: None }])], limits: [] }
 = Spell([Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }])
 
 ## Decode Transmissions

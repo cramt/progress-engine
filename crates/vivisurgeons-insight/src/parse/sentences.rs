@@ -599,6 +599,15 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             p.tok(&Tok::Comma)?;
             Some(vec![Effect::OnSpend { of, on, then: clauses(p)? }])
         },
+        // "If a player does, tap this creature" (Desecration Demon): if any
+        // of the group took the option. "If a player does, creatures that
+        // player controls can't attack you" (Orzhov Advokist) is each such
+        // player, which one branch can't say ([any-player-may]).
+        |p| {
+            p.words("if a player does ,")?;
+            let then = clauses(p)?;
+            (!says_that_player(&then)).then(|| vec![Effect::IfYouDo(then)])
+        },
         |p| {
             p.one_of(&["if you do", "if they do", "if that player does", "if the player does"])?;
             p.tok(&Tok::Comma)?;
@@ -669,7 +678,7 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             Some(vec![Effect::ForEachCardType(clauses(p)?)])
         },
         |p| {
-            p.one_of(&["if you don't", "if they don't", "if that player doesn't", "if the player doesn't", "if no one does"])?;
+            p.one_of(&["if you don't", "if they don't", "if that player doesn't", "if the player doesn't", "if no one does", "if no player does"])?;
             p.tok(&Tok::Comma)?;
             Some(vec![Effect::IfYouDont(clauses(p)?)])
         },
@@ -819,7 +828,10 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             ])
         },
         |p| {
-            let who = subject_player(p);
+            // "any opponent may sacrifice a creature of their choice"
+            // (Desecration Demon): each of them in turn order may, not
+            // just one ([any-player-may]).
+            let who = p.attempt(any_player_may).unwrap_or_else(|| subject_player(p));
             p.word("may")?;
             // "Its controller may draw up to two cards": the verb after "may"
             // has the same subject, not an unstated "you".
@@ -2173,6 +2185,36 @@ fn says_x(es: &[Effect]) -> bool {
         e.clone().walk(&mut x);
     }
     x.0
+}
+
+/// "any player", "any opponent", "any other player" before "may": the
+/// group of players each offered the option ([any-player-may]).
+fn any_player_may(p: &mut P) -> Option<Player> {
+    p.word("any")?;
+    let who = alt!(p;
+        |p| p.word("player").map(|_| Player::Each),
+        |p| p.word("opponent").map(|_| Player::EachOpponent),
+        |p| p.words("other player").map(|_| Player::EachOtherPlayer),
+    )?;
+    (p.peek_word() == Some("may")).then_some(who)
+}
+
+/// Whether effects name "that player" anywhere.
+fn says_that_player(es: &[Effect]) -> bool {
+    struct T(bool);
+    impl Visitor for T {
+        fn enter(&mut self, _: &mut Objects) -> bool {
+            true
+        }
+        fn player(&mut self, p: &mut Player) {
+            self.0 |= *p == Player::That;
+        }
+    }
+    let mut t = T(false);
+    for e in es {
+        e.clone().walk(&mut t);
+    }
+    t.0
 }
 
 /// Whether effects count "the damage prevented this way" outside a delayed

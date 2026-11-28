@@ -3317,4 +3317,36 @@ mod round_nine_d {
         );
         assert!(draw.contains("then: [] }, Draw"), "{draw}");
     }
+
+    #[test]
+    fn any_opponent_may_is_each_and_if_a_player_does_is_any_of_them() {
+        let read = |text: &str| {
+            let face = Face {
+                name: "Some Card",
+                type_line: "Creature — Demon",
+                text,
+            };
+            format!(
+                "{:?}",
+                read_face_unresolved(&face, "Some Card")
+                    .iter()
+                    .map(|l| l.parsed.as_ref().ok())
+                    .collect::<Vec<_>>()
+            )
+        };
+        let demon = read("At the beginning of each combat, any opponent may sacrifice a creature of their choice. If a player does, tap this creature and put a +1/+1 counter on it.");
+        assert!(
+            demon.contains("May { who: EachOpponent, then: [Sacrifice { who: EachOpponent"),
+            "{demon}"
+        );
+        assert!(demon.contains("IfYouDo([Tap("), "{demon}");
+        // [any-player-may]: only "any player", "any opponent" and "any
+        // other player" name the group.
+        let one = read("At the beginning of each combat, any one opponent may sacrifice a creature of their choice. If a player does, tap this creature.");
+        assert!(!one.contains("EachOpponent"), "{one}");
+        // "that player" after "if a player does" is each player who did,
+        // which one branch can't say.
+        let each = read("At the beginning of your upkeep, each player may put two +1/+1 counters on a creature they control. If a player does, creatures that player controls can't attack you until your next turn.");
+        assert!(!each.contains("IfYouDo"), "{each}");
+    }
 }

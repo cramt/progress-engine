@@ -1047,7 +1047,7 @@ cost: {2}{R}
 > Menace
 > At the beginning of your upkeep, reveal the top card of your library. Any opponent may have you put that card into your graveyard. If a player does, this creature deals damage to that player equal to that card's mana value. Otherwise, put that card into your hand.
 = Keywords([Keyword { name: "menace", param: None }])
-= BROKE at "may" after: at the beginning of your upkeep , reveal the top card of your library . any opponent
+= BROKE at "." after: at the beginning of your upkeep , reveal the top card of your library . any opponent may have you put that card into your graveyard
 
 ## Smothering Tithe
 face: Smothering Tithe

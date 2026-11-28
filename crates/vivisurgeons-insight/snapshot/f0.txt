@@ -740,7 +740,7 @@ cost: {2}{U}{U}
 > Trample, ward {2}
 > At the beginning of each combat, if this creature is untapped, any opponent may tap an untapped creature they control. If they do, tap this creature and create a 1/1 blue Fish creature token with "This token can't be blocked."
 = Keywords([Keyword { name: "trample", param: None }, Keyword { name: "ward", param: Some(Cost([Mana(Mana(["2"]))])) }])
-= BROKE at "may" after: at the beginning of each combat , if this creature is untapped , any opponent
+= Triggered { trigger: InterveningIf(At(Combat(Each)), Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Untapped)]], kind: None, posts: [], or: None } }), effect: [May { who: EachOpponent, then: [Tap(Objects { quant: One, filter: Filter { alts: [[State(Untapped), Type("creature")]], kind: None, posts: [Controller(That)], or: None } })] }, IfYouDo([Tap(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Blue], types: ["fish", "creature"], keywords: [], abilities: [Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlocked }])], named: None, attacking: None } }])], limits: [] }
 
 ## Ruthless Lawbringer
 face: Ruthless Lawbringer

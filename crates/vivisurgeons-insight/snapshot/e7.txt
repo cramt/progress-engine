@@ -111,7 +111,7 @@ face: Carrion Rats
 type: Creature — Rat
 cost: {B}
 > Whenever this creature attacks or blocks, any player may exile a card from their graveyard. If a player does, this creature assigns no combat damage this turn.
-= BROKE at "may" after: whenever this creature attacks or blocks , any player
+= BROKE at "no" after: whenever this creature attacks or blocks , any player may exile a card from their graveyard . if a player does , this creature assigns
 
 ## Child of Alara
 face: Child of Alara

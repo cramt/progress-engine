@@ -397,7 +397,7 @@ face: Innocent Traveler
 type: Creature — Human
 cost: {2}{B}{B}
 > At the beginning of your upkeep, any opponent may sacrifice a creature of their choice. If no one does, transform this creature.
-= BROKE at "may" after: at the beginning of your upkeep , any opponent
+= Triggered { trigger: At(Upkeep(Yours)), effect: [May { who: EachOpponent, then: [Sacrifice { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }] }, IfYouDont([Transform(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])], limits: [] }
 
 ## Innocent Traveler // Malicious Invader
 face: Malicious Invader

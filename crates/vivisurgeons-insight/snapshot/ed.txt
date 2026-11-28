@@ -217,7 +217,7 @@ cost: {3}{B}{B}
 > At the beginning of combat on your turn, any opponent may sacrifice a creature of their choice. If a player does, tap this creature, you gain 3 life, and you draw a card.
 = Keywords([Keyword { name: "trample", param: None }, Keyword { name: "haste", param: None }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Create { who: TargetOpponent, n: N(3), token: Token { tapped: false, pt: Some(Pt { power: N(0), toughness: N(1), signed: false }), colors: [White], types: ["goat", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
-= BROKE at "may" after: at the beginning of combat on your turn , any opponent
+= Triggered { trigger: At(Combat(Yours)), effect: [May { who: EachOpponent, then: [Sacrifice { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }] }, IfYouDo([Tap(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), GainLife { who: You, n: N(3) }, Draw { who: You, n: N(1) }])], limits: [] }
 
 ## Commune with Spirits
 face: Commune with Spirits
@@ -446,7 +446,7 @@ face: Ice Cave
 type: Enchantment
 cost: {3}{U}{U}
 > Whenever a player casts a spell, any other player may pay that spell's mana cost. If a player does, counter the spell. (Mana cost includes color.)
-= BROKE at "may" after: whenever a player casts a spell , any other player
+= BROKE at "spell" after: whenever a player casts a spell , any other player may pay that
 
 ## Inquisitor's Ox
 face: Inquisitor's Ox

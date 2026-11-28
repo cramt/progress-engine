@@ -261,7 +261,7 @@ face: Distant Memories
 type: Sorcery
 cost: {2}{U}{U}
 > Search your library for a card, exile it, then shuffle. Any opponent may have you put that card into your hand. If no player does, you draw three cards.
-= BROKE at "may" after: search your library for a card , exile it , then shuffle . any opponent
+= BROKE at "." after: search your library for a card , exile it , then shuffle . any opponent may have you put that card into your hand
 
 ## Double Major
 face: Double Major

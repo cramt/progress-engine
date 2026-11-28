@@ -622,7 +622,7 @@ face: Rhystic Circle
 type: Enchantment
 cost: {2}{W}{W}
 > {1}: Any player may pay {1}. If no one does, the next time a source of your choice would deal damage to you this turn, prevent that damage.
-= BROKE at "may" after: {1} : any player
+= Activated { cost: [Mana(Mana(["1"]))], effect: [May { who: Each, then: [Pay { who: Each, cost: [Mana(Mana(["1"]))] }] }, IfYouDont([NextTime { event: DealsDamageTo { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Source), posts: [ChosenBy(You)], or: None } }, to: [Player(You)] }, dur: ThisTurn, then: [PreventThatDamage] }])], limits: [] }
 
 ## Rikku, Resourceful Guardian
 face: Rikku, Resourceful Guardian

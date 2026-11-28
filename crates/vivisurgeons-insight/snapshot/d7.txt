@@ -1218,7 +1218,7 @@ cost: {2}{B}{B}{B}
 > At the beginning of each upkeep, any player may sacrifice two lands of their choice or have this enchantment deal 5 damage to that player. If a player does either, destroy this enchantment.
 = BROKE at "." after: players can't play lands
 = Static([Restrict { what: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, rule: CantEnterBattlefield }])
-= BROKE at "may" after: at the beginning of each upkeep , any player
+= BROKE at "either" after: at the beginning of each upkeep , any player may sacrifice two lands of their choice or have this enchantment deal 5 damage to that player . if a player does
 
 ## Wrangle
 face: Wrangle

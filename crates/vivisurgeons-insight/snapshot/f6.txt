@@ -968,7 +968,7 @@ face: Vexing Devil
 type: Creature — Devil
 cost: {R}
 > When this creature enters, any opponent may have it deal 4 damage to them. If a player does, sacrifice this creature.
-= BROKE at "may" after: when this creature enters , any opponent
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: EachOpponent, then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(4), to: [Player(That)] }] }, IfYouDo([Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }])], limits: [] }
 
 ## Viashino Racketeer
 face: Viashino Racketeer

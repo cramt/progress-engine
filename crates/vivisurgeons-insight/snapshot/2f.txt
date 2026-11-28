@@ -100,7 +100,7 @@ face: Browbeat
 type: Sorcery
 cost: {2}{R}
 > Any player may have Browbeat deal 5 damage to them. If no one does, target player draws three cards.
-= BROKE at "5" after: any player may have ~ deal
+= Spell([May { who: Each, then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(5), to: [Player(That)] }] }, IfYouDont([Draw { who: Target, n: N(3) }])])
 
 ## Calamity's Wake
 face: Calamity's Wake

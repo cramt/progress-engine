@@ -680,7 +680,7 @@ face: Orzhov Advokist
 type: Creature — Human Advisor
 cost: {2}{W}
 > At the beginning of your upkeep, each player may put two +1/+1 counters on a creature they control. If a player does, creatures that player controls can't attack you or planeswalkers you control until your next turn.
-= BROKE at "does" after: at the beginning of your upkeep , each player may put two <pt> counters on a creature they control . if a player
+= BROKE at "." after: at the beginning of your upkeep , each player may put two <pt> counters on a creature they control . if a player does , creatures that player controls can't attack you or planeswalkers you control until your next turn
 
 ## Overgrowth
 face: Overgrowth

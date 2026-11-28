@@ -619,7 +619,7 @@ face: Longhorn Firebeast
 type: Creature — Elemental Ox Beast
 cost: {2}{R}
 > When this creature enters, any opponent may have it deal 5 damage to them. If a player does, sacrifice this creature.
-= BROKE at "may" after: when this creature enters , any opponent
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: EachOpponent, then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(5), to: [Player(That)] }] }, IfYouDo([Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }])], limits: [] }
 
 ## Makindi Stampede // Makindi Mesas
 face: Makindi Stampede

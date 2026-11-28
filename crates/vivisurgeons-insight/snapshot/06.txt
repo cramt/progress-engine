@@ -145,7 +145,7 @@ face: Breaking Point
 type: Sorcery
 cost: {1}{R}{R}
 > Any player may have Breaking Point deal 6 damage to them. If no one does, destroy all creatures. Creatures destroyed this way can't be regenerated.
-= BROKE at "6" after: any player may have ~ deal
+= Spell([May { who: Each, then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(6), to: [Player(That)] }] }, IfYouDont([Destroy { what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: true }])])
 
 ## Brilliant Halo
 face: Brilliant Halo

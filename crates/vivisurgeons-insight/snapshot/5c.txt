@@ -131,7 +131,7 @@ type: Creature — Zombie
 cost: {3}{B}
 > When you cast this spell, any player may sacrifice a creature of their choice. If a player does, counter Brain Gorgers.
 > Madness {1}{B} (If you discard this card, discard it into exile. When you do, cast it for its madness cost or put it into your graveyard.)
-= BROKE at "may" after: when you cast this spell , any player
+= Triggered { trigger: When(Casts { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [May { who: Each, then: [Sacrifice { who: Each, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }] }, IfYouDo([Counter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, unless: None }])], limits: [] }
 = Keywords([Keyword { name: "madness", param: Some(Cost([Mana(Mana(["1", "B"]))])) }])
 
 ## Calculated Dismissal

@@ -2261,6 +2261,26 @@ mod syn {
     /// differently. The tree holds no word for it (a once-only trigger with a
     /// duration is `DelayedWhen`, CR 603.7b), so the renderer says
     /// "whenever" and the Oracle "when" is taken through this rewrite.
+    /// [any-player-may]: "any opponent may sacrifice a creature" is
+    /// "each opponent may …", each in turn order (Desecration Demon's
+    /// ruling).
+    pub fn any_player_may(o: &mut Out, each: Out, any: Out) {
+        alt(o, vec![each, any]);
+    }
+
+    /// [any-player-may]: "if a player does" / "if no one does", "if no
+    /// player does": whether any of the group took the option.
+    pub fn group_did(o: &mut Out, usual: Out, did: bool) {
+        let forms: &[&str] = if did {
+            &["a player does"]
+        } else {
+            &["no one does", "no player does"]
+        };
+        let mut v = vec![usual];
+        v.extend(forms.iter().map(|w| of(w)));
+        alt(o, v);
+    }
+
     pub fn when_is_whenever(o: &mut Out) {
         alt(o, vec![of("whenever"), of("when")]);
     }
@@ -4358,6 +4378,11 @@ fn subj(o: &mut Out, who: &Player, verb: &str, cx: &Cx) {
 /// its subject unsaid, as a third-person verb does ([continued-subject]).
 fn may_subject(o: &mut Out, who: &Player, cx: &Cx) {
     let said = out(|o| player(o, who));
+    // "any opponent may" is "each opponent may" ([any-player-may]).
+    let said = match any_player(who) {
+        Some(any) => out(|o| syn::any_player_may(o, said, any)),
+        None => said,
+    };
     let after = out(|o| o.w("may"));
     if *who != Player::You && continues_player(cx, who) {
         syn::subject_first(o, said, out(|o| o.w("may")), after);
@@ -10834,10 +10859,38 @@ fn move_return_rest(o: &mut Out, e: &Effect) {
     order_words(o, order);
 }
 
+/// "any player", "any opponent", "any other player": a group each offered
+/// an option, said with "any".
+fn any_player(who: &Player) -> Option<Out> {
+    let noun = match who {
+        Player::Each => "player",
+        Player::EachOpponent => "opponent",
+        Player::EachOtherPlayer => "other player",
+        _ => return None,
+    };
+    Some(out(|o| {
+        o.w("any");
+        o.w(noun);
+    }))
+}
+
 /// "you do", "they do", "that player does": the player an earlier "may"
 /// offered the choice to.
 fn did_option(o: &mut Out, cx: &Cx, verb: &str) {
-    match cx.continues.as_ref().or(cx.implied.as_ref()) {
+    let who = cx.continues.as_ref().or(cx.implied.as_ref());
+    // "If a player does", "If no one does": whether any of the group took
+    // the option ([any-player-may]).
+    if let Some(p) = who.filter(|p| any_player(p).is_some()) {
+        let said = out(|o| player(o, p));
+        let pronoun = out(syn::that_player);
+        let usual = out(|o| {
+            syn::anaphor_player(o, said, pronoun);
+            o.verb(verb, Num::Any);
+        });
+        syn::group_did(o, usual, verb == "do");
+        return;
+    }
+    match who {
         Some(Player::You) | None => {
             o.w("you");
             o.verb(verb, Num::Pl);

@@ -788,7 +788,7 @@ cost: {3}{R}
 > Trample
 > When this creature enters, any player may sacrifice a land of their choice. If a player does, put this creature on top of its owner's library.
 = Keywords([Keyword { name: "trample", param: None }])
-= BROKE at "may" after: when this creature enters , any player
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: Each, then: [Sacrifice { who: Each, what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [ChosenBy(That)], or: None } } }] }, IfYouDo([Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersLibraryTop, tapped: false, transformed: false, under: None, order: None }])], limits: [] }
 
 ## Sin, Spira's Punishment
 face: Sin, Spira's Punishment

@@ -1113,7 +1113,7 @@ type: Sorcery
 cost: {B}{B}{B}{B}
 > When you cast this spell, any player may pay half their life, rounded up. If a player does, counter Temporal Extortion.
 > Take an extra turn after this one.
-= BROKE at "may" after: when you cast this spell , any player
+= BROKE at "half" after: when you cast this spell , any player may pay
 = Spell([ExtraTurn { who: You, n: N(1), after: ThisOne }])
 
 ## The Pandorica

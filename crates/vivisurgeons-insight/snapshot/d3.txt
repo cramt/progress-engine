@@ -280,7 +280,7 @@ cost: {2}{B}{B}
 > Flying
 > At the beginning of each combat, any opponent may sacrifice a creature of their choice. If a player does, tap this creature and put a +1/+1 counter on it.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "may" after: at the beginning of each combat , any opponent
+= Triggered { trigger: At(Combat(Each)), effect: [May { who: EachOpponent, then: [Sacrifice { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }] }, IfYouDo([Tap(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }])], limits: [] }
 
 ## Disruptive Pitmage
 face: Disruptive Pitmage

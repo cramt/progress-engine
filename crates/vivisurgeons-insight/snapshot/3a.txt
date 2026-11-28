@@ -144,7 +144,7 @@ face: Carrion Wurm
 type: Creature — Zombie Wurm
 cost: {3}{B}{B}
 > Whenever this creature attacks or blocks, any player may exile three cards from their graveyard. If a player does, this creature assigns no combat damage this turn.
-= BROKE at "may" after: whenever this creature attacks or blocks , any player
+= BROKE at "no" after: whenever this creature attacks or blocks , any player may exile three cards from their graveyard . if a player does , this creature assigns
 
 ## Chandra, Legacy of Fire
 face: Chandra, Legacy of Fire
