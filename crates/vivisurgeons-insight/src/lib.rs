@@ -3079,4 +3079,63 @@ mod round_nine_d {
         let typed = read("As this artifact enters, choose any nonland card name.");
         assert!(!typed.contains("CardName"), "{typed}");
     }
+
+    #[test]
+    fn a_card_put_into_a_graveyard_this_way_is_one_the_verb_put_there() {
+        let read = |text: &str| {
+            let face = Face {
+                name: "Some Card",
+                type_line: "Sorcery",
+                text,
+            };
+            format!(
+                "{:?}",
+                read_face_unresolved(&face, "Some Card")
+                    .iter()
+                    .map(|l| l.parsed.as_ref().ok())
+                    .collect::<Vec<_>>()
+            )
+        };
+        let yard = read("Destroy all creatures. Return a creature card put into a graveyard this way to the battlefield under your control.");
+        assert!(yard.contains("PutIntoThisWay(AGraveyard)"), "{yard}");
+        let theirs = read("Target player mills four cards. You draw a card for each creature card put into their graveyard this way.");
+        assert!(
+            theirs.contains("PutIntoThisWay(Graveyard(That))"),
+            "{theirs}"
+        );
+        // [put-into-this-way] is graveyards alone.
+        let hand = read("Destroy all creatures. Return a creature card put into your hand this way to the battlefield under your control.");
+        assert!(!hand.contains("PutIntoThisWay"), "{hand}");
+    }
+
+    #[test]
+    fn a_group_choosing_between_two_verbs_is_not_read_as_one_choice() {
+        // Each of them chooses, and the verb after "or" is not yours alone.
+        let face = Face {
+            name: "Some Card",
+            type_line: "Sorcery",
+            text: "You and target opponent each discard a card or sacrifice a permanent.",
+        };
+        let s = format!(
+            "{:?}",
+            read_face_unresolved(&face, "Some Card")
+                .iter()
+                .map(|l| l.parsed.as_ref().ok())
+                .collect::<Vec<_>>()
+        );
+        assert!(!s.contains("Or(["), "{s}");
+        let you = Face {
+            name: "Some Card",
+            type_line: "Sorcery",
+            text: "Discard a card or sacrifice a permanent.",
+        };
+        let s = format!(
+            "{:?}",
+            read_face_unresolved(&you, "Some Card")
+                .iter()
+                .map(|l| l.parsed.as_ref().ok())
+                .collect::<Vec<_>>()
+        );
+        assert!(s.contains("Or([Discard"), "{s}");
+    }
 }

@@ -870,7 +870,7 @@ face: Urborg Justice
 type: Instant
 cost: {B}{B}
 > Target opponent sacrifices a creature of their choice for each creature put into your graveyard from the battlefield this turn.
-= BROKE at "into" after: target opponent sacrifices a creature of their choice for each creature put
+= BROKE at "from" after: target opponent sacrifices a creature of their choice for each creature put into your graveyard
 
 ## Vodalian Knights
 face: Vodalian Knights

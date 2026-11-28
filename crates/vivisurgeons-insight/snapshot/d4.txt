@@ -1148,7 +1148,7 @@ face: Volcanic Eruption
 type: Sorcery
 cost: {X}{U}{U}{U}
 > Destroy X target Mountains. Volcanic Eruption deals damage to each creature and each player equal to the number of Mountains put into a graveyard this way.
-= BROKE at "into" after: destroy x target mountains . ~ deals damage to each creature and each player equal to the number of mountains put
+= Spell([Destroy { what: Objects { quant: Target { n: X, up_to: false }, filter: Filter { alts: [[Subtype("mountain")]], kind: None, posts: [], or: None } }, no_regen: false }, Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Subtype("mountain")]], kind: None, posts: [PutIntoThisWay(AGraveyard)], or: None } }), to: [Objects(Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), Player(Each)] }])
 
 ## Wake the Dead
 face: Wake the Dead

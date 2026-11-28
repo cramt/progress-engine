@@ -960,7 +960,7 @@ face: Terastodon
 type: Creature — Elephant
 cost: {6}{G}{G}
 > When this creature enters, you may destroy up to three target noncreature permanents. For each permanent put into a graveyard this way, its controller creates a 3/3 green Elephant creature token.
-= BROKE at "into" after: when this creature enters , you may destroy up to three target noncreature permanents . for each permanent put
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Destroy { what: Objects { quant: Target { n: N(3), up_to: true }, filter: Filter { alts: [[Non("creature")]], kind: Some(Permanent), posts: [], or: None } }, no_regen: false }] }, ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [PutIntoThisWay(AGraveyard)], or: None } }, then: [Create { who: ControllerOf(Objects { quant: Bound(0), filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(3), toughness: N(3), signed: false }), colors: [Green], types: ["elephant", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }], limits: [] }
 
 ## The Earth Crystal
 face: The Earth Crystal

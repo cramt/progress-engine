@@ -159,7 +159,7 @@ face: Coerced Confession
 type: Sorcery
 cost: {4}{U/B}
 > Target player mills four cards. You draw a card for each creature card put into their graveyard this way.
-= BROKE at "into" after: target player mills four cards . you draw a card for each creature card put
+= Spell([Mill { who: Target, n: N(4) }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [PutIntoThisWay(Graveyard(That))], or: None } }, then: [Draw { who: You, n: N(1) }] }])
 
 ## Council of the Absolute
 face: Council of the Absolute

@@ -6148,6 +6148,12 @@ fn post(o: &mut Out, q: &Post, n: Num) {
             o.w("with the same name as");
             objects(o, x);
         }
+        Post::PutIntoThisWay(to) => {
+            syn::that_was(o);
+            o.w("put into");
+            zone(o, to);
+            o.w("this way");
+        }
         Post::MarkedFrom { how, from } => {
             o.w(marked_word(*how));
             o.w("from");

@@ -220,7 +220,7 @@ face: Builder's Bane
 type: Sorcery
 cost: {X}{X}{R}
 > Destroy X target artifacts. Builder's Bane deals damage to each player equal to the number of artifacts they controlled that were put into a graveyard this way.
-= BROKE at "into" after: destroy x target artifacts . ~ deals damage to each player equal to the number of artifacts they controlled that were put
+= Spell([Destroy { what: Objects { quant: Target { n: X, up_to: false }, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }, no_regen: false }, Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [ControlledThen(That), PutIntoThisWay(AGraveyard)], or: None } }), to: [Player(Each)] }])
 
 ## Calamitous Cave-In
 face: Calamitous Cave-In

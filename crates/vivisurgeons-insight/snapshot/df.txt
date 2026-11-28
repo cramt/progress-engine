@@ -293,7 +293,7 @@ type: Creature — Insect Cleric
 cost: {2}{B}{B}
 > Whenever this creature attacks, you and defending player each discard a card or sacrifice a permanent. You draw a card for each land card put into a graveyard this way.
 > Encore {6}{B}{B} ({6}{B}{B}, Exile this card from your graveyard: For each opponent, create a token copy that attacks that opponent this turn if able. They gain haste. Sacrifice them at the beginning of the next end step. Activate only as a sorcery.)
-= BROKE at "into" after: whenever this creature attacks , you and defending player each discard a card or sacrifice a permanent . you draw a card for each land card put
+= BROKE at "a" after: whenever this creature attacks , you and defending player each discard a card or sacrifice
 = Keywords([Keyword { name: "encore", param: Some(Cost([Mana(Mana(["6", "B", "B"]))])) }])
 
 ## Fatal Push

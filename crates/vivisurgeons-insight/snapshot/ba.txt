@@ -394,7 +394,7 @@ face: Fresh Meat
 type: Instant
 cost: {3}{G}
 > Create a 3/3 green Beast creature token for each creature put into your graveyard from the battlefield this turn.
-= BROKE at "into" after: create a <pt> green beast creature token for each creature put
+= BROKE at "from" after: create a <pt> green beast creature token for each creature put into your graveyard
 
 ## General Ferrous Rokiric
 face: General Ferrous Rokiric

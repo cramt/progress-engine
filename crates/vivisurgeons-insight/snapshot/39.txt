@@ -848,7 +848,7 @@ face: Structural Assault
 type: Sorcery
 cost: {3}{R}{R}
 > Destroy all artifacts, then Structural Assault deals damage to each creature equal to the number of artifacts that were put into graveyards from the battlefield this turn.
-= BROKE at "into" after: destroy all artifacts , then ~ deals damage to each creature equal to the number of artifacts that were put
+= BROKE at "from" after: destroy all artifacts , then ~ deals damage to each creature equal to the number of artifacts that were put into graveyards
 
 ## Summoner's Sending
 face: Summoner's Sending

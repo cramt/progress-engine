@@ -216,7 +216,7 @@ face: Discerning Taste
 type: Sorcery
 cost: {2}{B}
 > Look at the top four cards of your library. Put one of them into your hand and the rest into your graveyard. You gain life equal to the greatest power among creature cards put into your graveyard this way.
-= BROKE at "into" after: look at the top four cards of your library . put one of them into your hand and the rest into your graveyard . you gain life equal to the greatest power among creature cards put
+= Spell([With { bind: [/* made */ Objects { quant: Made, filter: Filter { alts: [], kind: None, posts: [], or: None } }], then: [LookAtTop { who: You, whose: You, n: N(4) }, With { bind: [/* moved */ Objects { quant: N(N(1)), filter: Filter { alts: [], kind: None, posts: [FromAmong(Objects { quant: Bound(0) /* made */, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }], then: [Move { what: Objects { quant: Introduced(0) /* moved */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, Move { what: Objects { quant: Rest { of: 0 } /* moved */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Graveyard(You), tapped: false, transformed: false, under: None, order: None }, GainLife { who: You, n: Greatest { stat: Power, among: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [PutIntoThisWay(Graveyard(You))], or: None } } } }] }] }])
 
 ## Disdainful Stroke
 face: Disdainful Stroke

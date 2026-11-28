@@ -63,7 +63,7 @@ cost: {2}{G}{W}
 > Flying
 > At the beginning of each end step, put a +1/+1 counter on Asmira for each creature put into your graveyard from the battlefield this turn.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "into" after: at the beginning of each end step , put a <pt> counter on ~ for each creature put
+= BROKE at "from" after: at the beginning of each end step , put a <pt> counter on ~ for each creature put into your graveyard
 
 ## Atzocan Archer
 face: Atzocan Archer

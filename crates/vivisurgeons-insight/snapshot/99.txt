@@ -262,7 +262,7 @@ cost: {4}{B}{B}
 > Flying, trample
 > When Demonlord Belzenlok enters, exile cards from the top of your library until you exile a nonland card, then put that card into your hand. If the card's mana value is 4 or greater, repeat this process. Demonlord Belzenlok deals 1 damage to you for each card put into your hand this way.
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "trample", param: None }])
-= BROKE at "into" after: when ~ enters , exile cards from the top of your library until you exile a nonland card , then put that card into your hand . if the card 's mana value is 4 or greater , repeat this process . ~ deals 1 damage to you for each card put
+= BROKE at "this" after: when ~ enters , exile cards from the top of your library until you exile a nonland card , then put that card into your hand . if the card 's mana value is 4 or greater , repeat this process . ~ deals 1 damage to you for each card put into your hand
 
 ## Despoiler of Souls
 face: Despoiler of Souls

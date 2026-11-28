@@ -1309,6 +1309,16 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
             p.words("or more card types among them")?;
             Some(Post::CardTypesAmongAtLeast(n))
         },
+        // "a creature card put into a graveyard this way"
+        // ([put-into-this-way]): graveyards only.
+        |p| {
+            p.attempt(|p| p.one_of(&["that was", "that were"]));
+            p.words("put into")?;
+            let to = zone(p)?;
+            if !matches!(to, Zone::AGraveyard | Zone::Graveyard(_)) { return None; }
+            p.words("this way")?;
+            Some(Post::PutIntoThisWay(to))
+        },
         // "cards exiled from their hand this way".
         |p| {
             let how = marked(p)?;

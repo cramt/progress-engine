@@ -1142,5 +1142,5 @@ face: Zero Point Ballad
 type: Sorcery
 cost: {X}{B}
 > Destroy all creatures with toughness X or less. You lose X life. If X is 6 or more, return a creature card put into a graveyard this way to the battlefield under your control.
-= BROKE at "into" after: destroy all creatures with toughness x or less . you lose x life . if x is 6 or more , return a creature card put
+= Spell([Destroy { what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Toughness, op: Le, value: X })], or: None } }, no_regen: false }, LoseLife { who: You, n: X }, If { order: Leading, cond: AmountIs { n: X, op: Ge, value: N(6) }, then: [Move { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [PutIntoThisWay(AGraveyard)], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }] }])
 

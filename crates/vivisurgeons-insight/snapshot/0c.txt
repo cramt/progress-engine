@@ -856,7 +856,7 @@ cost: {2}{W}{B}
 > −6: Destroy up to three target creatures and/or other planeswalkers. Return each card put into a graveyard this way to the battlefield under your control.
 = Loyalty { change: N(1), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Black], types: ["vampire", "creature"], keywords: [Keyword { name: "lifelink", param: None }], abilities: [], named: None, attacking: None } }] }
 = Loyalty { change: N(-2), effect: [Emblem([Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [], per: None }])])] }
-= BROKE at "into" after: N(-6) : destroy up to three target creatures and/or other planeswalkers . return each card put
+= Loyalty { change: N(-6), effect: [Destroy { what: Objects { quant: Target { n: N(3), up_to: true }, filter: Filter { alts: [[Type("creature")], [State(Other), Type("planeswalker")]], kind: None, posts: [], or: None } }, no_regen: false }, Move { what: Objects { quant: Each, filter: Filter { alts: [], kind: Some(Card), posts: [PutIntoThisWay(AGraveyard)], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }] }
 
 ## Spectacular Spider-Man
 face: Spectacular Spider-Man

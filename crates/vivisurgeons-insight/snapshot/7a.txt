@@ -958,7 +958,7 @@ face: Stitcher Geralf
 type: Legendary Creature — Human Wizard
 cost: {3}{U}{U}
 > {2}{U}, {T}: Each player mills three cards. Exile up to two creature cards put into graveyards this way. Create an X/X blue Zombie creature token, where X is the total power of the cards exiled this way.
-= BROKE at "into" after: {2} {U} , {T} : each player mills three cards . exile up to two creature cards put
+= Activated { cost: [Mana(Mana(["2", "U"])), Tap], effect: [Mill { who: Each, n: N(3) }, With { bind: [/* exiled */ Objects { quant: UpTo(N(2)), filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [PutIntoThisWay(AGraveyard)], or: None } }], then: [Exile(Objects { quant: Introduced(0) /* exiled */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Where { then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: X, toughness: X, signed: false }), colors: [Blue], types: ["zombie", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], x: Total { stat: Power, of: Objects { quant: Bound(0) /* exiled */, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Exiled)], or: None } } } }] }], limits: [] }
 
 ## Stroke of Midnight
 face: Stroke of Midnight

@@ -2485,6 +2485,9 @@ impl Walk for Post {
             Post::SameNameAs(f0) => {
                 Walk::walk(&mut **f0, v);
             }
+            Post::PutIntoThisWay(f0) => {
+                Walk::walk(f0, v);
+            }
             Post::MarkedFrom { from, .. } => {
                 Walk::walk(from, v);
             }

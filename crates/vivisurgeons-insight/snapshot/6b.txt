@@ -112,7 +112,7 @@ cost: {2}{G}
 > Flash
 > When this creature enters, create a 2/2 green Bear creature token for each nontoken creature put into your graveyard from the battlefield this turn.
 = Keywords([Keyword { name: "flash", param: None }])
-= BROKE at "into" after: when this creature enters , create a <pt> green bear creature token for each nontoken creature put
+= BROKE at "from" after: when this creature enters , create a <pt> green bear creature token for each nontoken creature put into your graveyard
 
 ## Callow Jushi // Jaraku the Interloper
 face: Callow Jushi

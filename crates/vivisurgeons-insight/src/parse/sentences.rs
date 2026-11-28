@@ -909,9 +909,15 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             }
             // "pay 4 life or put the card on top of your library": a choice of
             // two verbs, each said in full.
+            // "you and defending player each discard a card or sacrifice a
+            // permanent" (Eumidian Wastewaker) is a choice each of them makes,
+            // which an `Or` of one group's verbs can't say; the bare verb
+            // after "or" would be yours alone.
+            let group = subject_of(&e).is_some_and(|w| w != Player::You);
             let mut v = vec![e];
             while let Some(e) = p.attempt(|p| {
                 p.word("or")?;
+                if group { return None; }
                 if !p.peek_word().is_some_and(|w| w == "pay" || IMPERATIVE.contains(&w)) { return None; }
                 let e = effect(p)?;
                 Some(suffixed(p, e))

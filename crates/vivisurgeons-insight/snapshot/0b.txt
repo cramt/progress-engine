@@ -282,7 +282,7 @@ face: Dread Summons
 type: Sorcery
 cost: {X}{B}{B}
 > Each player mills X cards. For each creature card put into a graveyard this way, you create a tapped 2/2 black Zombie creature token. (To mill a card, a player puts the top card of their library into their graveyard.)
-= BROKE at "into" after: each player mills x cards . for each creature card put
+= Spell([Mill { who: Each, n: X }, ForEach { order: Leading, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [PutIntoThisWay(AGraveyard)], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: true, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Black], types: ["zombie", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }])
 
 ## Eelectrocute
 face: Eelectrocute

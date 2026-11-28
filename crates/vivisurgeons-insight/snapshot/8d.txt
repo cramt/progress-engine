@@ -574,7 +574,7 @@ face: Liliana's Indignation
 type: Sorcery
 cost: {X}{B}
 > Mill X cards. Target player loses 2 life for each creature card put into your graveyard this way.
-= BROKE at "into" after: mill x cards . target player loses 2 life for each creature card put
+= Spell([Mill { who: You, n: X }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [PutIntoThisWay(Graveyard(You))], or: None } }, then: [LoseLife { who: Target, n: N(2) }] }])
 
 ## Mardu Ascendancy
 face: Mardu Ascendancy

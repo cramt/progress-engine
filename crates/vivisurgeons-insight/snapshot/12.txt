@@ -962,7 +962,7 @@ cost: {3}{W}{W}
 > Gift a card (You may promise an opponent a gift as you cast this spell. If you do, they draw a card before its other effects.)
 > Destroy all creatures. If the gift was promised, return a creature card put into your graveyard this way to the battlefield under your control.
 = Keywords([Keyword { name: "gift", param: Some(Gift(Card)) }])
-= BROKE at "into" after: destroy all creatures . if the gift was promised , return a creature card put
+= Spell([Destroy { what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }, If { order: Leading, cond: GiftPromised, then: [Move { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [PutIntoThisWay(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }] }])
 
 ## Stensia Banquet
 face: Stensia Banquet

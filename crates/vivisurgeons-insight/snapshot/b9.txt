@@ -215,8 +215,8 @@ cost: {3}{B}{B}
 > 1—14 | Return a creature card put into a graveyard this way to the battlefield under your control.
 > 15+ | Return up to two creature cards put into graveyards this way to the battlefield under your control.
 = BROKE at "the" after: each player sacrifices a nontoken creature of their choice . roll a d20 and add
-= BROKE at "graveyard" after: 1 — 14 | return a creature card put into a
-= BROKE at "into" after: 15 + | return up to two creature cards put
+= DieRow { from: 1, to: Some(14), effect: [Move { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [PutIntoThisWay(AGraveyard)], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }] }
+= DieRow { from: 15, to: None, effect: [Move { what: Objects { quant: UpTo(N(2)), filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [PutIntoThisWay(AGraveyard)], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }] }
 
 ## Dauntless Veteran
 face: Dauntless Veteran

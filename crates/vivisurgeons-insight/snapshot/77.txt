@@ -354,7 +354,7 @@ type: Creature — Avatar
 cost: {5}{B}{B}
 > Whenever this creature deals combat damage to a player, you may return to your hand all creature cards that were put into your graveyard from the battlefield this turn.
 > {B}, Sacrifice another creature: Target creature gets -2/-2 until end of turn.
-= BROKE at "into" after: whenever this creature deals combat damage to a player , you may return to your hand all creature cards that were put
+= BROKE at "from" after: whenever this creature deals combat damage to a player , you may return to your hand all creature cards that were put into your graveyard
 = Activated { cost: [Mana(Mana(["B"])), Sacrifice(Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-2), toughness: N(-2), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 
 ## Fork in the Road

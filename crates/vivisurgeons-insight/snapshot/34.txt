@@ -226,7 +226,7 @@ face: Cruel Calculations
 type: Sorcery
 cost: {2}{U}
 > Draw X cards, where X is the number of cards that were put into target player's graveyard from their library this turn.
-= BROKE at "into" after: draw x cards , where x is the number of cards that were put
+= BROKE at "from" after: draw x cards , where x is the number of cards that were put into target player 's graveyard
 
 ## Crumbling Ashes
 face: Crumbling Ashes

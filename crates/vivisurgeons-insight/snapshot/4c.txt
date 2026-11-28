@@ -634,7 +634,7 @@ face: Necromantic Selection
 type: Sorcery
 cost: {4}{B}{B}{B}
 > Destroy all creatures, then return a creature card put into a graveyard this way to the battlefield under your control. It's a black Zombie in addition to its other colors and types. Exile Necromantic Selection.
-= BROKE at "into" after: destroy all creatures , then return a creature card put
+= Spell([Destroy { what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }, With { bind: [/* moved */ Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [PutIntoThisWay(AGraveyard)], or: None } }], then: [Move { what: Objects { quant: Introduced(0) /* moved */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }, IsNow { what: Objects { quant: Bound(0) /* moved */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Color(Black), Subtype("zombie")], keeps: OtherColorsAndTypes, pt: None, gains: [] }, Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
 
 ## Necron Monolith
 face: Necron Monolith

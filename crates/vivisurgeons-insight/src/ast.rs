@@ -1451,6 +1451,11 @@ pub enum Post {
     CardTypesAmongAtLeast(u32),
     /// "with the same name as that card".
     SameNameAs(Box<Objects>),
+    /// "for each creature card put into a graveyard this way" (Terastodon,
+    /// Zero Point Ballad): one of the objects this ability's verb put into
+    /// that graveyard, which a destroy or a sacrifice need not have done
+    /// ([put-into-this-way]).
+    PutIntoThisWay(Zone),
     /// "cards exiled from their hand this way".
     MarkedFrom {
         how: Marked,

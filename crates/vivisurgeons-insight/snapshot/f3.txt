@@ -876,7 +876,7 @@ face: Patient Rebuilding
 type: Enchantment
 cost: {3}{U}{U}
 > At the beginning of your upkeep, target opponent mills three cards, then you draw a card for each land card put into their graveyard this way.
-= BROKE at "into" after: at the beginning of your upkeep , target opponent mills three cards , then you draw a card for each land card put
+= Triggered { trigger: At(Upkeep(Yours)), effect: [Mill { who: TargetOpponent, n: N(3) }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [PutIntoThisWay(Graveyard(That))], or: None } }, then: [Draw { who: You, n: N(1) }] }], limits: [] }
 
 ## Pendulum of Patterns
 face: Pendulum of Patterns
