@@ -257,7 +257,11 @@ fn scope(a: Ability, cx: Context, out: &mut Vec<Kind>) {
             if trigger_step(trigger).is_some_and(|w| {
                 matches!(
                     w,
-                    Whose::Each | Whose::EachOpponent | Whose::EachOther | Whose::EnchantedPlayers
+                    Whose::Each
+                        | Whose::EachOpponent
+                        | Whose::EachOther
+                        | Whose::EnchantedPlayers
+                        | Whose::ChosenPlayers
                 )
             }) || trigger_event(trigger).is_some_and(event_names_player)
             {

@@ -588,7 +588,7 @@ cost: {2}{G}{W}{U}
 > Lifelink
 > Whenever Mr. Foxglove attacks, draw cards equal to the number of cards in defending player's hand minus the number of cards in your hand. If you didn't draw cards this way, you may put a creature card from your hand onto the battlefield.
 = Keywords([Keyword { name: "lifelink", param: None }])
-= BROKE at "minus" after: whenever ~ attacks , draw cards equal to the number of cards in defending player 's hand
+= BROKE at "draw" after: whenever ~ attacks , draw cards equal to the number of cards in defending player 's hand minus the number of cards in your hand . if you didn't
 
 ## Noble's Purse
 face: Noble's Purse

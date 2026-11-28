@@ -521,7 +521,7 @@ face: Ivory Tower
 type: Artifact
 cost: {1}
 > At the beginning of your upkeep, you gain X life, where X is the number of cards in your hand minus 4.
-= BROKE at "minus" after: at the beginning of your upkeep , you gain x life , where x is the number of cards in your hand
+= Triggered { trigger: At(Upkeep(Yours)), effect: [Where { then: [GainLife { who: You, n: X }], x: Minus(CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } }), N(4)) }], limits: [] }
 
 ## Jennifer Walters // The Sensational She-Hulk
 face: Jennifer Walters

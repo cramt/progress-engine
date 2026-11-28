@@ -419,7 +419,7 @@ face: Flunk
 type: Instant
 cost: {1}{B}
 > Target creature gets -X/-X until end of turn, where X is 7 minus the number of cards in that creature's controller's hand.
-= BROKE at "the" after: target creature gets <pt> until end of turn , where x is 7 minus
+= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Spell([Where { then: [Modify { what: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: MinusX, toughness: MinusX, signed: true }), gains: [], dur: UntilEndOfTurn }], x: Minus(N(7), CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(ControllerOf(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })))], or: None } })) }]) }
 
 ## Forerunner of the Legion
 face: Forerunner of the Legion

@@ -833,7 +833,7 @@ cost: {3}{B}{B}
 > Roiling Horror's power and toughness are each equal to your life total minus the life total of an opponent with the most life.
 > Suspend X—{X}{B}{B}{B}. X can't be 0. (Rather than cast this card from your hand, you may pay {X}{B}{B}{B} and exile it with X time counters on it. At the beginning of your upkeep, remove a time counter. When the last is removed, you may cast it without paying its mana cost. It has haste.)
 > Whenever a time counter is removed from this card while it's exiled, target player loses 1 life and you gain 1 life.
-= BROKE at "minus" after: ~ 's power and toughness are each equal to your life total
+= BROKE at "total" after: ~ 's power and toughness are each equal to your life total minus the life
 = BROKE at "." after: suspend x — {X} {B} {B} {B}
 = BROKE at "this" after: whenever a time counter is removed from
 

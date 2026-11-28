@@ -3866,6 +3866,10 @@ pub enum Whose {
     /// enchants, whom a later "that player" names. "Enchanted opponent's"
     /// is the same player ([enchanted-opponent]).
     EnchantedPlayers,
+    /// "at the beginning of the chosen player's upkeep" (Black Vise): the
+    /// player chosen as this permanent entered (CR 607.2d links the two
+    /// abilities), whom a later "that player" names.
+    ChosenPlayers,
 
     /// "at the beginning of that combat": the one an earlier effect made.
     That,

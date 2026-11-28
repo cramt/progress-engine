@@ -502,7 +502,7 @@ face: Iron Maiden
 type: Artifact
 cost: {3}
 > At the beginning of each opponent's upkeep, this artifact deals X damage to that player, where X is the number of cards in their hand minus 4.
-= BROKE at "minus" after: at the beginning of each opponent 's upkeep , this artifact deals x damage to that player , where x is the number of cards in their hand
+= Triggered { trigger: At(Upkeep(EachOpponent)), effect: [Where { then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: X, to: [Player(That)] }], x: Minus(CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } }), N(4)) }], limits: [] }
 
 ## Iron Man, Armored Avenger
 face: Iron Man, Armored Avenger

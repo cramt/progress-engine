@@ -811,7 +811,7 @@ face: Storm World
 type: World Enchantment
 cost: {R}
 > At the beginning of each player's upkeep, this enchantment deals X damage to that player, where X is 4 minus the number of cards in their hand.
-= BROKE at "the" after: at the beginning of each player 's upkeep , this enchantment deals x damage to that player , where x is 4 minus
+= Triggered { trigger: At(Upkeep(Each)), effect: [Where { then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: X, to: [Player(That)] }], x: Minus(N(4), CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } })) }], limits: [] }
 
 ## Story Circle
 face: Story Circle

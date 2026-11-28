@@ -11923,6 +11923,7 @@ fn step(o: &mut Out, s: &Step) {
         Whose::First => "the first",
         Whose::EachOther => "each other player's",
         Whose::EnchantedPlayers => unreachable!("said above"),
+        Whose::ChosenPlayers => "the chosen player's",
 
         Whose::That => "that",
     });

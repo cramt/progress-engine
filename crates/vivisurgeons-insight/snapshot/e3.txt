@@ -536,7 +536,7 @@ face: Mind Bomb
 type: Sorcery
 cost: {U}
 > Each player may discard up to three cards. Mind Bomb deals damage to each player equal to 3 minus the number of cards they discarded this way.
-= BROKE at "the" after: each player may discard up to three cards . ~ deals damage to each player equal to 3 minus
+= Spell([May { who: Each, then: [Discard { who: Each, what: Objects { quant: UpTo(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }] }, Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: Minus(N(3), CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [MarkedBy { how: Discarded, by: That }], or: None } })), to: [Player(Each)] }])
 
 ## Molten Exhale
 face: Molten Exhale

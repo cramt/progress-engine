@@ -1000,7 +1000,7 @@ cost: {1}
 > As this artifact enters, choose an opponent.
 > At the beginning of the chosen player's upkeep, this artifact deals X damage to that player, where X is 3 minus the number of cards in their hand.
 = Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(Opponent)] }])
-= BROKE at "'s" after: at the beginning of the chosen player
+= Triggered { trigger: At(Upkeep(ChosenPlayers)), effect: [Where { then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: X, to: [Player(That)] }], x: Minus(N(3), CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } })) }], limits: [] }
 
 ## Think Twice
 face: Think Twice

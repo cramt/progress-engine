@@ -131,6 +131,20 @@ pub(super) fn measure(p: &mut P) -> Option<Amount> {
         return Some(m);
     }
     let m = measure_bare(p)?;
+    // "the number of cards in their hand minus 4" (Black Vise), "… minus
+    // the number of cards in that player's hand" (Bulwark): what is left
+    // after the second is taken away ([measure-minus]).
+    if let Some(b) = p.attempt(|p| {
+        p.word("minus")?;
+        // Not X: "where X is … minus X" would say X by itself.
+        alt!(p;
+            |p| number(p).map(Amount::N),
+            measure_bare,
+        )
+        .filter(|b| *b != Amount::X)
+    }) {
+        return Some(Amount::Minus(Box::new(m), Box::new(b)));
+    }
     Some(
         match p.attempt(|p| {
             p.word("plus")?;

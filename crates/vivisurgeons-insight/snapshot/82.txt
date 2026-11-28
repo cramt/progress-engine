@@ -953,7 +953,7 @@ cost: {1}{B}
 > Scourge of the Skyclaves's power and toughness are each equal to 20 minus the highest life total among players.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["4", "B"]))])) }])
 = Triggered { trigger: InterveningIf(When(Casts { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), WasKicked), effect: [LoseLife { who: Each, n: Half { of: LifeTotal(That), round_up: true } }], limits: [] }
-= BROKE at "the" after: ~ 's power and toughness are each equal to 20 minus
+= BROKE at "life" after: ~ 's power and toughness are each equal to 20 minus the highest
 
 ## Scrying Glass
 face: Scrying Glass

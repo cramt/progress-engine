@@ -137,7 +137,7 @@ face: Dark Suspicions
 type: Enchantment
 cost: {2}{B}{B}
 > At the beginning of each opponent's upkeep, that player loses X life, where X is the number of cards in that player's hand minus the number of cards in your hand.
-= BROKE at "minus" after: at the beginning of each opponent 's upkeep , that player loses x life , where x is the number of cards in that player 's hand
+= Triggered { trigger: At(Upkeep(EachOpponent)), effect: [Where { then: [LoseLife { who: That, n: X }], x: Minus(CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } }), CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } })) }], limits: [] }
 
 ## Demon of Loathing
 face: Demon of Loathing

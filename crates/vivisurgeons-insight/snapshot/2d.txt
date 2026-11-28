@@ -80,7 +80,7 @@ face: Blood Lust
 type: Instant
 cost: {1}{R}
 > If target creature has toughness 5 or greater, it gets +4/-4 until end of turn. Otherwise, it gets +4/-X until end of turn, where X is its toughness minus 1.
-= BROKE at "minus" after: if target creature has toughness 5 or greater , it gets <pt> until end of turn . otherwise , it gets <pt> until end of turn , where x is its toughness
+= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Spell([If { order: Leading, cond: Has { what: Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, cmp: Compare { stat: Toughness, op: Ge, value: N(5) } }, then: [Modify { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(4), toughness: N(-4), signed: true }), gains: [], dur: UntilEndOfTurn }] }, Otherwise([Where { then: [Modify { what: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(4), toughness: MinusX, signed: true }), gains: [], dur: UntilEndOfTurn }], x: Minus(ToughnessOf(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), N(1)) }])]) }
 
 ## Bloodfire Expert
 face: Bloodfire Expert

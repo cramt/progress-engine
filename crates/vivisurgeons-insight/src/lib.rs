@@ -3219,4 +3219,32 @@ mod round_nine_d {
         let state = read("As long as Some Card has a slumber counter on it, it's attacking.");
         assert!(!state.contains("Is {"), "{state}");
     }
+
+    #[test]
+    fn the_chosen_players_upkeep_and_a_count_minus_a_number() {
+        let read = |text: &str| {
+            let face = Face {
+                name: "Some Card",
+                type_line: "Artifact",
+                text,
+            };
+            format!(
+                "{:?}",
+                read_face_unresolved(&face, "Some Card")
+                    .iter()
+                    .map(|l| l.parsed.as_ref().ok())
+                    .collect::<Vec<_>>()
+            )
+        };
+        let vise = read("As this artifact enters, choose an opponent.\nAt the beginning of the chosen player's upkeep, this artifact deals X damage to that player, where X is the number of cards in their hand minus 4.");
+        assert!(vise.contains("At(Upkeep(ChosenPlayers))"), "{vise}");
+        assert!(vise.contains("x: Minus(CountOf("), "{vise}");
+        assert!(vise.contains("N(4)) }"), "{vise}");
+        // [measure-minus]: X is never said by itself.
+        let itself = read("At the beginning of your upkeep, you gain X life, where X is the number of cards in your hand minus X.");
+        assert!(!itself.contains("Minus("), "{itself}");
+        // [chosen-players-step]: "the chosen player" only, as Player::Chosen is.
+        let opponent = read("At the beginning of the chosen opponent's upkeep, you gain 1 life.");
+        assert!(!opponent.contains("ChosenPlayers"), "{opponent}");
+    }
 }

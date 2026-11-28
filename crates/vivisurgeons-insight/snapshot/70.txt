@@ -1144,7 +1144,7 @@ face: Viseling
 type: Artifact Creature — Phyrexian Construct
 cost: {4}
 > At the beginning of each opponent's upkeep, this creature deals X damage to that player, where X is the number of cards in their hand minus 4.
-= BROKE at "minus" after: at the beginning of each opponent 's upkeep , this creature deals x damage to that player , where x is the number of cards in their hand
+= Triggered { trigger: At(Upkeep(EachOpponent)), effect: [Where { then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: X, to: [Player(That)] }], x: Minus(CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } }), N(4)) }], limits: [] }
 
 ## Volcanic Vision
 face: Volcanic Vision

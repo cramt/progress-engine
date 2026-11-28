@@ -1058,7 +1058,7 @@ face: Wheel of Torture
 type: Artifact
 cost: {3}
 > At the beginning of each opponent's upkeep, this artifact deals X damage to that player, where X is 3 minus the number of cards in their hand.
-= BROKE at "the" after: at the beginning of each opponent 's upkeep , this artifact deals x damage to that player , where x is 3 minus
+= Triggered { trigger: At(Upkeep(EachOpponent)), effect: [Where { then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: X, to: [Player(That)] }], x: Minus(N(3), CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } })) }], limits: [] }
 
 ## Will of the Jeskai
 face: Will of the Jeskai

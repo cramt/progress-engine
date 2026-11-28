@@ -968,7 +968,7 @@ cost: {2}{U}{R}{W}
 > At the beginning of your upkeep, you gain X life, where X is the number of cards in your hand minus 4.
 > Whenever you gain life, each Advisor, Artificer, and Monk you control gains vigilance and gets +X/+0 until end of turn, where X is the amount of life you gained.
 > Tap three untapped Advisors, Artificers, and/or Monks you control: Draw a card.
-= BROKE at "minus" after: at the beginning of your upkeep , you gain x life , where x is the number of cards in your hand
+= Triggered { trigger: At(Upkeep(Yours)), effect: [Where { then: [GainLife { who: You, n: X }], x: Minus(CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } }), N(4)) }], limits: [] }
 = BROKE at "." after: whenever you gain life , each advisor , artificer , and monk you control gains vigilance and gets <pt> until end of turn , where x is the amount of life you gained
 = Activated { cost: [TapUntapped(Objects { quant: N(N(3)), filter: Filter { alts: [[State(Untapped), Subtype("advisor")], [State(Untapped), Subtype("artificer")], [State(Untapped), Subtype("monk")]], kind: None, posts: [Controller(You)], or: None } })], effect: [Draw { who: You, n: N(1) }], limits: [] }
 
