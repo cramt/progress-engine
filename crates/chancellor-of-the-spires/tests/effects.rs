@@ -130,6 +130,34 @@ fn invented(name: &str) -> Option<CardText> {
         ),
         // Undying on a noncreature, which no "dies" sees.
         "Undying Idol" => ("Artifact", "{1}", "Undying", Vec::new(), None),
+        // Phyrexian Obliterator's trigger narrowed to some sources, which
+        // the bare "a source" doesn't say.
+        // Crag Saurian, too tough for my Obliterator to kill: it is still
+        // on the battlefield when it changes control.
+        "Stone Saurian" => (
+            "Creature — Dinosaur",
+            "{W}",
+            "Whenever a source deals damage to this creature, that source's controller gains control of this creature.",
+            vec![Color::White],
+            Some(pt(1, 10)),
+        ),
+        // A Stone Saurian that pings, a permanent source of damage that
+        // isn't combat's.
+        "Pinging Saurian" => (
+            "Creature — Dinosaur",
+            "{W}",
+            "Whenever a source deals damage to this creature, that source's controller gains control of this creature.\n{T}: This creature deals 1 damage to any target.",
+            vec![Color::White],
+            Some(pt(1, 10)),
+        ),
+        // A Shock at no cost, for a Swamp deck.
+        "Saurian Spark" => (
+            "Instant",
+            "{0}",
+            "This spell deals 1 damage to target creature.",
+            vec![Color::Black],
+            None,
+        ),
         // Sanctum Weaver's mana in any combination of colors, which the
         // engine doesn't add: its ability dormant, not the card refused.
         "Combining Weaver" => (
@@ -138,6 +166,13 @@ fn invented(name: &str) -> Option<CardText> {
             "{T}: Add X mana in any combination of colors, where X is the number of enchantments you control.",
             vec![Color::Green],
             Some(pt(1, 1)),
+        ),
+        "Spiteful Obliterator" => (
+            "Creature — Phyrexian Horror",
+            "{B}",
+            "Whenever a source an opponent controls deals damage to this creature, that source's controller sacrifices that many permanents of their choice.",
+            vec![Color::Black],
+            Some(pt(5, 5)),
         ),
         _ => return None,
     };
@@ -10390,6 +10425,244 @@ fn additional_costs_the_game_can_t_pay_are_refused() {
         node("As an additional cost to cast this spell, pay {1}.\nThis spell deals 3 damage to any target."),
         "an additional cost of mana"
     );
+}
+
+const OBLITERATOR: &str = "Phyrexian Obliterator";
+
+/// My Obliterator on the battlefield on my turn four, their four lands of
+/// `land` played and `them` cast on their first `cast_on` turns.
+fn obliterator_against(land: &str, them: &str, they_want: usize, cast_on: usize) -> Game {
+    let mut game = deal_both(
+        &[("Swamp", 40), (OBLITERATOR, 20)],
+        &[(land, 40), (them, 20)],
+        &[("Swamp", 4), (OBLITERATOR, 1)],
+        &[(land, 4), (them, they_want)],
+    );
+    for turn in 0..4 {
+        if turn > 0 {
+            my_next_main(&mut game);
+        }
+        play(&mut game, "Swamp");
+        if turn == 3 {
+            cast(&mut game, OBLITERATOR, None);
+            resolve(&mut game);
+        }
+        pass_until(&mut game, THEM, Step::PrecombatMain);
+        play_as(&mut game, THEM, land);
+        if turn < cast_on {
+            cast_as(&mut game, THEM, them, None);
+            resolve(&mut game);
+        }
+    }
+    game
+}
+
+/// CR 120.2b, 603.2, 701.21a: their Lightning Bolt deals 3 damage to my
+/// Phyrexian Obliterator, and that source's controller, they, sacrifice
+/// three permanents of their choice, not I.
+#[test]
+fn obliterator_makes_the_controller_of_the_source_sacrifice_that_many() {
+    let mut game = obliterator_against("Mountain", "Lightning Bolt", 1, 0);
+    let obliterator = creature(&game, OBLITERATOR).unwrap();
+    cast_as(
+        &mut game,
+        THEM,
+        "Lightning Bolt",
+        Some(vec![Target::Object(obliterator)]),
+    );
+    resolve(&mut game);
+    assert_eq!(game.permanents()[&obliterator].damage, 3);
+    assert!(matches!(
+        game.stack().back(),
+        Some(StackObject::Trigger {
+            amount: Some(3),
+            ..
+        })
+    ));
+    resolve(&mut game);
+    let Decision::Sacrifice {
+        player,
+        count,
+        legal,
+        ..
+    } = game.decision()
+    else {
+        panic!("{:?}", game.decision())
+    };
+    assert_eq!((player, count, legal.len()), (THEM, 3, 4));
+    let before = named(&game, game.player(THEM).graveyard(), "Mountain");
+    step(&mut game, Answer::Sacrifice(legal[..3].to_vec()));
+    assert_eq!(
+        named(&game, game.player(THEM).graveyard(), "Mountain"),
+        before + 3
+    );
+    assert!(game.permanents().contains_key(&obliterator));
+}
+
+/// CR 510.2, 603.2c: two Savannah Lions blocking my Obliterator each deal
+/// it 2 at once, two occurrences of "a source deals damage to this
+/// creature", so it triggers twice, 2 each; the Lions it deals damage to
+/// trigger nothing.
+#[test]
+fn obliterator_triggers_once_for_each_source_that_damages_it() {
+    let mut game = obliterator_against("Plains", "Savannah Lions", 2, 2);
+    let obliterator = creature(&game, OBLITERATOR).unwrap();
+    let lions: Vec<_> = game
+        .permanents()
+        .iter()
+        .filter(|(_, p)| {
+            game.card(p.card)
+                .is_some_and(|t| t.name == "Savannah Lions")
+        })
+        .map(|(id, _)| *id)
+        .collect();
+    assert_eq!(lions.len(), 2);
+    my_next_main(&mut game);
+    to_attackers(&mut game);
+    step(&mut game, Answer::Attack(vec![(obliterator, THEM)]));
+    loop {
+        if let Decision::Blockers { .. } = game.decision() {
+            break;
+        }
+        step(&mut game, Answer::Act(Action::Pass));
+    }
+    step(
+        &mut game,
+        Answer::Block(lions.iter().map(|l| (*l, obliterator)).collect()),
+    );
+    loop {
+        match game.decision() {
+            // 1 to each Lion and 3 tramples over.
+            Decision::Assign { .. } => {
+                step(&mut game, Answer::Assign(vec![1, 1, 3]));
+                break;
+            }
+            _ => {
+                step(&mut game, Answer::Act(Action::Pass));
+            }
+        }
+    }
+    // Mine, in either order.
+    if let Decision::Order { triggers, .. } = game.decision() {
+        step(&mut game, Answer::Order((0..triggers.len()).collect()));
+    }
+    let triggers: Vec<_> = game
+        .stack()
+        .iter()
+        .filter_map(|o| match o {
+            StackObject::Trigger { amount, .. } => Some(*amount),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(triggers, vec![Some(2), Some(2)]);
+    assert_eq!(game.permanents()[&obliterator].damage, 4);
+    assert_eq!(game.player(THEM).life(), 17);
+}
+
+/// "A source an opponent controls deals damage to this creature" narrows
+/// the source, which lowering doesn't read: refused by name, not run as
+/// any source.
+#[test]
+fn a_narrowed_source_damaging_this_creature_is_refused() {
+    let game = deal(
+        &[("Swamp", 40), ("Spiteful Obliterator", 20)],
+        &[("Forest", 60)],
+        &[("Spiteful Obliterator", 1)],
+    );
+    let c = in_hand(&game, ME, "Spiteful Obliterator").unwrap();
+    let refusal = game.refusal(c).expect("refused");
+    assert!(refusal.node.contains("DealsDamageTo"), "{}", refusal.node);
+}
+
+/// CR 608.2h, 603.3b: my Obliterator attacks and their Stone Saurian
+/// blocks, each dealing the other damage. Their Saurian's trigger goes on
+/// the stack above mine and gives me the Saurian first, so as mine
+/// resolves "that source's controller" is me, and I sacrifice the 1, not
+/// they.
+#[test]
+fn obliterator_reads_that_sources_controller_as_it_resolves() {
+    let mut game = obliterator_against("Plains", "Stone Saurian", 1, 1);
+    let obliterator = creature(&game, OBLITERATOR).unwrap();
+    let saurian = creature(&game, "Stone Saurian").unwrap();
+    my_next_main(&mut game);
+    to_attackers(&mut game);
+    step(&mut game, Answer::Attack(vec![(obliterator, THEM)]));
+    loop {
+        if let Decision::Blockers { .. } = game.decision() {
+            break;
+        }
+        step(&mut game, Answer::Act(Action::Pass));
+    }
+    step(&mut game, Answer::Block(vec![(saurian, obliterator)]));
+    while game.stack().len() < 2 {
+        match game.decision() {
+            Decision::Assign { .. } => step(&mut game, Answer::Assign(vec![5, 0])),
+            _ => step(&mut game, Answer::Act(Action::Pass)),
+        };
+    }
+    resolve(&mut game);
+    assert_eq!(game.characteristics()[&saurian].controller, ME);
+    resolve(&mut game);
+    let Decision::Sacrifice { player, count, .. } = game.decision() else {
+        panic!("{:?}", game.decision())
+    };
+    assert_eq!((player, count), (ME, 1));
+}
+
+/// CR 608.2h: their Pinging Saurian pings my Obliterator, and with the
+/// trigger on the stack my Saurian Spark makes me the Saurian's
+/// controller. As the trigger resolves, "that source's controller" is
+/// the Saurian's controller now: me.
+#[test]
+fn obliterator_reads_the_controller_of_a_pinger_as_it_resolves() {
+    let mut game = deal_both(
+        &[("Swamp", 36), (OBLITERATOR, 12), ("Saurian Spark", 12)],
+        &[("Plains", 40), ("Pinging Saurian", 20)],
+        &[("Swamp", 4), (OBLITERATOR, 1), ("Saurian Spark", 1)],
+        &[("Plains", 4), ("Pinging Saurian", 1)],
+    );
+    for turn in 0..4 {
+        if turn > 0 {
+            my_next_main(&mut game);
+        }
+        play(&mut game, "Swamp");
+        if turn == 3 {
+            cast(&mut game, OBLITERATOR, None);
+            resolve(&mut game);
+        }
+        pass_until(&mut game, THEM, Step::PrecombatMain);
+        play_as(&mut game, THEM, "Plains");
+        if turn == 0 {
+            cast_as(&mut game, THEM, "Pinging Saurian", None);
+            resolve(&mut game);
+        }
+    }
+    let obliterator = creature(&game, OBLITERATOR).unwrap();
+    let saurian = creature(&game, "Pinging Saurian").unwrap();
+    let Decision::Targets { .. } = activate(&mut game, saurian) else {
+        panic!("{:?}", game.decision())
+    };
+    step(
+        &mut game,
+        Answer::Targets(vec![Target::Object(obliterator)]),
+    );
+    resolve(&mut game);
+    assert_eq!(game.permanents()[&obliterator].damage, 1);
+    assert_eq!(game.stack().len(), 1, "Obliterator's trigger");
+    step(&mut game, Answer::Act(Action::Pass));
+    cast(
+        &mut game,
+        "Saurian Spark",
+        Some(vec![Target::Object(saurian)]),
+    );
+    resolve(&mut game);
+    resolve(&mut game);
+    assert_eq!(game.characteristics()[&saurian].controller, ME);
+    resolve(&mut game);
+    let Decision::Sacrifice { player, count, .. } = game.decision() else {
+        panic!("{:?}", game.decision())
+    };
+    assert_eq!((player, count), (ME, 1));
 }
 
 /// CR 106.1a, 107.3, 605.3b: with two Sanctum Weavers on my

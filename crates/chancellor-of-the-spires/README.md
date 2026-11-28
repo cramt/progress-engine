@@ -1108,7 +1108,7 @@ mana ability, Hired Claw's attack trigger and Portent's delayed draw (15
 each), and Cabal Therapy's named card (13).
 
 Worked card by card from there, **on 2026-11-28 199 of the 500 replay to
-the end and 64.12% of their lines are followed** (20,301 of 31,659), 3
+the end and 64.28% of their lines are followed** (20,349 of 31,659), 3
 of them relying on a land the log never names (2 to the end) and 11 on a
 card no one named in a graveyard having no ability there (2 to the end),
 and 193 games have no card the engine refuses before any game (from 21). The
@@ -1493,7 +1493,12 @@ count, one way for each color, all X of it that one, any other "where X
 is" mana left unoffered, and a source like it never tapped first in a
 color no line names before a cost returns what it counts (CR 106.1a,
 107.3, 605.3b: Sanctum Weaver, which lets Phyrexian Obliterator's game
-961760048 past Solitary Confinement).
+961760048 past Solitary Confinement); and "whenever a source deals
+damage to this creature", once for each source that deals it damage at
+once, that source's amount, "that source's controller" read as the
+trigger resolves, a permanent's now or as it last existed and a spell's
+its caster, a narrower source refused by name (CR 120.2, 603.2c, 510.2,
+608.2h: Phyrexian Obliterator, whose 4 games go on).
 And
 the replay's inferences: a card played or cast while its player may
 play cards from exile taken from there before the hand, the hand the

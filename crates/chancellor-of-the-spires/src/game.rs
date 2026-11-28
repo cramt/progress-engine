@@ -745,7 +745,7 @@ pub enum StackObject {
         /// The amount its event names.
         amount: Option<u32>,
         /// The player its event names: a spell's caster.
-        player: Option<PlayerId>,
+        player: Option<EventPlayer>,
         seq: u32,
     },
     /// An activated ability (CR 602.2a): the card whose ability it is, by
@@ -910,6 +910,19 @@ enum AfterCards {
     SpellRest,
 }
 
+/// The player a trigger event names, "that player".
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EventPlayer {
+    /// This player: a spell's caster, the player dealt damage, or the
+    /// controller of a source no longer on the battlefield, as it last
+    /// existed (CR 608.2h).
+    Is(PlayerId),
+    /// Whoever controls this permanent as the ability resolves, or
+    /// controlled it as it last existed if it has left (CR 608.2h): "that
+    /// source's controller".
+    ControllerOf(ObjectId),
+}
+
 /// A triggered ability that has triggered and waits to be put on the stack
 /// the next time a player would receive priority (CR 603.3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -923,7 +936,7 @@ pub struct Pending {
     /// The amount its event names, the damage dealt.
     pub amount: Option<u32>,
     /// The player its event names, the caster of a spell.
-    pub player: Option<PlayerId>,
+    pub player: Option<EventPlayer>,
     /// Its controller has put it in order among their others (CR 603.3b).
     ordered: bool,
 }
@@ -956,6 +969,13 @@ enum Event {
     Cast { card: CardId, controller: PlayerId },
     /// These permanents were dealt this much damage, at once.
     Damaged(BTreeMap<ObjectId, u32>),
+    /// One source, whose controller `by` names, dealt this permanent this
+    /// much damage (CR 120.2).
+    DamagedBy {
+        object: ObjectId,
+        by: EventPlayer,
+        amount: u32,
+    },
     /// This permanent dealt damage to this player, combat damage or not.
     DamagedPlayer {
         source: ObjectId,
@@ -6854,12 +6874,15 @@ impl Game {
                 amount,
                 player,
                 ..
-            }) => self.begin_resolving(
-                Instructions::Triggered(source, ability),
-                controller,
-                (object, triggering, amount, player),
-                targets,
-            ),
+            }) => {
+                let player = player.and_then(|e| self.event_player(e));
+                self.begin_resolving(
+                    Instructions::Triggered(source, ability),
+                    controller,
+                    (object, triggering, amount, player),
+                    targets,
+                )
+            }
             None => self.proceed(then),
         }
     }
@@ -8829,6 +8852,20 @@ impl Game {
 
     /// What an object an instruction names is, or was as it last existed
     /// (CR 608.2h).
+    /// The player a trigger event names, as its ability resolves. None
+    /// only for a permanent neither on the battlefield nor ever left it,
+    /// which no event names.
+    fn event_player(&self, e: EventPlayer) -> Option<PlayerId> {
+        match e {
+            EventPlayer::Is(q) => Some(q),
+            EventPlayer::ControllerOf(o) => self
+                .characteristics()
+                .get(&o)
+                .map(|c| c.controller)
+                .or_else(|| self.last_known.get(&o).map(|l| l.chars.controller)),
+        }
+    }
+
     fn now_or_last(&self, at: &Resuming, on: Obj) -> Option<Chars> {
         let o = self.named(at, on)?;
         self.characteristics()
@@ -8960,6 +8997,16 @@ impl Game {
             self.trigger_on(Event::DealtBy {
                 source,
                 amount: hit.total,
+            });
+        }
+        // A permanent source's controller is read again as the trigger
+        // resolves; a spell's, or a source gone, is the one it had.
+        let source_controller = by.map_or(EventPlayer::Is(controller), EventPlayer::ControllerOf);
+        for (&object, &amount) in &hit.objects {
+            self.trigger_on(Event::DamagedBy {
+                object,
+                by: source_controller,
+                amount,
             });
         }
         if !hit.objects.is_empty() {
@@ -9320,7 +9367,7 @@ impl Game {
                     controller: c.controller,
                     triggering: None,
                     amount: None,
-                    player: Some(controller),
+                    player: Some(EventPlayer::Is(controller)),
                     ordered: false,
                 });
             }
@@ -9423,6 +9470,13 @@ impl Game {
                             .iter()
                             .filter(|(id, _)| all.contains_key(*id) && f.matches(&seen(**id)))
                             .map(|(id, n)| (Some(*id), Some(*n)))
+                            .collect(),
+                        (
+                            TriggerEvent::DamagedBySource(f),
+                            Event::DamagedBy { object, amount, .. },
+                        ) => (all.contains_key(object) && f.matches(&seen(*object)))
+                            .then_some((Some(*object), Some(*amount)))
+                            .into_iter()
                             .collect(),
                         (
                             TriggerEvent::DealsDamageToPlayer {
@@ -9600,10 +9654,11 @@ impl Game {
                 // A spell cast names its caster, "that player", and a draw
                 // who drew.
                 let player = match &event {
-                    Event::Cast { controller, .. } => Some(*controller),
-                    Event::Drew(q) => Some(*q),
-                    Event::DamagedPlayer { player, .. } => Some(*player),
-                    Event::BecameTarget { controller, .. } => Some(*controller),
+                    Event::Cast { controller, .. } => Some(EventPlayer::Is(*controller)),
+                    Event::Drew(q) => Some(EventPlayer::Is(*q)),
+                    Event::DamagedPlayer { player, .. } => Some(EventPlayer::Is(*player)),
+                    Event::BecameTarget { controller, .. } => Some(EventPlayer::Is(*controller)),
+                    Event::DamagedBy { by, .. } => Some(*by),
                     _ => None,
                 };
                 // CR 603.2: whose turn the event happens in is part of it.
@@ -9701,7 +9756,7 @@ impl Game {
                             controller: *controller,
                             triggering: None,
                             amount: None,
-                            player: Some(*controller),
+                            player: Some(EventPlayer::Is(*controller)),
                             ordered: false,
                         });
                     }
@@ -10268,6 +10323,7 @@ impl Game {
         let mut dealt: BTreeMap<ObjectId, u32> = BTreeMap::new();
         let mut hit_players: Vec<(ObjectId, PlayerId, PlayerId)> = Vec::new();
         let mut dealt_by: Vec<(ObjectId, u32)> = Vec::new();
+        let mut damaged_by: Vec<(ObjectId, ObjectId, u32)> = Vec::new();
         for s in &sources {
             // CR 615.6: damage a shield prevents is never dealt; CR
             // 615.12: none, while damage can't be prevented.
@@ -10291,6 +10347,7 @@ impl Game {
             }
             for (o, n) in hit.objects {
                 *dealt.entry(o).or_insert(0) += n;
+                damaged_by.push((o, *s, n));
             }
             for q in hit.players {
                 hit_players.push((*s, controller, q));
@@ -10298,16 +10355,18 @@ impl Game {
         }
         // One event for all of it: a creature dealt damage by two at once
         // is dealt it once (CR 510.2).
-        self.damage_triggers(
-            Dealt {
-                objects: dealt,
-                players: BTreeSet::new(),
-                total: 0,
-            },
-            None,
-            true,
-            self.active,
-        );
+        if !dealt.is_empty() {
+            self.trigger_on(Event::Damaged(dealt));
+        }
+        // CR 603.2c: "whenever a source deals damage to this creature"
+        // is an occurrence for each source.
+        for (object, source, amount) in damaged_by {
+            self.trigger_on(Event::DamagedBy {
+                object,
+                by: EventPlayer::ControllerOf(source),
+                amount,
+            });
+        }
         for (source, amount) in dealt_by {
             self.trigger_on(Event::DealtBy { source, amount });
         }

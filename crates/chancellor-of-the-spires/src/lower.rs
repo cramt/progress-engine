@@ -2416,6 +2416,11 @@ pub enum TriggerEvent {
     /// "Whenever this creature is dealt damage": a permanent the filter
     /// matches is dealt damage, the amount the event's (CR 120.3).
     DealtDamage(Filter),
+    /// "Whenever a source deals damage to this creature": a permanent the
+    /// filter matches is dealt damage by a source, once for each source
+    /// that deals it damage at once (CR 603.2c, 510.2), the amount that
+    /// source's, "that source's controller" the event's player.
+    DamagedBySource(Filter),
     /// "Whenever this creature deals damage to a player", "… deals combat
     /// damage to a player": a permanent the filter matches deals damage to
     /// a player, once for each player dealt damage at once (CR 120.3,
@@ -2726,7 +2731,9 @@ pub fn triggered(
     let mut scope = Scope::new(bind);
     scope.amount = matches!(
         event,
-        TriggerEvent::DealtDamage(_) | TriggerEvent::DealsDamage(_)
+        TriggerEvent::DealtDamage(_)
+            | TriggerEvent::DealsDamage(_)
+            | TriggerEvent::DamagedBySource(_)
     );
     scope.caster = matches!(
         event,
@@ -2741,7 +2748,13 @@ pub fn triggered(
         (&event, trigger)
     {
         if let i::Event::BecomesTarget { of: Some(of), .. } = &**e {
-            scope.event_spell = binder(of, bind);
+            scope.event_object = binder(of, bind);
+        }
+    }
+    // "That source's controller": the source that dealt the damage.
+    if let (TriggerEvent::DamagedBySource(_), i::Trigger::When(e)) = (&event, trigger) {
+        if let i::Event::DealsDamageTo { what, .. } = &**e {
+            scope.event_object = binder(what, bind);
         }
     }
     let lowered = scope.effects(effect)?;
@@ -2752,6 +2765,17 @@ pub fn triggered(
         condition,
         during,
     })
+}
+
+/// "A source", unqualified.
+fn a_source() -> Objects {
+    Objects {
+        quant: Quant::One,
+        filter: i::Filter {
+            kind: Some(i::Noun::Source),
+            ..i::Filter::default()
+        },
+    }
 }
 
 /// "A spell", unqualified.
@@ -2874,6 +2898,16 @@ fn when(e: &i::Event, bound: &dyn Fn(&Objects) -> Objects) -> Result<TriggerEven
         i::Event::Dies(what) => TriggerEvent::Dies(entering(what)?),
         i::Event::Blocks(what) => TriggerEvent::Blocks(entering(what)?),
         i::Event::BecomesBlocked(what) => TriggerEvent::BecomesBlocked(entering(what)?),
+        // "A source", the bare word: any object that deals damage (CR
+        // 120.2), a spell or an ability's source as much as a creature.
+        i::Event::DealsDamageTo { what, to }
+            if matches!(to.as_slice(), [i::Recipient::Objects(_)]) && bound(what) == a_source() =>
+        {
+            let [i::Recipient::Objects(o)] = to.as_slice() else {
+                unreachable!("matched above")
+            };
+            TriggerEvent::DamagedBySource(entering(o)?)
+        }
         i::Event::DealsDamageTo { what, to }
             if matches!(
                 to.as_slice(),
@@ -3265,9 +3299,11 @@ struct Scope<'a> {
     /// Whether the trigger event names a player, a spell's caster, whom
     /// "that player" names.
     caster: bool,
-    /// The binder of the spell whose target the trigger's permanent
-    /// became, "that spell".
-    event_spell: Option<usize>,
+    /// The binder of the object the trigger event names, whose
+    /// controller is the event's player: the spell whose target the
+    /// trigger's permanent became, "that spell", or the source that dealt
+    /// it damage, "that source".
+    event_object: Option<usize>,
     program: Program,
     /// The `With` binders in scope, outermost first: the slot each binds,
     /// or `None` for one nothing the engine runs reads.
@@ -3324,7 +3360,7 @@ impl<'a> Scope<'a> {
             amount: false,
             in_may: false,
             caster: false,
-            event_spell: None,
+            event_object: None,
             program: Program::default(),
             withs: Vec::new(),
             slots: 0,
@@ -3575,7 +3611,7 @@ impl<'a> Scope<'a> {
                     .ok_or_else(|| "Player::That".into())
             }
             i::Player::ControllerOf(o)
-                if self.event_spell.is_some() && binder(o, self.bind) == self.event_spell =>
+                if self.event_object.is_some() && binder(o, self.bind) == self.event_object =>
             {
                 return Ok(Who::EventPlayer)
             }
