@@ -536,8 +536,12 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
         // "Creatures you control are every creature type": with no "in
         // addition", the new types replace the old (CR 205.1b).
         |p| {
-            let what = objects(p)?;
-            p.one_of(&["is", "are"])?;
+            // "As long as ~ has a slumber counter on it, it's a land"
+            // (Arixmethes): "it's" is the subject and verb, as for `AlsoIs`.
+            let what = alt!(p;
+                |p| p.word("it's").map(|_| antecedent()),
+                |p| { let w = objects(p)?; p.one_of(&["is", "are"])?; Some(w) },
+            )?;
             let types = alt!(p;
                 |p| p.words("every creature type").map(|_| TypeSet::EveryCreatureType),
                 |p| p.words("every basic land type").map(|_| TypeSet::EveryBasicLandType),

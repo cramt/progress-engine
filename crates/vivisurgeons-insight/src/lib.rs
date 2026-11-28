@@ -3196,4 +3196,27 @@ mod round_nine_d {
             "{yours}"
         );
     }
+
+    #[test]
+    fn its_a_land_as_long_as_a_counter_is_on_it() {
+        let read = |text: &str| {
+            let face = Face {
+                name: "Some Card",
+                type_line: "Legendary Creature — Leviathan",
+                text,
+            };
+            format!(
+                "{:?}",
+                read_face_unresolved(&face, "Some Card")
+                    .iter()
+                    .map(|l| l.parsed.as_ref().ok())
+                    .collect::<Vec<_>>()
+            )
+        };
+        let land = read("As long as Some Card has a slumber counter on it, it's a land.");
+        assert!(land.contains("types: Listed([Type(\"land\")])"), "{land}");
+        // Only what a type line says: "it's attacking" is a state, no type.
+        let state = read("As long as Some Card has a slumber counter on it, it's attacking.");
+        assert!(!state.contains("Is {"), "{state}");
+    }
 }

@@ -89,12 +89,12 @@ reports every one. The lists in `milestones/` say where they came from, and
 |---|---|---|---|
 | EDHREC top 1000 | 990/991 (99.9%) | 1800/1801 (99.9%) | pinned; Saw in Half was outside the old corpus |
 | My decks: every card in the 20 decks of cramt/mtg | 1199/1207 (99.3%) | 2496/2504 (99.7%) | reopened by 3 new decks; 1023 cards pinned |
-| Standard after the early-2027 rotation | 3117/3517 (88.6%) | 6633/7055 (94.0%) | |
+| Standard after the early-2027 rotation | 3118/3517 (88.7%) | 6634/7055 (94.0%) | |
 | Modern metagame: every card in MTGGoldfish's 60 archetypes, sideboards included | 571/571 | 1164/1164 | done |
-| All of Standard | 4395/5157 (85.2%) | 9596/10421 (92.1%) | |
+| All of Standard | 4396/5157 (85.2%) | 9597/10421 (92.1%) | |
 | EDHREC top 2000 | 1841/1987 (92.7%) | 3675/3848 (95.5%) | |
-| EDHREC top 5000 | 4249/4977 (85.4%) | 9280/10107 (91.8%) | |
-| Commander precons | 4879/6151 (79.3%) | 10830/12228 (88.6%) | |
+| EDHREC top 5000 | 4250/4977 (85.4%) | 9281/10107 (91.8%) | |
+| Commander precons | 4880/6151 (79.3%) | 10831/12228 (88.6%) | |
 
 Cards tagged `unique-cr-reference` are left out of the lists too, so Karn
 Liberated and Trinisphere show up as not matched.
@@ -161,7 +161,7 @@ or all, may or must) is a node; a difference only in wording is a synonym.
 | Modern metagame (pinned) | 1164/1164 (100%) |
 | My decks (pinned) | 2136/2136 (100%) |
 | EDHREC top 2000 | 3668/3669 (99.97%) |
-| All parsed abilities | 52396/52421 (99.95%) |
+| All parsed abilities | 52398/52423 (99.95%) |
 
 `tests/roundtrip.rs` holds every pinned ability to it. A second test renames
 each pinned card, in its name and in its text (the whole name, and a leading

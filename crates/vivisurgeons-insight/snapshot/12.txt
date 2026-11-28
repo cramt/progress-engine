@@ -1144,7 +1144,7 @@ cost: {2}{R}
 > Crew 3 (Tap any number of creatures you control with total power 3 or more: This Vehicle becomes an artifact creature until end of turn.)
 = Keywords([Keyword { name: "flying", param: None }])
 = Activated { cost: [Mana(Mana(["1"]))], effect: [PutCounters { n: N(1), kind: "fire", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
-= BROKE at "." after: as long as this vehicle has three or more fire counters on it , it's an artifact creature
+= Static([AsLongAs { order: Leading, cond: AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("fire"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), op: Ge, value: N(3) }, then: [Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: Listed([Type("artifact"), Type("creature")]) }] }])
 = Keywords([Keyword { name: "crew", param: Some(N(N(3))) }])
 
 ## Wargate

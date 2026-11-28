@@ -14537,9 +14537,11 @@ fn with_static_subject(s: &Static, b: &Objects) -> Static {
 
 fn static_full(o: &mut Out, s: &Static) {
     match s {
-        // "it's a creature in addition to its other types": the pronoun and
-        // its verb contracted.
-        Static::AlsoIs { what, .. } if is_bare_antecedent(what) || is_bare_self(what) => {
+        // "it's a creature in addition to its other types", "it's a land"
+        // (Arixmethes): the pronoun and its verb contracted.
+        Static::AlsoIs { what, .. } | Static::Is { what, .. }
+            if is_bare_antecedent(what) || is_bare_self(what) =>
+        {
             let full = out(|o| {
                 objects(o, what);
                 static_predicate(o, s);
