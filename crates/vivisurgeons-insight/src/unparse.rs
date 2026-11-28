@@ -2217,6 +2217,14 @@ mod syn {
         alt(o, vec![for_each, owner_of]);
     }
 
+    /// Named rewrite [any-card-name]: "look at an opponent's hand, then
+    /// choose any card name" (Sorcerous Spyglass) is "choose a card name":
+    /// CR 201.4, the name of any card in the Oracle card reference, seen or
+    /// not, either way. The tree is `Choice::CardName` of a bare card.
+    pub fn any_card_name(o: &mut Out) {
+        alt(o, vec![of("a card name"), of("any card name")]);
+    }
+
     /// Named rewrite [static-gain-is-have]: "Lands your opponents control
     /// with the chosen name lose all land types and abilities, and they gain
     /// "{T}: Add one mana of any color."" (Alpine Moon) is "… and have …". A
@@ -11487,6 +11495,15 @@ fn choice(o: &mut Out, c: &Choice) {
         Choice::PlaneswalkerType => o.w("a planeswalker type"),
         Choice::CardType => o.w("a card type"),
         Choice::PermanentType => o.w("a permanent type"),
+        Choice::CardName(f)
+            if *f
+                == Filter {
+                    kind: Some(Noun::Card),
+                    ..Filter::default()
+                } =>
+        {
+            syn::any_card_name(o)
+        }
         Choice::CardName(f) => {
             o.w("a");
             filter(o, f, Num::Sg);

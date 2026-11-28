@@ -3053,4 +3053,30 @@ mod round_nine_d {
         );
         assert!(!s.contains("Loses"), "{s}");
     }
+
+    #[test]
+    fn any_card_name_is_a_card_name_and_takes_no_types() {
+        let read = |text: &str| {
+            let face = Face {
+                name: "Some Card",
+                type_line: "Artifact",
+                text,
+            };
+            format!(
+                "{:?}",
+                read_face_unresolved(&face, "Some Card")
+                    .iter()
+                    .map(|l| l.parsed.as_ref().ok())
+                    .collect::<Vec<_>>()
+            )
+        };
+        let any = read("As this artifact enters, choose any card name.");
+        assert!(
+            any.contains("Choose(CardName(Filter { alts: [], kind: Some(Card)"),
+            "{any}"
+        );
+        // [any-card-name] is the bare phrase alone.
+        let typed = read("As this artifact enters, choose any nonland card name.");
+        assert!(!typed.contains("CardName"), "{typed}");
+    }
 }

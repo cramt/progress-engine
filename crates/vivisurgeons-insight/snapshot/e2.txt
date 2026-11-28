@@ -920,7 +920,7 @@ type: Artifact
 cost: {2}
 > As this artifact enters, look at an opponent's hand, then choose any card name.
 > Activated abilities of sources with the chosen name can't be activated unless they're mana abilities.
-= BROKE at "name" after: as this artifact enters , look at an opponent 's hand , then choose any card
+= Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [LookAtHand { who: You, whose: AnOpponent }, Choose(CardName(Filter { alts: [], kind: Some(Card), posts: [], or: None }))] }])
 = Static([Restrict { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Source), posts: [WithChosenName], or: None } }, rule: NoNonManaActivatedAbilities }])
 
 ## Sorin the Mirthless

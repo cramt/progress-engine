@@ -629,6 +629,14 @@ pub(super) fn effect(p: &mut P) -> Option<Effect> {
 /// card the chosen name is a name of (CR 201.4a). Only types and their
 /// negations describe it; a name is not an object, so it has no posts.
 fn chosen_card_name(p: &mut P) -> Option<Filter> {
+    // "choose any card name" (Sorcerous Spyglass) is "a card name": any
+    // card's name may be chosen either way ([any-card-name]).
+    if p.words("any card name").is_some() {
+        return Some(Filter {
+            kind: Some(Noun::Card),
+            ..Filter::default()
+        });
+    }
     p.one_of(&["a", "an"])?;
     if p.words("card name").is_some() {
         return Some(Filter {
