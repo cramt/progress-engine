@@ -84,7 +84,9 @@ in a worktree at the baseline commit.
 
 A push rejected because the branch moved fetches and rebases. A clean rebase
 is gated again against a fresh baseline measured at origin in a worktree,
-then pushed, up to three rebases. A conflict, a failed re-gate, a fourth
+then pushed, up to three rebases. A rebase over commits that touch only
+`.claude/` (the overseer's or the other product's skill edits) skips the
+re-gate: nothing built or measured reads them. A conflict, a failed re-gate, a fourth
 rejection or a git error parks the commits on `insight/unpushed-<n>`, resets
 to origin and escalates. After a rebase, review and metrics compare against
 origin's baseline, so the human's commits are not counted as the batch's. A

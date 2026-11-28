@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -312,6 +312,24 @@ test("push: main moved cleanly, so rebase, re-gate on origin's head, push", asyn
   assert.equal(p.regated, `gated at ${human}`);
   assert.equal(originHead(r), p.head);
   assert.equal(git(r.driver, "rev-parse", "HEAD~1"), human);
+});
+
+test("push: main moved by skills only, so rebase and push without a re-gate", async () => {
+  const r = repos();
+  commit(r.driver, "b.txt", "writer\n", "insight: b");
+  git(r.human, "pull", "-q", "--rebase", "origin", "main");
+  mkdirSync(join(r.human, ".claude"), { recursive: true });
+  commit(r.human, ".claude/skill.md", "rule\n", "skill");
+  git(r.human, "push", "-q", "origin", "main");
+  const p = await pushRebasing(r.driver, {
+    rebases: 3,
+    parkAs: "insight/unpushed-7",
+    regate: async () => assert.fail("a skill-only rebase is never re-gated"),
+  });
+  assert.ok(p.kind === "pushed");
+  assert.equal(p.rebases, 1);
+  assert.equal(p.regated, null);
+  assert.equal(originHead(r), p.head);
 });
 
 test("push: a conflicting rebase is aborted, parked, and main reset to origin", async () => {

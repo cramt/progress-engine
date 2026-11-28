@@ -154,7 +154,7 @@ Forty-five threads in a row then found the tree dirty and stopped.
    with the new numbers and the rules you added, in the same commit. No AI
    attribution. Push only with `.claude/skills/chancellor-batch/push.sh`,
    never a bare `git push`. It rebases onto `origin/main` and pushes, or exits
-   2 when what came in touches more than `.claude/` and Markdown (an Insight
+   2 when what came in touches anything outside `.claude/` (an Insight
    commit counts: Chancellor reads its trees). On 2, rerun the gate on the
    rebased tree, then run it again.
 5. **Handoff.** Rewrite `<state>/handoff.md`: what you did, the measured

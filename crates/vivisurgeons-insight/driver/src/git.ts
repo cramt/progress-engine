@@ -218,6 +218,21 @@ async function rebaseOntoOrigin(
   };
 }
 
+async function onlySkillsCameIn(
+  repo: string,
+  before: string,
+  onto: string,
+): Promise<boolean> {
+  const files = (
+    await must("git", ["diff", "--name-only", `${before}...${onto}`], {
+      cwd: repo,
+    })
+  )
+    .split("\n")
+    .filter((f) => f !== "");
+  return files.length > 0 && files.every((f) => f.startsWith(".claude/"));
+}
+
 export type Unpushed<F> =
   | { kind: "conflict"; onto: string; detail: string }
   | { kind: "gates"; onto: string; failure: F }
@@ -263,10 +278,21 @@ export async function pushRebasing<P, F>(
         "push",
         `rejected (${p.detail.split("\n")[0]}); rebasing onto origin/${BRANCH}`,
       );
+      const before = await must("git", ["rev-parse", "HEAD"], { cwd: repo });
       const rb = await rebaseOntoOrigin(repo);
       if (rb.kind === "conflict") {
         cause = { kind: "conflict", onto: rb.onto, detail: rb.detail };
         break;
+      }
+      // Skills are read by the writer, never by the build or a ratchet, so a
+      // skill-only push from the overseer or the other product's batch leaves
+      // the gates standing, instead of costing a re-gate and a rebase slot.
+      if (await onlySkillsCameIn(repo, before, rb.onto)) {
+        log(
+          "push",
+          `rebased onto ${rb.onto.slice(0, 7)}; only .claude/ came in, so the gates stand`,
+        );
+        continue;
       }
       log("push", `rebased onto ${rb.onto.slice(0, 7)}; gating again`);
       const g = await o.regate(rb.onto, attempt + 1);
