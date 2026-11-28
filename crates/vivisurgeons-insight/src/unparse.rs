@@ -8273,6 +8273,89 @@ fn obj_subj(o: &mut Out, x: &Objects, verb: &str) {
     o.verb(verb, obj_num(x));
 }
 
+/// "prevent all combat damage that would be dealt to you this turn": the
+/// prevention, without what it does after it prevents damage.
+fn prevent(
+    o: &mut Out,
+    combat_only: bool,
+    n: &Option<Amount>,
+    to: Option<&[Recipient]>,
+    by: Option<&Objects>,
+    d: &Duration,
+) {
+    o.w("prevent");
+    match n {
+        None => o.w("all"),
+        Some(n) => {
+            o.w("the next");
+            amount(o, n);
+        }
+    }
+    if combat_only {
+        o.w("combat");
+    }
+    // "damage that black and/or red sources would deal to creatures
+    // you control": the same damage, said actively.
+    // "dealt to and dealt by target creature": one object, both ways.
+    let both = |t: &[Recipient], b: &Objects| match t {
+        [Recipient::Objects(a)] => same_subject(a, b).then(|| a.clone()),
+        _ => None,
+    };
+    if let (Some(t), Some(b)) = (to, by) {
+        if both(t, b).is_none() {
+            let passive = out(|o| {
+                o.w("damage that would be dealt to");
+                recipients(o, t);
+                o.w("by");
+                objects(o, b);
+            });
+            let active = out(|o| {
+                o.w("damage that");
+                objects(o, b);
+                o.w("would deal to");
+                recipients(o, t);
+            });
+            syn::voice(o, passive, active);
+            dur(o, d);
+            return;
+        }
+    }
+    o.w("damage that would be dealt");
+    match (to, by) {
+        (Some(t), Some(b)) if both(t, b).is_some() => {
+            o.w("to and dealt by");
+            objects(o, &both(t, b).unwrap_or_else(|| b.clone()));
+        }
+        _ => {
+            let tail = out(|o| {
+                if let Some(t) = to {
+                    o.w("to");
+                    recipients(o, t);
+                }
+                if let Some(b) = by {
+                    o.w("by");
+                    objects(o, b);
+                }
+            });
+            let spelled = out(|o| {
+                o.add(tail.clone());
+                dur(o, d);
+            });
+            if (to.is_some() || by.is_some()) && *d != Duration::Permanent {
+                let first = out(|o| {
+                    dur(o, d);
+                    o.add(tail.clone());
+                });
+                syn::prevent_duration_first(o, spelled, first);
+            } else {
+                o.add(spelled);
+            }
+            return;
+        }
+    }
+    dur(o, d);
+}
+
 fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
     let chosen_to_move = cx.chosen_to_move && matches!(e, Effect::Choose(Choice::Objects(_)));
     zone_from(chosen_to_move || moves_from_a_zone(e), || {
@@ -8910,78 +8993,15 @@ fn effect_said(o: &mut Out, e: &Effect, cx: &Cx) {
             to,
             by,
             dur: d,
+            then,
         } => {
-            o.w("prevent");
-            match n {
-                None => o.w("all"),
-                Some(n) => {
-                    o.w("the next");
-                    amount(o, n);
-                }
+            prevent(o, *combat_only, n, to.as_deref(), by.as_ref(), d);
+            // The shield's additional effect, done each time it prevents
+            // damage (CR 615.5), is said in the sentences after it.
+            if !then.is_empty() {
+                o.tok(Tok::Period);
+                clauses(o, then, cx);
             }
-            if *combat_only {
-                o.w("combat");
-            }
-            // "damage that black and/or red sources would deal to creatures
-            // you control": the same damage, said actively.
-            // "dealt to and dealt by target creature": one object, both ways.
-            let both = |t: &[Recipient], b: &Objects| match t {
-                [Recipient::Objects(a)] => same_subject(a, b).then(|| a.clone()),
-                _ => None,
-            };
-            if let (Some(t), Some(b)) = (to, by) {
-                if both(t, b).is_none() {
-                    let passive = out(|o| {
-                        o.w("damage that would be dealt to");
-                        recipients(o, t);
-                        o.w("by");
-                        objects(o, b);
-                    });
-                    let active = out(|o| {
-                        o.w("damage that");
-                        objects(o, b);
-                        o.w("would deal to");
-                        recipients(o, t);
-                    });
-                    syn::voice(o, passive, active);
-                    dur(o, d);
-                    return;
-                }
-            }
-            o.w("damage that would be dealt");
-            match (to, by) {
-                (Some(t), Some(b)) if both(t, b).is_some() => {
-                    o.w("to and dealt by");
-                    objects(o, &both(t, b).unwrap_or_else(|| b.clone()));
-                }
-                _ => {
-                    let tail = out(|o| {
-                        if let Some(t) = to {
-                            o.w("to");
-                            recipients(o, t);
-                        }
-                        if let Some(b) = by {
-                            o.w("by");
-                            objects(o, b);
-                        }
-                    });
-                    let spelled = out(|o| {
-                        o.add(tail.clone());
-                        dur(o, d);
-                    });
-                    if (to.is_some() || by.is_some()) && *d != Duration::Permanent {
-                        let first = out(|o| {
-                            dur(o, d);
-                            o.add(tail.clone());
-                        });
-                        syn::prevent_duration_first(o, spelled, first);
-                    } else {
-                        o.add(spelled);
-                    }
-                    return;
-                }
-            }
-            dur(o, d);
         }
         Effect::Becomes {
             what,
@@ -14949,6 +14969,7 @@ fn static_other(o: &mut Out, s: &Static) {
                 to: to.clone(),
                 by: by.clone(),
                 dur: Duration::Permanent,
+                then: vec![],
             };
             effect(o, &as_effect, &Cx::default());
         }

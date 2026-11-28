@@ -98,7 +98,7 @@ face: Battlefield Medic
 type: Creature — Human Cleric
 cost: {1}{W}
 > {T}: Prevent the next X damage that would be dealt to target creature this turn, where X is the number of Clerics on the battlefield.
-= Activated { cost: [Tap], effect: [Where { then: [Prevent { combat_only: false, n: Some(X), to: Some([Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }], x: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Subtype("cleric")]], kind: None, posts: [In(Battlefield)], or: None } }) }], limits: [] }
+= Activated { cost: [Tap], effect: [Where { then: [Prevent { combat_only: false, n: Some(X), to: Some([Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn, then: [] }], x: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Subtype("cleric")]], kind: None, posts: [In(Battlefield)], or: None } }) }], limits: [] }
 
 ## Blood Celebrant
 face: Blood Celebrant

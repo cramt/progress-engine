@@ -129,7 +129,7 @@ cost: {X}{R}{R}
 > Remove a +1/+0 counter from this creature: Prevent the next 1 damage that would be dealt to it this turn.
 > {R}{R}{R}: Put a +1/+0 counter on this creature. Activate only during your upkeep.
 = Static([EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: X, kind: "+1/+0" }])
-= Activated { cost: [RemoveCounters { n: N(1), kind: "+1/+0", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], effect: [Prevent { combat_only: false, n: Some(N(1)), to: Some([Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }], limits: [] }
+= Activated { cost: [RemoveCounters { n: N(1), kind: "+1/+0", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], effect: [Prevent { combat_only: false, n: Some(N(1)), to: Some([Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn, then: [] }], limits: [] }
 = Activated { cost: [Mana(Mana(["R", "R", "R"]))], effect: [PutCounters { n: N(1), kind: "+1/+0", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [OnlyDuringYourUpkeep] }
 
 ## Battering Ram

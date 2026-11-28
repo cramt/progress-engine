@@ -426,7 +426,7 @@ cost: {4}{G}
 > Search your library for up to X basic land cards, where X is the number of creatures attacking you, put those cards onto the battlefield tapped, then shuffle.
 > Prevent all combat damage that would be dealt this turn.
 = BROKE at "," after: search your library for up to x basic land cards , where x is the number of creatures attacking you
-= Spell([Prevent { combat_only: true, n: None, to: None, by: None, dur: ThisTurn }])
+= Spell([Prevent { combat_only: true, n: None, to: None, by: None, dur: ThisTurn, then: [] }])
 
 ## Kelinore Bat
 face: Kelinore Bat

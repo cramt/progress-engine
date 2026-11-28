@@ -30,7 +30,7 @@ cost: {W}
 > Buyback {3} (You may pay an additional {3} as you cast this spell. If you do, put this card into your hand as it resolves.)
 > Prevent the next 3 damage that would be dealt to target creature this turn.
 = Keywords([Keyword { name: "buyback", param: Some(Cost([Mana(Mana(["3"]))])) }])
-= Spell([Prevent { combat_only: false, n: Some(N(3)), to: Some([Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }])
+= Spell([Prevent { combat_only: false, n: Some(N(3)), to: Some([Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn, then: [] }])
 
 ## Apostle's Blessing
 face: Apostle's Blessing
@@ -725,7 +725,7 @@ face: Master Healer
 type: Creature — Human Cleric
 cost: {4}{W}
 > {T}: Prevent the next 4 damage that would be dealt to any target this turn.
-= Activated { cost: [Tap], effect: [Prevent { combat_only: false, n: Some(N(4)), to: Some([Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }], limits: [] }
+= Activated { cost: [Tap], effect: [Prevent { combat_only: false, n: Some(N(4)), to: Some([Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn, then: [] }], limits: [] }
 
 ## Master's Guide-Mural // Master's Manufactory
 face: Master's Guide-Mural

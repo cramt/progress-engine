@@ -1183,7 +1183,7 @@ fn static_body_more(p: &mut P) -> Option<Vec<Static>> {
         },
         // On a permanent the prevention lasts as long as the static applies.
         |p| match prevent(p)? {
-            Effect::Prevent { combat_only, n: None, to, by, dur: Duration::Permanent } => {
+            Effect::Prevent { combat_only, n: None, to, by, dur: Duration::Permanent, then } if then.is_empty() => {
                 Some(vec![Static::PreventDamage { combat_only, to, by }])
             }
             _ => None,

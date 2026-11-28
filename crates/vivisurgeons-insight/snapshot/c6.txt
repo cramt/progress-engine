@@ -751,7 +751,7 @@ face: Riot Control
 type: Instant
 cost: {2}{W}
 > You gain 1 life for each creature your opponents control. Prevent all damage that would be dealt to you this turn.
-= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(EachOpponent)], or: None } }, then: [GainLife { who: You, n: N(1) }] }, Prevent { combat_only: false, n: None, to: Some([Player(You)]), by: None, dur: ThisTurn }])
+= Spell([ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(EachOpponent)], or: None } }, then: [GainLife { who: You, n: N(1) }] }, Prevent { combat_only: false, n: None, to: Some([Player(You)]), by: None, dur: ThisTurn, then: [] }])
 
 ## Ruins of Oran-Rief
 face: Ruins of Oran-Rief

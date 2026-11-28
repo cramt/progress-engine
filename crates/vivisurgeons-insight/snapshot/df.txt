@@ -185,7 +185,7 @@ face: Combat Medic
 type: Creature — Human Cleric Soldier
 cost: {2}{W}
 > {1}{W}: Prevent the next 1 damage that would be dealt to any target this turn.
-= Activated { cost: [Mana(Mana(["1", "W"]))], effect: [Prevent { combat_only: false, n: Some(N(1)), to: Some([Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }], limits: [] }
+= Activated { cost: [Mana(Mana(["1", "W"]))], effect: [Prevent { combat_only: false, n: Some(N(1)), to: Some([Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn, then: [] }], limits: [] }
 
 ## Commune with Dinosaurs
 face: Commune with Dinosaurs
@@ -1057,7 +1057,7 @@ cost: {2}{B}
 > This creature can't block.
 > {U}: Prevent all combat damage that would be dealt to and dealt by this creature this turn.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBlock }])
-= Activated { cost: [Mana(Mana(["U"]))], effect: [Prevent { combat_only: true, n: None, to: Some([Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), dur: ThisTurn }], limits: [] }
+= Activated { cost: [Mana(Mana(["U"]))], effect: [Prevent { combat_only: true, n: None, to: Some([Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), dur: ThisTurn, then: [] }], limits: [] }
 
 ## Valor Singer
 face: Valor Singer

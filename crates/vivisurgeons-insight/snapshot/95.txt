@@ -820,7 +820,7 @@ face: Redeem
 type: Instant
 cost: {1}{W}
 > Prevent all damage that would be dealt this turn to up to two target creatures.
-= Spell([Prevent { combat_only: false, n: None, to: Some([Objects(Objects { quant: Target { n: N(2), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }])
+= Spell([Prevent { combat_only: false, n: None, to: Some([Objects(Objects { quant: Target { n: N(2), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn, then: [] }])
 
 ## Rejoin the Fight
 face: Rejoin the Fight
@@ -1018,9 +1018,9 @@ cost: {2}{W}
 > Prevent the next 4 damage that would be dealt to any target this turn.
 > Cycling {1}{W} ({1}{W}, Discard this card: Draw a card.)
 > When you cycle this card, you may prevent the next 1 damage that would be dealt to any target this turn.
-= Spell([Prevent { combat_only: false, n: Some(N(4)), to: Some([Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }])
+= Spell([Prevent { combat_only: false, n: Some(N(4)), to: Some([Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn, then: [] }])
 = Keywords([Keyword { name: "cycling", param: Some(Cost([Mana(Mana(["1", "W"]))])) }])
-= Triggered { trigger: When(Cycles { who: You, what: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }), effect: [May { who: You, then: [Prevent { combat_only: false, n: Some(N(1)), to: Some([Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }] }], limits: [] }
+= Triggered { trigger: When(Cycles { who: You, what: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }), effect: [May { who: You, then: [Prevent { combat_only: false, n: Some(N(1)), to: Some([Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn, then: [] }] }], limits: [] }
 
 ## Swarm of Bloodflies
 face: Swarm of Bloodflies

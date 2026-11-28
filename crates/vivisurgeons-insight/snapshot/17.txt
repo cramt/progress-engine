@@ -261,7 +261,7 @@ face: Ethereal Haze
 type: Instant — Arcane
 cost: {W}
 > Prevent all damage that would be dealt by creatures this turn.
-= Spell([Prevent { combat_only: false, n: None, to: None, by: Some(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), dur: ThisTurn }])
+= Spell([Prevent { combat_only: false, n: None, to: None, by: Some(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), dur: ThisTurn, then: [] }])
 
 ## Floodchaser
 face: Floodchaser

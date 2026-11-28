@@ -620,7 +620,7 @@ face: Safeguard
 type: Enchantment
 cost: {3}{W}{W}
 > {2}{W}: Prevent all combat damage that would be dealt by target creature this turn.
-= Activated { cost: [Mana(Mana(["2", "W"]))], effect: [Prevent { combat_only: true, n: None, to: None, by: Some(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), dur: ThisTurn }], limits: [] }
+= Activated { cost: [Mana(Mana(["2", "W"]))], effect: [Prevent { combat_only: true, n: None, to: None, by: Some(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), dur: ThisTurn, then: [] }], limits: [] }
 
 ## Sawtooth Thresher
 face: Sawtooth Thresher

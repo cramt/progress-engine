@@ -355,7 +355,7 @@ type: Instant
 cost: {X}{W}
 > Prevent the next X damage that would be dealt to you this turn.
 > Draw a card.
-= Spell([Prevent { combat_only: false, n: Some(X), to: Some([Player(You)]), by: None, dur: ThisTurn }])
+= Spell([Prevent { combat_only: false, n: Some(X), to: Some([Player(You)]), by: None, dur: ThisTurn, then: [] }])
 = Spell([Draw { who: You, n: N(1) }])
 
 ## Fetid Pools

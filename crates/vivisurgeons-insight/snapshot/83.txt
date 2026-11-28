@@ -84,7 +84,7 @@ face: Blessed Respite
 type: Instant
 cost: {1}{G}
 > Target player shuffles their graveyard into their library. Prevent all combat damage that would be dealt this turn.
-= Spell([ShuffleZones { who: Target, zones: [Graveyard(That)] }, Prevent { combat_only: true, n: None, to: None, by: None, dur: ThisTurn }])
+= Spell([ShuffleZones { who: Target, zones: [Graveyard(That)] }, Prevent { combat_only: true, n: None, to: None, by: None, dur: ThisTurn, then: [] }])
 
 ## Burn Down the House
 face: Burn Down the House

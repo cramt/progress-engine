@@ -617,7 +617,7 @@ face: Ordruun Commando
 type: Creature — Minotaur Soldier
 cost: {3}{R}
 > {W}: Prevent the next 1 damage that would be dealt to this creature this turn.
-= Activated { cost: [Mana(Mana(["W"]))], effect: [Prevent { combat_only: false, n: Some(N(1)), to: Some([Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }], limits: [] }
+= Activated { cost: [Mana(Mana(["W"]))], effect: [Prevent { combat_only: false, n: Some(N(1)), to: Some([Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn, then: [] }], limits: [] }
 
 ## Patagia Golem
 face: Patagia Golem

@@ -566,7 +566,7 @@ face: Kitsune Palliator
 type: Creature — Fox Cleric
 cost: {2}{W}
 > {T}: Prevent the next 1 damage that would be dealt to each creature and each player this turn.
-= Activated { cost: [Tap], effect: [Prevent { combat_only: false, n: Some(N(1)), to: Some([Objects(Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), Player(Each)]), by: None, dur: ThisTurn }], limits: [] }
+= Activated { cost: [Tap], effect: [Prevent { combat_only: false, n: Some(N(1)), to: Some([Objects(Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), Player(Each)]), by: None, dur: ThisTurn, then: [] }], limits: [] }
 
 ## Kolaghan Aspirant
 face: Kolaghan Aspirant
@@ -580,7 +580,7 @@ face: Lady Evangela
 type: Legendary Creature — Human Cleric
 cost: {W}{U}{B}
 > {W}{B}, {T}: Prevent all combat damage that would be dealt by target creature this turn.
-= Activated { cost: [Mana(Mana(["W", "B"])), Tap], effect: [Prevent { combat_only: true, n: None, to: None, by: Some(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), dur: ThisTurn }], limits: [] }
+= Activated { cost: [Mana(Mana(["W", "B"])), Tap], effect: [Prevent { combat_only: true, n: None, to: None, by: Some(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), dur: ThisTurn, then: [] }], limits: [] }
 
 ## Liliana's Influence
 face: Liliana's Influence

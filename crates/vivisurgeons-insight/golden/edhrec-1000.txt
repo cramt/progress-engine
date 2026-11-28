@@ -2905,7 +2905,7 @@ face: Fog
 type: Instant
 cost: {G}
 > Prevent all combat damage that would be dealt this turn.
-= Spell([Prevent { combat_only: true, n: None, to: None, by: None, dur: ThisTurn }])
+= Spell([Prevent { combat_only: true, n: None, to: None, by: None, dur: ThisTurn, then: [] }])
 
 ## Forbidden Orchard
 face: Forbidden Orchard
@@ -3758,7 +3758,7 @@ face: Inkshield
 type: Instant
 cost: {3}{W}{B}
 > Prevent all combat damage that would be dealt to you this turn. For each 1 damage prevented this way, create a 2/1 white and black Inkling creature token with flying.
-= Spell([Prevent { combat_only: true, n: None, to: Some([Player(You)]), by: None, dur: ThisTurn }, Repeat { times: DamagePrevented, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(1), signed: false }), colors: [White, Black], types: ["inkling", "creature"], keywords: [Keyword { name: "flying", param: None }], abilities: [], named: None, attacking: None } }] }])
+= Spell([Prevent { combat_only: true, n: None, to: Some([Player(You)]), by: None, dur: ThisTurn, then: [] }, Repeat { times: DamagePrevented, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(1), signed: false }), colors: [White, Black], types: ["inkling", "creature"], keywords: [Keyword { name: "flying", param: None }], abilities: [], named: None, attacking: None } }] }])
 
 ## Innkeeper's Talent
 face: Innkeeper's Talent
@@ -4407,7 +4407,7 @@ cost: {1}{B}{R}
 face: Maze of Ith
 type: Land
 > {T}: Untap target attacking creature. Prevent all combat damage that would be dealt to and dealt by that creature this turn.
-= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } }], ability: Activated { cost: [Tap], effect: [Untap(Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Prevent { combat_only: true, n: None, to: Some([Objects(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })]), by: Some(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), dur: ThisTurn }], limits: [] } }
+= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } }], ability: Activated { cost: [Tap], effect: [Untap(Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Prevent { combat_only: true, n: None, to: Some([Objects(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })]), by: Some(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), dur: ThisTurn, then: [] }], limits: [] } }
 
 ## Mechanized Production
 face: Mechanized Production

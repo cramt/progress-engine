@@ -356,7 +356,7 @@ type: Instant
 cost: {W}
 > Prevent the next 1 damage that would be dealt to any target this turn.
 > Draw a card at the beginning of the next turn's upkeep.
-= Spell([Prevent { combat_only: false, n: Some(N(1)), to: Some([Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }])
+= Spell([Prevent { combat_only: false, n: Some(N(1)), to: Some([Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn, then: [] }])
 = Spell([Delayed { step: Upkeep(NextTurns), then: [Draw { who: You, n: N(1) }] }])
 
 ## High Fae Negotiator
@@ -400,7 +400,7 @@ face: Hunter's Ambush
 type: Instant
 cost: {2}{G}
 > Prevent all combat damage that would be dealt by nongreen creatures this turn.
-= Spell([Prevent { combat_only: true, n: None, to: None, by: Some(Objects { quant: Plural, filter: Filter { alts: [[NonColor(Green), Type("creature")]], kind: None, posts: [], or: None } }), dur: ThisTurn }])
+= Spell([Prevent { combat_only: true, n: None, to: None, by: Some(Objects { quant: Plural, filter: Filter { alts: [[NonColor(Green), Type("creature")]], kind: None, posts: [], or: None } }), dur: ThisTurn, then: [] }])
 
 ## Jace, Mirror Mage
 face: Jace, Mirror Mage
@@ -441,7 +441,7 @@ cost: {4}{W}
 > When this creature enters, create two 1/1 white Soldier creature tokens.
 > {W}, Sacrifice a Soldier: Prevent all combat damage that would be dealt this turn.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Create { who: You, n: N(2), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["soldier", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
-= Activated { cost: [Mana(Mana(["W"])), Sacrifice(Objects { quant: One, filter: Filter { alts: [[Subtype("soldier")]], kind: None, posts: [], or: None } })], effect: [Prevent { combat_only: true, n: None, to: None, by: None, dur: ThisTurn }], limits: [] }
+= Activated { cost: [Mana(Mana(["W"])), Sacrifice(Objects { quant: One, filter: Filter { alts: [[Subtype("soldier")]], kind: None, posts: [], or: None } })], effect: [Prevent { combat_only: true, n: None, to: None, by: None, dur: ThisTurn, then: [] }], limits: [] }
 
 ## Liliana the Faultless
 face: Liliana the Faultless
@@ -604,7 +604,7 @@ type: Legendary Creature — Human Cleric
 cost: {1}{W}{W}
 > {T}: Prevent all damage that would be dealt to target creature this turn.
 > Grandeur — Discard another card named Oriss, Samite Guardian: Target player can't cast spells this turn, and creatures that player controls can't attack this turn.
-= Activated { cost: [Tap], effect: [Prevent { combat_only: false, n: None, to: Some([Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }], limits: [] }
+= Activated { cost: [Tap], effect: [Prevent { combat_only: false, n: None, to: Some([Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn, then: [] }], limits: [] }
 = Labelled { label: "grandeur", ability: Activated { cost: [Discard(Objects { quant: Another, filter: Filter { alts: [], kind: Some(Card), posts: [Named(PrintedName("Oriss, Samite Guardian"))], or: None } })], effect: [PlayerRestrict { who: Target, rule: CantCast(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }), dur: ThisTurn }, Restrict { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(That)], or: None } }, rule: CantAttack, dur: ThisTurn }], limits: [] } }
 
 ## Ostiary Thrull

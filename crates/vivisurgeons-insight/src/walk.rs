@@ -994,7 +994,14 @@ impl Walk for Effect {
                 Walk::walk(what, v);
                 Walk::walk(until, v);
             }
-            Effect::Prevent { n, to, by, dur, .. } => {
+            Effect::Prevent {
+                n,
+                to,
+                by,
+                dur,
+                then,
+                ..
+            } => {
                 if let Some(x0) = (n).as_mut() {
                     Walk::walk(x0, v);
                 }
@@ -1007,6 +1014,9 @@ impl Walk for Effect {
                     Walk::walk(x0, v);
                 }
                 Walk::walk(dur, v);
+                for x0 in (then).iter_mut() {
+                    Walk::walk(x0, v);
+                }
             }
             Effect::Becomes {
                 what,

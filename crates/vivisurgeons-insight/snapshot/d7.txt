@@ -439,7 +439,7 @@ face: Godtoucher
 type: Creature — Elf Cleric
 cost: {3}{G}
 > {1}{W}, {T}: Prevent all damage that would be dealt to target creature with power 5 or greater this turn.
-= Activated { cost: [Mana(Mana(["1", "W"])), Tap], effect: [Prevent { combat_only: false, n: None, to: Some([Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Ge, value: N(5) })], or: None } })]), by: None, dur: ThisTurn }], limits: [] }
+= Activated { cost: [Mana(Mana(["1", "W"])), Tap], effect: [Prevent { combat_only: false, n: None, to: Some([Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Ge, value: N(5) })], or: None } })]), by: None, dur: ThisTurn, then: [] }], limits: [] }
 
 ## Gollum, Obsessed Stalker
 face: Gollum, Obsessed Stalker
@@ -1206,7 +1206,7 @@ type: Instant
 cost: {2}{W}
 > Prevent the next 3 damage that would be dealt to any target this turn.
 > Draw a card.
-= Spell([Prevent { combat_only: false, n: Some(N(3)), to: Some([Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }])
+= Spell([Prevent { combat_only: false, n: Some(N(3)), to: Some([Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn, then: [] }])
 = Spell([Draw { who: You, n: N(1) }])
 
 ## Worms of the Earth

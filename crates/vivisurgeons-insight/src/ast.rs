@@ -1847,6 +1847,10 @@ pub enum Effect {
         to: Option<Vec<Recipient>>,
         by: Option<Objects>,
         dur: Duration,
+        /// "You gain life equal to the damage prevented this way" (Candles'
+        /// Glow): what the shield does right after each time it prevents
+        /// damage (CR 615.5), never at resolution ([prevention-rest]).
+        then: Vec<Effect>,
     },
     Becomes {
         what: Objects,

@@ -710,7 +710,7 @@ face: Samite Healer
 type: Creature — Human Cleric
 cost: {1}{W}
 > {T}: Prevent the next 1 damage that would be dealt to any target this turn.
-= Activated { cost: [Tap], effect: [Prevent { combat_only: false, n: Some(N(1)), to: Some([Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }], limits: [] }
+= Activated { cost: [Tap], effect: [Prevent { combat_only: false, n: Some(N(1)), to: Some([Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn, then: [] }], limits: [] }
 
 ## Scavenger's Talent
 face: Scavenger's Talent

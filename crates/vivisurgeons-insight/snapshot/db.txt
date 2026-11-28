@@ -560,7 +560,7 @@ face: Oketra's Avenger
 type: Creature — Human Warrior
 cost: {1}{W}
 > You may exert this creature as it attacks. When you do, prevent all combat damage that would be dealt to it this turn. (An exerted creature won't untap during your next untap step.)
-= Static([ExertAsAttacks { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [WhenYouDo([Prevent { combat_only: true, n: None, to: Some([Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }])] }])
+= Static([ExertAsAttacks { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [WhenYouDo([Prevent { combat_only: true, n: None, to: Some([Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn, then: [] }])] }])
 
 ## Order of Leitbur
 face: Order of Leitbur

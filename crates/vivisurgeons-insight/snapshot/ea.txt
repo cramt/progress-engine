@@ -256,7 +256,7 @@ face: Darkness
 type: Instant
 cost: {B}
 > Prevent all combat damage that would be dealt this turn.
-= Spell([Prevent { combat_only: true, n: None, to: None, by: None, dur: ThisTurn }])
+= Spell([Prevent { combat_only: true, n: None, to: None, by: None, dur: ThisTurn, then: [] }])
 
 ## Dash Hopes
 face: Dash Hopes

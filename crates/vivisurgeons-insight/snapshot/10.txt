@@ -719,7 +719,7 @@ cost: {2}{W}
 > Flying
 > {3}{W}: Prevent all combat damage that would be dealt to and dealt by this creature this turn.
 = Keywords([Keyword { name: "flying", param: None }])
-= Activated { cost: [Mana(Mana(["3", "W"]))], effect: [Prevent { combat_only: true, n: None, to: Some([Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), dur: ThisTurn }], limits: [] }
+= Activated { cost: [Mana(Mana(["3", "W"]))], effect: [Prevent { combat_only: true, n: None, to: Some([Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), dur: ThisTurn, then: [] }], limits: [] }
 
 ## Munda's Vanguard
 face: Munda's Vanguard

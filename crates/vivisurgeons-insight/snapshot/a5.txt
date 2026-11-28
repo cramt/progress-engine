@@ -238,7 +238,7 @@ cost: {W}
 > Provoke (Whenever this creature attacks, you may have target creature defending player controls untap and block it if able.)
 > {1}{W}: Prevent all combat damage that would be dealt to and dealt by this creature this turn.
 = Keywords([Keyword { name: "provoke", param: None }])
-= Activated { cost: [Mana(Mana(["1", "W"]))], effect: [Prevent { combat_only: true, n: None, to: Some([Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), dur: ThisTurn }], limits: [] }
+= Activated { cost: [Mana(Mana(["1", "W"]))], effect: [Prevent { combat_only: true, n: None, to: Some([Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), dur: ThisTurn, then: [] }], limits: [] }
 
 ## Desculpting Blast
 face: Desculpting Blast
@@ -450,7 +450,7 @@ cost: {5}{W}{U}
 > {T}: Untap target attacking creature. Prevent all combat damage that would be dealt to and dealt by that creature this turn.
 > Suspend 4—{W}{U}
 = Keywords([Keyword { name: "vigilance", param: None }])
-= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } }], ability: Activated { cost: [Tap], effect: [Untap(Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Prevent { combat_only: true, n: None, to: Some([Objects(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })]), by: Some(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), dur: ThisTurn }], limits: [] } }
+= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } }], ability: Activated { cost: [Tap], effect: [Untap(Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Prevent { combat_only: true, n: None, to: Some([Objects(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })]), by: Some(Objects { quant: Bound(0) /* target */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), dur: ThisTurn, then: [] }], limits: [] } }
 = Keywords([Keyword { name: "suspend", param: Some(NCost { n: N(4), cost: [Mana(Mana(["W", "U"]))] }) }])
 
 ## Kamber, the Plunderer

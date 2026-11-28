@@ -618,7 +618,7 @@ face: Mending Hands
 type: Instant
 cost: {W}
 > Prevent the next 4 damage that would be dealt to any target this turn.
-= Spell([Prevent { combat_only: false, n: Some(N(4)), to: Some([Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }])
+= Spell([Prevent { combat_only: false, n: Some(N(4)), to: Some([Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn, then: [] }])
 
 ## Might of Oaks
 face: Might of Oaks
@@ -727,7 +727,7 @@ type: Instant
 cost: {2}{W}
 > Prevent all combat damage that would be dealt by target attacking creature this turn.
 > Draw a card.
-= Spell([Prevent { combat_only: true, n: None, to: None, by: Some(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } }), dur: ThisTurn }])
+= Spell([Prevent { combat_only: true, n: None, to: None, by: Some(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } }), dur: ThisTurn, then: [] }])
 = Spell([Draw { who: You, n: N(1) }])
 
 ## Rift Bolt

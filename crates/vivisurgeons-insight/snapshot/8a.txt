@@ -19,7 +19,7 @@ face: Batwing Brume
 type: Instant
 cost: {1}{W/B}
 > Prevent all combat damage that would be dealt this turn if {W} was spent to cast this spell. Each player loses 1 life for each attacking creature they control if {B} was spent to cast this spell. (Do both if {W}{B} was spent.)
-= Spell([If { order: Trailing, cond: ManaSpent { mana: Mana(["W"]), what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, then: [Prevent { combat_only: true, n: None, to: None, by: None, dur: ThisTurn }] }, If { order: Trailing, cond: ManaSpent { mana: Mana(["B"]), what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, then: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [Controller(That)], or: None } }, then: [LoseLife { who: Each, n: N(1) }] }] }])
+= Spell([If { order: Trailing, cond: ManaSpent { mana: Mana(["W"]), what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, then: [Prevent { combat_only: true, n: None, to: None, by: None, dur: ThisTurn, then: [] }] }, If { order: Trailing, cond: ManaSpent { mana: Mana(["B"]), what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, then: [ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [Controller(That)], or: None } }, then: [LoseLife { who: Each, n: N(1) }] }] }])
 
 ## Belligerent Hatchling
 face: Belligerent Hatchling
@@ -696,7 +696,7 @@ face: Samite Pilgrim
 type: Creature — Human Cleric
 cost: {1}{W}
 > Domain — {T}: Prevent the next X damage that would be dealt to target creature this turn, where X is the number of basic land types among lands you control.
-= Labelled { label: "domain", ability: Activated { cost: [Tap], effect: [Where { then: [Prevent { combat_only: false, n: Some(X), to: Some([Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }], x: NumberOfBasicLandTypes(Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }) }], limits: [] } }
+= Labelled { label: "domain", ability: Activated { cost: [Tap], effect: [Where { then: [Prevent { combat_only: false, n: Some(X), to: Some([Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn, then: [] }], x: NumberOfBasicLandTypes(Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }) }], limits: [] } }
 
 ## Savage Surge
 face: Savage Surge

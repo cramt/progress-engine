@@ -167,7 +167,7 @@ type: Instant
 cost: {2}{G}
 > Prevent all combat damage that would be dealt this turn.
 > Fateful hour — If you have 5 or less life, tap all attacking creatures. Those creatures don't untap during their controller's next untap step.
-= Spell([Prevent { combat_only: true, n: None, to: None, by: None, dur: ThisTurn }])
+= Spell([Prevent { combat_only: true, n: None, to: None, by: None, dur: ThisTurn, then: [] }])
 = Labelled { label: "fateful hour", ability: Spell([With { bind: [/* tapped */ Objects { quant: All, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } }], then: [If { order: Leading, cond: LifeAtMost(5), then: [Tap(Objects { quant: Introduced(0) /* tapped */, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, Restrict { what: Objects { quant: Bound(0) /* tapped */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: DoesntUntapNext, dur: Permanent }] }]) }
 
 ## Cloak of Confusion

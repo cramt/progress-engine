@@ -199,7 +199,7 @@ type: Enchantment Creature — Saga Construct
 > I, II — Prevent all damage that would be dealt to creatures you control this turn.
 > III — Tap all creatures your opponents control.
 > Flying
-= Chapter { chapters: [1, 2], effect: [Prevent { combat_only: false, n: None, to: Some([Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })]), by: None, dur: ThisTurn }] }
+= Chapter { chapters: [1, 2], effect: [Prevent { combat_only: false, n: None, to: Some([Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })]), by: None, dur: ThisTurn, then: [] }] }
 = Chapter { chapters: [3], effect: [Tap(Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(EachOpponent)], or: None } })] }
 = Keywords([Keyword { name: "flying", param: None }])
 
@@ -872,7 +872,7 @@ cost: {2}{R}{W}
 > Cast this spell only during combat on an opponent's turn.
 > Prevent all combat damage that would be dealt to you and planeswalkers you control this turn. Untap all attacking creatures and goad them. After this phase, there is an additional combat phase.
 = BROKE at "an" after: cast this spell only during combat on
-= Spell([Prevent { combat_only: true, n: None, to: Some([Player(You), Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [Controller(You)], or: None } })]), by: None, dur: ThisTurn }, With { bind: [/* it */ Objects { quant: All, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } }], then: [Untap(Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), ActionOn { who: You, name: "goad", what: Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, AdditionalPhases { after: None, phases: [Combat] }] }])
+= Spell([Prevent { combat_only: true, n: None, to: Some([Player(You), Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [Controller(You)], or: None } })]), by: None, dur: ThisTurn, then: [] }, With { bind: [/* it */ Objects { quant: All, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } }], then: [Untap(Objects { quant: Introduced(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } }), ActionOn { who: You, name: "goad", what: Objects { quant: Bound(0) /* it */, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, AdditionalPhases { after: None, phases: [Combat] }] }])
 
 ## Temporal Isolation
 face: Temporal Isolation

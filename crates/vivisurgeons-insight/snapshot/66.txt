@@ -629,7 +629,7 @@ face: Kei Takahashi
 type: Legendary Creature — Human Cleric
 cost: {2}{G}{W}
 > {T}: Prevent the next 2 damage that would be dealt to target creature this turn.
-= Activated { cost: [Tap], effect: [Prevent { combat_only: false, n: Some(N(2)), to: Some([Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }], limits: [] }
+= Activated { cost: [Tap], effect: [Prevent { combat_only: false, n: Some(N(2)), to: Some([Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn, then: [] }], limits: [] }
 
 ## Kindred Judgment
 face: Kindred Judgment
@@ -962,7 +962,7 @@ cost: {2}{U}{U}
 > Exile the top card of your library: Prevent the next 1 damage that would be dealt to you this turn.
 = Keywords([Keyword { name: "cumulative upkeep", param: Some(Cost([Exile(Objects { quant: N(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } })])) }])
 = BROKE at "'s" after: when a player doesn't pay this enchantment
-= Activated { cost: [Exile(Objects { quant: N(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } })], effect: [Prevent { combat_only: false, n: Some(N(1)), to: Some([Player(You)]), by: None, dur: ThisTurn }], limits: [] }
+= Activated { cost: [Exile(Objects { quant: N(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } })], effect: [Prevent { combat_only: false, n: Some(N(1)), to: Some([Player(You)]), by: None, dur: ThisTurn, then: [] }], limits: [] }
 
 ## Towashi Guide-Bot
 face: Towashi Guide-Bot

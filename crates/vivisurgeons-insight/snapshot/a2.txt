@@ -823,7 +823,7 @@ type: Instant
 cost: {1}{G}
 > Prevent all combat damage that would be dealt this turn.
 > Each attacking creature doesn't untap during its controller's next untap step.
-= Spell([Prevent { combat_only: true, n: None, to: None, by: None, dur: ThisTurn }])
+= Spell([Prevent { combat_only: true, n: None, to: None, by: None, dur: ThisTurn, then: [] }])
 = Spell([Restrict { what: Objects { quant: Each, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } }, rule: DoesntUntapNext, dur: Permanent }])
 
 ## The Fantasticar

@@ -197,7 +197,7 @@ cost: {1}{W}
 > • Prevent all combat damage that would be dealt this turn.
 > • Regenerate target creature.
 > • Counter target spell that targets you.
-= Spell([Modal { choose: One, modes: [[Prevent { combat_only: true, n: None, to: None, by: None, dur: ThisTurn }], [Regenerate(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], [Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [TargetsRecipient(Player(You))], or: None } }, unless: None }]] }])
+= Spell([Modal { choose: One, modes: [[Prevent { combat_only: true, n: None, to: None, by: None, dur: ThisTurn, then: [] }], [Regenerate(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], [Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [TargetsRecipient(Player(You))], or: None } }, unless: None }]] }])
 
 ## Derelor
 face: Derelor
@@ -284,7 +284,7 @@ type: Legendary Land
 > {T}: Add {W}.
 > {W}, {T}: Prevent the next 2 damage that would be dealt to target legendary creature this turn.
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["W"])))], limits: [] }
-= Activated { cost: [Mana(Mana(["W"])), Tap], effect: [Prevent { combat_only: false, n: Some(N(2)), to: Some([Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Supertype("legendary"), Type("creature")]], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }], limits: [] }
+= Activated { cost: [Mana(Mana(["W"])), Tap], effect: [Prevent { combat_only: false, n: Some(N(2)), to: Some([Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Supertype("legendary"), Type("creature")]], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn, then: [] }], limits: [] }
 
 ## Elder Pine of Jukai
 face: Elder Pine of Jukai

@@ -184,7 +184,7 @@ face: Conservator
 type: Artifact
 cost: {4}
 > {3}, {T}: Prevent the next 2 damage that would be dealt to you this turn.
-= Activated { cost: [Mana(Mana(["3"])), Tap], effect: [Prevent { combat_only: false, n: Some(N(2)), to: Some([Player(You)]), by: None, dur: ThisTurn }], limits: [] }
+= Activated { cost: [Mana(Mana(["3"])), Tap], effect: [Prevent { combat_only: false, n: Some(N(2)), to: Some([Player(You)]), by: None, dur: ThisTurn, then: [] }], limits: [] }
 
 ## Dack's Duplicate
 face: Dack's Duplicate
@@ -427,7 +427,7 @@ cost: {2}
 > Equipped creature gets +0/+2 and has "{T}: Prevent the next 1 damage that would be dealt to any target this turn."
 > {W}{W}: Attach this Equipment to target creature you control.
 > Equip {1} ({1}: Attach to target creature you control. Equip only as a sorcery.)
-= Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(0), toughness: N(2), signed: true }), has: [], per: None }, HasAbility { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, ability: Activated { cost: [Tap], effect: [Prevent { combat_only: false, n: Some(N(1)), to: Some([Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }], limits: [] } }])
+= Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(0), toughness: N(2), signed: true }), has: [], per: None }, HasAbility { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, ability: Activated { cost: [Tap], effect: [Prevent { combat_only: false, n: Some(N(1)), to: Some([Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn, then: [] }], limits: [] } }])
 = Activated { cost: [Mana(Mana(["W", "W"]))], effect: [Attach { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] }
 = Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["1"]))])) }])
 
@@ -890,7 +890,7 @@ type: Instant
 cost: {1}{W}
 > Prevent the next 2 damage that would be dealt to any target this turn.
 > Draw a card at the beginning of the next turn's upkeep.
-= Spell([Prevent { combat_only: false, n: Some(N(2)), to: Some([Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }])
+= Spell([Prevent { combat_only: false, n: Some(N(2)), to: Some([Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn, then: [] }])
 = Spell([Delayed { step: Upkeep(NextTurns), then: [Draw { who: You, n: N(1) }] }])
 
 ## TCRI Building

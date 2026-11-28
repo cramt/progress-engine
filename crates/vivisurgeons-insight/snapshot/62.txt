@@ -641,7 +641,7 @@ cost: {3}{W}{U}
 > Whenever a creature an opponent controls becomes tapped, put a palliation counter on this enchantment.
 > Remove a palliation counter from this enchantment: Prevent the next 1 damage that would be dealt to you this turn.
 = Triggered { trigger: When(BecomesTapped(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } })), effect: [PutCounters { n: N(1), kind: "palliation", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
-= Activated { cost: [RemoveCounters { n: N(1), kind: "palliation", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], effect: [Prevent { combat_only: false, n: Some(N(1)), to: Some([Player(You)]), by: None, dur: ThisTurn }], limits: [] }
+= Activated { cost: [RemoveCounters { n: N(1), kind: "palliation", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], effect: [Prevent { combat_only: false, n: Some(N(1)), to: Some([Player(You)]), by: None, dur: ThisTurn, then: [] }], limits: [] }
 
 ## Plundering Predator
 face: Plundering Predator

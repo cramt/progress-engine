@@ -661,7 +661,7 @@ cost: {2}{W}
 > Flying
 > {T}: Prevent the next 1 damage that would be dealt to target player or planeswalker this turn.
 = Keywords([Keyword { name: "flying", param: None }])
-= Activated { cost: [Tap], effect: [Prevent { combat_only: false, n: Some(N(1)), to: Some([Or([Player(Target), Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [], or: None } })])]), by: None, dur: ThisTurn }], limits: [] }
+= Activated { cost: [Tap], effect: [Prevent { combat_only: false, n: Some(N(1)), to: Some([Or([Player(Target), Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [], or: None } })])]), by: None, dur: ThisTurn, then: [] }], limits: [] }
 
 ## Olivia, Opulent Outlaw
 face: Olivia, Opulent Outlaw

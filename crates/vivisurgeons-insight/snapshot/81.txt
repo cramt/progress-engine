@@ -637,7 +637,7 @@ cost: {1}{W}
 > Other Dogs you control get +1/+1.
 > Whenever this creature attacks, prevent all combat damage that would be dealt this turn to Dogs you control.
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Subtype("dog")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }])
-= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Prevent { combat_only: true, n: None, to: Some([Objects(Objects { quant: Plural, filter: Filter { alts: [[Subtype("dog")]], kind: None, posts: [Controller(You)], or: None } })]), by: None, dur: ThisTurn }], limits: [] }
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Prevent { combat_only: true, n: None, to: Some([Objects(Objects { quant: Plural, filter: Filter { alts: [[Subtype("dog")]], kind: None, posts: [Controller(You)], or: None } })]), by: None, dur: ThisTurn, then: [] }], limits: [] }
 
 ## Paragon of Gathering Mists
 face: Paragon of Gathering Mists
@@ -797,7 +797,7 @@ face: Sacred Boon
 type: Instant
 cost: {1}{W}
 > Prevent the next 3 damage that would be dealt to target creature this turn. At the beginning of the next end step, put a +0/+1 counter on that creature for each 1 damage prevented this way.
-= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Spell([Prevent { combat_only: false, n: Some(N(3)), to: Some([Objects(Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }, Delayed { step: EndStep(Next), then: [Repeat { times: DamagePrevented, then: [PutCounters { n: N(1), kind: "+0/+1", on: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }] }] }]) }
+= Let { bind: [/* target */ Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }], ability: Spell([Prevent { combat_only: false, n: Some(N(3)), to: Some([Objects(Objects { quant: Introduced(0) /* target */, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn, then: [] }, Delayed { step: EndStep(Next), then: [Repeat { times: DamagePrevented, then: [PutCounters { n: N(1), kind: "+0/+1", on: Objects { quant: Bound(0) /* target */, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }] }] }]) }
 
 ## Saprazzan Outrigger
 face: Saprazzan Outrigger

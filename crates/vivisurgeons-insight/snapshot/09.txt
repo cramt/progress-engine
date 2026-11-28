@@ -1044,7 +1044,7 @@ type: Instant
 cost: {2}{W}
 > Permanents you control gain indestructible until end of turn. If this spell was cast from exile, prevent all damage that would be dealt to you this turn.
 > Foretell {2}{W} (During your turn, you may pay {2} and exile this card from your hand face down. Cast it on a later turn for its foretell cost.)
-= Spell([Modify { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "indestructible", param: None }], dur: UntilEndOfTurn }, If { order: Leading, cond: CastFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Exile }, then: [Prevent { combat_only: false, n: None, to: Some([Player(You)]), by: None, dur: ThisTurn }] }])
+= Spell([Modify { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "indestructible", param: None }], dur: UntilEndOfTurn }, If { order: Leading, cond: CastFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Exile }, then: [Prevent { combat_only: false, n: None, to: Some([Player(You)]), by: None, dur: ThisTurn, then: [] }] }])
 = Keywords([Keyword { name: "foretell", param: Some(Cost([Mana(Mana(["2", "W"]))])) }])
 
 ## Veinfire Borderpost

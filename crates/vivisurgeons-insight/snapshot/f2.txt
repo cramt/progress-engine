@@ -665,7 +665,7 @@ cost: {2}{U}
 > II — Prevent all damage that would be dealt by up to one target creature for as long as this Saga remains on the battlefield.
 > III, IV — Draw a card.
 = Chapter { chapters: [1], effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "hexproof", param: None }], dur: ForAsLongAs(In { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Battlefield }) }] }
-= Chapter { chapters: [2], effect: [Prevent { combat_only: false, n: None, to: None, by: Some(Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), dur: ForAsLongAs(In { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Battlefield }) }] }
+= Chapter { chapters: [2], effect: [Prevent { combat_only: false, n: None, to: None, by: Some(Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), dur: ForAsLongAs(In { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Battlefield }), then: [] }] }
 = Chapter { chapters: [3, 4], effect: [Draw { who: You, n: N(1) }] }
 
 ## Omnath, Locus of Mana

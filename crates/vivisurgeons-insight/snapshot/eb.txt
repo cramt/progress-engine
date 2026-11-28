@@ -659,7 +659,7 @@ face: Leery Fogbeast
 type: Creature — Beast
 cost: {2}{G}
 > Whenever this creature becomes blocked, prevent all combat damage that would be dealt this turn.
-= Triggered { trigger: When(BecomesBlocked(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Prevent { combat_only: true, n: None, to: None, by: None, dur: ThisTurn }], limits: [] }
+= Triggered { trigger: When(BecomesBlocked(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Prevent { combat_only: true, n: None, to: None, by: None, dur: ThisTurn, then: [] }], limits: [] }
 
 ## Leonin Skyhunter
 face: Leonin Skyhunter

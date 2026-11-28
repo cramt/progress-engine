@@ -14,7 +14,7 @@ cost: {X}{W}{W}
 > Choose one —
 > • Target player gains X life.
 > • Prevent the next X damage that would be dealt to any target this turn.
-= Spell([Modal { choose: One, modes: [[GainLife { who: Target, n: X }], [Prevent { combat_only: false, n: Some(X), to: Some([Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }]] }])
+= Spell([Modal { choose: One, modes: [[GainLife { who: Target, n: X }], [Prevent { combat_only: false, n: Some(X), to: Some([Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn, then: [] }]] }])
 
 ## Ashiok's Reaper
 face: Ashiok's Reaper

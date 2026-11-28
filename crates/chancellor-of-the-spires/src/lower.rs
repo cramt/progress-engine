@@ -3970,7 +3970,8 @@ impl<'a> Scope<'a> {
                 to,
                 by,
                 dur: i::Duration::ThisTurn,
-            } => {
+                then,
+            } if then.is_empty() => {
                 let to = match to.as_deref() {
                     None => None,
                     Some([i::Recipient::Objects(o)]) => Some(o),

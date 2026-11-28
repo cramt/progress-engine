@@ -499,7 +499,7 @@ type: Instant
 cost: {1}{G}
 > Prevent all combat damage that would be dealt this turn.
 > Cycling {3} ({3}, Discard this card: Draw a card.)
-= Spell([Prevent { combat_only: true, n: None, to: None, by: None, dur: ThisTurn }])
+= Spell([Prevent { combat_only: true, n: None, to: None, by: None, dur: ThisTurn, then: [] }])
 = Keywords([Keyword { name: "cycling", param: Some(Cost([Mana(Mana(["3"]))])) }])
 
 ## Hellrider

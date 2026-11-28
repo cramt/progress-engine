@@ -1020,8 +1020,8 @@ type: Instant
 cost: {1}{G}
 > Prevent all combat damage that would be dealt this turn.
 > Ferocious — If you control a creature with power 4 or greater, instead prevent all combat damage that would be dealt this turn by creatures your opponents control.
-= Spell([Prevent { combat_only: true, n: None, to: None, by: None, dur: ThisTurn }])
-= Labelled { label: "ferocious", ability: Spell([Instead { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Ge, value: N(4) })], or: None } }), then: [Prevent { combat_only: true, n: None, to: None, by: Some(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(EachOpponent)], or: None } }), dur: ThisTurn }] }]) }
+= Spell([Prevent { combat_only: true, n: None, to: None, by: None, dur: ThisTurn, then: [] }])
+= Labelled { label: "ferocious", ability: Spell([Instead { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Ge, value: N(4) })], or: None } }), then: [Prevent { combat_only: true, n: None, to: None, by: Some(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(EachOpponent)], or: None } }), dur: ThisTurn, then: [] }] }]) }
 
 ## Wolverine, Best There Is
 face: Wolverine, Best There Is

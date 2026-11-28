@@ -719,7 +719,7 @@ face: Respite
 type: Instant
 cost: {1}{G}
 > Prevent all combat damage that would be dealt this turn. You gain 1 life for each attacking creature.
-= Spell([Prevent { combat_only: true, n: None, to: None, by: None, dur: ThisTurn }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } }, then: [GainLife { who: You, n: N(1) }] }])
+= Spell([Prevent { combat_only: true, n: None, to: None, by: None, dur: ThisTurn, then: [] }, ForEach { order: Trailing, each: Objects { quant: Plural, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } }, then: [GainLife { who: You, n: N(1) }] }])
 
 ## Samut, Hazoret's Champion
 face: Samut, Hazoret's Champion

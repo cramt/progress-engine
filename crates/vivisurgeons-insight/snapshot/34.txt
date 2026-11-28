@@ -259,7 +259,7 @@ cost: {3}{W}
 > When this creature enters, prevent the next 3 damage that would be dealt to any target this turn.
 > Evoke {W} (You may cast this spell for its evoke cost. If you do, it's sacrificed when it enters.)
 = Keywords([Keyword { name: "flash", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Prevent { combat_only: false, n: Some(N(3)), to: Some([Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Prevent { combat_only: false, n: Some(N(3)), to: Some([Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn, then: [] }], limits: [] }
 = Keywords([Keyword { name: "evoke", param: Some(Cost([Mana(Mana(["W"]))])) }])
 
 ## Deathbonnet Sprout // Deathbonnet Hulk

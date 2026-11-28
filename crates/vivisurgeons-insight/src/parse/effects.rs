@@ -2367,7 +2367,7 @@ fn effect_more(p: &mut P) -> Option<Effect> {
             p.words("would deal to")?;
             let to = recipients(p)?;
             let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
-            Some(Effect::Prevent { combat_only: false, n: None, to: Some(to), by: Some(by), dur })
+            Some(Effect::Prevent { combat_only: false, n: None, to: Some(to), by: Some(by), dur, then: vec![] })
         },
     )
 }
@@ -2879,6 +2879,7 @@ pub(super) fn prevent(p: &mut P) -> Option<Effect> {
                 _ => o,
             }),
             dur,
+            then: vec![],
         });
     }
     // "that would be dealt this turn to Dogs you control": the duration
@@ -2901,6 +2902,7 @@ pub(super) fn prevent(p: &mut P) -> Option<Effect> {
         to,
         by,
         dur,
+        then: vec![],
     })
 }
 

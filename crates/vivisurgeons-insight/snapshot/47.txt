@@ -411,7 +411,7 @@ face: Indestructible Aura
 type: Instant
 cost: {W}
 > Prevent all damage that would be dealt to target creature this turn.
-= Spell([Prevent { combat_only: false, n: None, to: Some([Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }])
+= Spell([Prevent { combat_only: false, n: None, to: Some([Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn, then: [] }])
 
 ## Jade Seedstones // Jadeheart Attendant
 face: Jade Seedstones

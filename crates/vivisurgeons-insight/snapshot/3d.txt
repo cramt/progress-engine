@@ -581,7 +581,7 @@ type: Instant
 cost: {1}{G}
 > Prevent all combat damage that would be dealt this turn.
 > Flashback {2}{G} (You may cast this card from your graveyard for its flashback cost. Then exile it.)
-= Spell([Prevent { combat_only: true, n: None, to: None, by: None, dur: ThisTurn }])
+= Spell([Prevent { combat_only: true, n: None, to: None, by: None, dur: ThisTurn, then: [] }])
 = Keywords([Keyword { name: "flashback", param: Some(Cost([Mana(Mana(["2", "G"]))])) }])
 
 ## Murdock's Crusade

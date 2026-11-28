@@ -642,7 +642,7 @@ cost: {B}
 > {G}, {T}: Add one mana of any color.
 > {W}, {T}: Prevent the next 1 damage that would be dealt to any target this turn.
 = Activated { cost: [Mana(Mana(["G"])), Tap], effect: [AddMana(Of { n: N(1), pick: AnyColor, within: None })], limits: [] }
-= Activated { cost: [Mana(Mana(["W"])), Tap], effect: [Prevent { combat_only: false, n: Some(N(1)), to: Some([Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }], limits: [] }
+= Activated { cost: [Mana(Mana(["W"])), Tap], effect: [Prevent { combat_only: false, n: Some(N(1)), to: Some([Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn, then: [] }], limits: [] }
 
 ## Nefarious Lich
 face: Nefarious Lich

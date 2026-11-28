@@ -348,7 +348,7 @@ face: Forfend
 type: Instant
 cost: {1}{W}
 > Prevent all damage that would be dealt to creatures this turn.
-= Spell([Prevent { combat_only: false, n: None, to: Some([Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }])
+= Spell([Prevent { combat_only: false, n: None, to: Some([Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn, then: [] }])
 
 ## Furious Resistance
 face: Furious Resistance
@@ -1094,7 +1094,7 @@ face: Warning
 type: Instant
 cost: {W}
 > Prevent all combat damage that would be dealt by target attacking creature this turn.
-= Spell([Prevent { combat_only: true, n: None, to: None, by: Some(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } }), dur: ThisTurn }])
+= Spell([Prevent { combat_only: true, n: None, to: None, by: Some(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } }), dur: ThisTurn, then: [] }])
 
 ## Witch-king of Angmar
 face: Witch-king of Angmar

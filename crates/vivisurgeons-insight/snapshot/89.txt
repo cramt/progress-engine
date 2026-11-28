@@ -490,7 +490,7 @@ face: Hold at Bay
 type: Instant
 cost: {1}{W}
 > Prevent the next 7 damage that would be dealt to any target this turn.
-= Spell([Prevent { combat_only: false, n: Some(N(7)), to: Some([Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }])
+= Spell([Prevent { combat_only: false, n: Some(N(7)), to: Some([Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn, then: [] }])
 
 ## Hope-Ender Coatl
 face: Hope-Ender Coatl

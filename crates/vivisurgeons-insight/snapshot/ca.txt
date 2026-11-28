@@ -247,7 +247,7 @@ face: Defend the Hearth
 type: Instant
 cost: {1}{G}
 > Prevent all combat damage that would be dealt to players this turn.
-= Spell([Prevent { combat_only: true, n: None, to: Some([Objects(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Player), posts: [], or: None } })]), by: None, dur: ThisTurn }])
+= Spell([Prevent { combat_only: true, n: None, to: Some([Objects(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Player), posts: [], or: None } })]), by: None, dur: ThisTurn, then: [] }])
 
 ## Dig Site Inventory
 face: Dig Site Inventory
@@ -360,7 +360,7 @@ cost: {3}{G}
 > Create X 1/1 green Elf Warrior creature tokens, where X is the number of attacking creatures.
 > Prevent all combat damage that would be dealt this turn by non-Elf creatures.
 = Spell([Where { then: [Create { who: You, n: X, token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Green], types: ["elf", "warrior", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], x: CountOf(Objects { quant: Plural, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } }) }])
-= Spell([Prevent { combat_only: true, n: None, to: None, by: Some(Objects { quant: Plural, filter: Filter { alts: [[Non("elf"), Type("creature")]], kind: None, posts: [], or: None } }), dur: ThisTurn }])
+= Spell([Prevent { combat_only: true, n: None, to: None, by: Some(Objects { quant: Plural, filter: Filter { alts: [[Non("elf"), Type("creature")]], kind: None, posts: [], or: None } }), dur: ThisTurn, then: [] }])
 
 ## Gempalm Avenger
 face: Gempalm Avenger
@@ -440,8 +440,8 @@ type: Creature — Human Cleric
 cost: {2}{W}
 > {T}: Prevent the next 2 damage that would be dealt to any target this turn.
 > Threshold — {T}: Prevent the next 4 damage that would be dealt to any target this turn. Activate only if there are seven or more cards in your graveyard.
-= Activated { cost: [Tap], effect: [Prevent { combat_only: false, n: Some(N(2)), to: Some([Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }], limits: [] }
-= Labelled { label: "threshold", ability: Activated { cost: [Tap], effect: [Prevent { combat_only: false, n: Some(N(4)), to: Some([Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }], limits: [OnlyIf(AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) })] } }
+= Activated { cost: [Tap], effect: [Prevent { combat_only: false, n: Some(N(2)), to: Some([Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn, then: [] }], limits: [] }
+= Labelled { label: "threshold", ability: Activated { cost: [Tap], effect: [Prevent { combat_only: false, n: Some(N(4)), to: Some([Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn, then: [] }], limits: [OnlyIf(AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) })] } }
 
 ## Hunted Witness
 face: Hunted Witness
@@ -669,7 +669,7 @@ face: Mtenda Lion
 type: Creature — Cat
 cost: {G}
 > Whenever this creature attacks, defending player may pay {U}. If that player does, prevent all combat damage that would be dealt by this creature this turn.
-= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: DefendingPlayer, then: [Pay { who: DefendingPlayer, cost: [Mana(Mana(["U"]))] }] }, IfYouDo([Prevent { combat_only: true, n: None, to: None, by: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), dur: ThisTurn }])], limits: [] }
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: DefendingPlayer, then: [Pay { who: DefendingPlayer, cost: [Mana(Mana(["U"]))] }] }, IfYouDo([Prevent { combat_only: true, n: None, to: None, by: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), dur: ThisTurn, then: [] }])], limits: [] }
 
 ## Naga Vitalist
 face: Naga Vitalist

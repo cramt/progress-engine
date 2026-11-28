@@ -1056,7 +1056,7 @@ cost: {4}{W}
 > Remove a healing counter from this creature: Prevent the next 1 damage that would be dealt to this creature this turn.
 > {2}{W}: Put a healing counter on this creature.
 = Static([EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(4), kind: "healing" }])
-= Activated { cost: [RemoveCounters { n: N(1), kind: "healing", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], effect: [Prevent { combat_only: false, n: Some(N(1)), to: Some([Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }], limits: [] }
+= Activated { cost: [RemoveCounters { n: N(1), kind: "healing", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], effect: [Prevent { combat_only: false, n: Some(N(1)), to: Some([Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn, then: [] }], limits: [] }
 = Activated { cost: [Mana(Mana(["2", "W"]))], effect: [PutCounters { n: N(1), kind: "healing", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Valiant Changeling

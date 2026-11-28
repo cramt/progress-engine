@@ -284,7 +284,7 @@ face: Druid's Deliverance
 type: Instant
 cost: {1}{G}
 > Prevent all combat damage that would be dealt to you this turn. Populate. (Create a token that's a copy of a creature token you control.)
-= Spell([Prevent { combat_only: true, n: None, to: Some([Player(You)]), by: None, dur: ThisTurn }, Action { by: None, name: "populate", n: None }])
+= Spell([Prevent { combat_only: true, n: None, to: Some([Player(You)]), by: None, dur: ThisTurn, then: [] }, Action { by: None, name: "populate", n: None }])
 
 ## Elrond of the White Council
 face: Elrond of the White Council
